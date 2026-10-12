@@ -42,11 +42,12 @@ Mobile (no Flutter SDK is assumed locally; CI builds it): only `lib/`, `test/`, 
 `flutter create --platforms=android --org ru.votes .`. Keep `mobile/test/widget_test.dart` in the repo:
 otherwise `flutter create` generates a default test referencing `MyApp` and `flutter analyze` fails.
 
-## CI/CD (`.github/workflows/ci.yml`)
+## CI/CD (`.github/workflows/`)
 
-Runs on every push and PR: `backend` (ruff, migrations check, pytest) and `android`
-(`flutter analyze`, `flutter build apk`). On push to `main`, the `release` job publishes a GitHub
-Release `build-<run_number>` with `votes.apk`; the stable download link is
+`ci.yml` runs on every push and PR: ruff, migrations check, pytest. `android.yml` runs only when
+`mobile/**` or the workflow itself changes (plus manual `workflow_dispatch`): `flutter analyze`,
+`flutter build apk`; on `main` its `release` job publishes a GitHub Release `apk-<run_number>` with
+`votes.apk`. Backend-only changes don't produce a new APK. The stable download link is
 `releases/latest/download/votes.apk`. The server URL baked into the APK is
 `vars.SERVER_URL || https://hakaton.marshmeg.ru` (also the Dart default in `mobile/lib/main.dart`).
 
