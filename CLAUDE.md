@@ -91,6 +91,8 @@ Three Django apps under `backend/`:
   re-encoded with Pillow to a 256×256 JPEG and stored in `Profile.avatar` (default storage, `avatars/`).
   In the APK the file chooser for that `<input type="file">` is wired in `mobile/lib/main.dart`
   (`setOnShowFileSelector` + `image_picker`) — Android WebView does not open one by itself.
+  `accounts:password_change` is Django's `PasswordChangeView`; the minimum password length (6) is set in
+  `AUTH_PASSWORD_VALIDATORS` to match `SignupForm`.
 
 Templates: each exercise kind has its own partial in `templates/learning/partials/exercises/`;
 client-side interaction (tile assembly, pair matching, the on-screen Udmurt letter keyboard) is

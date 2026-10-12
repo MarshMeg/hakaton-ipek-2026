@@ -199,3 +199,22 @@ def test_profile_edit_rejects_taken_username_and_bad_image(client):
     response = client.post(url, data | {"username": "aino", "avatar": fake})
     assert response.status_code == 200
     assert get_user_model().objects.filter(username="player").exists()
+
+
+def test_password_change_from_profile(client):
+    assert (
+        reverse("accounts:password_change")
+        in client.get(reverse("accounts:profile")).content.decode()
+    )
+    url = reverse("accounts:password_change")
+    new = {"new_password1": "newpass", "new_password2": "newpass"}
+
+    response = client.post(url, {"old_password": "wrong"} | new)
+    assert response.status_code == 200
+    assert get_user_model().objects.get().check_password("secret123")
+
+    response = client.post(url, {"old_password": "secret123"} | new)
+    assert response.url == reverse("accounts:profile")
+    assert get_user_model().objects.get().check_password("newpass")
+    # После смены пароля игрок остаётся в игре.
+    assert client.get(reverse("learning:home")).status_code == 200

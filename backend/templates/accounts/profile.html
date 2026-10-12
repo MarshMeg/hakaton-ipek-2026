@@ -2,10 +2,16 @@
 {% block content %}
 <div class="mt-8 flex items-center gap-4">
   {% include "accounts/_avatar.html" with size="h-20 w-20 text-4xl" %}
-  <div class="min-w-0">
+  <div class="min-w-0 flex-1">
     <h1 class="break-words text-2xl font-extrabold leading-tight">{{ player.get_full_name|default:player.username }}</h1>
     <p class="text-sm text-gray-600">@{{ player.username }} · в игре с {{ player.date_joined|date:"j E Y" }}</p>
   </div>
+  <a href="{% url 'accounts:profile_edit' %}" title="Изменить профиль" aria-label="Изменить профиль"
+     class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border-2 border-b-4 border-gray-300 bg-white text-brand-ink transition active:translate-y-0.5 active:border-b-2">
+    <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+    </svg>
+  </a>
 </div>
 
 {% if profile.is_guest %}
@@ -40,7 +46,7 @@
 
 <div class="mt-10 grid gap-3">
   <a href="{% url 'learning:home' %}" class="btn-primary">К урокам</a>
-  <a href="{% url 'accounts:profile_edit' %}" class="btn-ghost">Изменить профиль</a>
+  {% if not profile.is_guest %}<a href="{% url 'accounts:password_change' %}" class="btn-ghost">Сменить пароль</a>{% endif %}
   <form method="post" action="{% url 'accounts:logout' %}" class="grid">
     {% csrf_token %}
     <button class="btn-ghost">Выйти</button>
