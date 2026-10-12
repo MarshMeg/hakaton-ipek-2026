@@ -3,7 +3,7 @@
  * достаточно поменять цвета и шрифт здесь и пересобрать CSS (см. README).
  */
 module.exports = {
-  content: ["./templates/**/*.html", "./**/templates/**/*.html"],
+  content: ["./templates/**/*.html"],
   theme: {
     extend: {
       colors: {

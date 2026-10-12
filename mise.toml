@@ -1,0 +1,9 @@
+# Корневой конфиг: только общие задачи. Инструменты — в backend/mise.toml и mobile/mise.toml,
+# чтобы каждый (и Docker-образ) ставил только нужное.
+[tasks.up]
+description = "Весь стек в Docker: web + PostgreSQL + MinIO"
+run = "docker compose up --build"
+
+[tasks.down]
+description = "Остановить стек Docker"
+run = "docker compose down"
