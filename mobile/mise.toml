@@ -8,6 +8,7 @@ description = "Сгенерировать платформенные файлы 
 run = [
   "flutter create --platforms=android --org ru.votes .",
   "flutter pub get",
+  "dart run flutter_launcher_icons",
 ]
 
 [tasks.check]
