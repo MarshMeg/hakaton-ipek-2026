@@ -101,3 +101,41 @@ def test_signup_keeps_guest_progress(client, lesson):
     guest.refresh_from_db()
     assert guest.username == "aino"
     assert not guest.profile.is_guest
+
+
+def test_profile_shows_progress(client, lesson):
+    client.get(reverse("learning:lesson_start", args=[lesson.id]))
+    for exercise in lesson.exercises.all():
+        client.post(
+            reverse("learning:lesson_answer", args=[lesson.id]),
+            {"answer": _right_answer(exercise)},
+            **HTMX,
+        )
+        client.get(reverse("learning:lesson_next", args=[lesson.id]), **HTMX)
+
+    response = client.get(reverse("accounts:profile"))
+    assert response.status_code == 200
+    assert response.context["lessons_done"] == 1
+    assert response.context["lessons_total"] == Lesson.objects.count()
+    html = response.content.decode()
+    assert "player" in html
+    assert lesson.title in html
+
+
+def test_profile_requires_login(db):
+    response = Client().get(reverse("accounts:profile"))
+    assert response.status_code == 302
+    assert response.url.startswith(reverse("accounts:login"))
+
+
+def test_admin_cannot_edit_lesson_results(admin_client, lesson):
+    admin = get_user_model().objects.get(username="admin")
+    result = LessonResult.objects.create(user=admin, lesson=lesson, xp=10)
+    change_url = reverse("admin:learning_lessonresult_change", args=[result.id])
+
+    assert admin_client.get(reverse("admin:learning_lessonresult_changelist")).status_code == 200
+    assert admin_client.get(change_url).status_code == 200  # только просмотр
+    assert admin_client.post(change_url, {"xp": 999}).status_code == 403
+    assert admin_client.get(reverse("admin:learning_lessonresult_add")).status_code == 403
+    result.refresh_from_db()
+    assert result.xp == 10

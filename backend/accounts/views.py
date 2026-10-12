@@ -1,9 +1,13 @@
 from django.contrib.auth import get_user_model, login
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect, render
 
+from courses.models import Lesson
+
 from .forms import SignupForm
 from .models import Profile
+from .services import get_player
 
 
 def signup(request):
@@ -28,6 +32,19 @@ def signup(request):
         login(request, user)
         return redirect("learning:home")
     return render(request, "accounts/signup.html", {"form": form})
+
+
+@login_required
+def profile(request):
+    player = get_player(request)
+    results = player.lesson_results.select_related("lesson")
+    context = {
+        "player": player,
+        "lessons_done": results.values("lesson").distinct().count(),
+        "lessons_total": Lesson.objects.count(),
+        "recent_results": results[:5],
+    }
+    return render(request, "accounts/profile.html", context)
 
 
 class PlayerLoginView(LoginView):
