@@ -28,7 +28,7 @@
 ## Стек
 | Слой | Технологии |
 |---|---|
-| Backend | Python 3.12, Django 5.2, gunicorn, whitenoise |
+| Backend | Python 3.12 (uv), Django 5.2, gunicorn, whitenoise |
 | Frontend | Django Templates, HTMX, Alpine.js, Tailwind CSS (брендбук в `backend/tailwind.config.js`) |
 | Данные | PostgreSQL 16, MinIO (S3) для аудио и картинок |
 | Мобильное приложение | Flutter (Dart) + `webview_flutter` |
@@ -57,8 +57,8 @@ docker compose up --build
 Инструменты ставятся через [mise](https://mise.jdx.dev), подробная инструкция — [LOCAL_SETUP.md](LOCAL_SETUP.md).
 ```bash
 cd backend
-mise trust && mise install   # Python 3.12 + Tailwind CLI
-mise run setup               # venv, зависимости, миграции, стартовый курс
+mise trust && mise install   # uv + Tailwind CLI
+mise run setup               # uv sync (Python 3.12, зависимости), миграции, стартовый курс
 mise run dev                 # http://localhost:8000
 ```
 Без переменной `DATABASE_URL` используется SQLite, без `USE_S3=1` медиа хранятся в `backend/media/`.
@@ -70,6 +70,10 @@ APK собирается в GitHub Actions при изменениях в `mobil
 Actions → Android → Run workflow) и публикуется в
 [Releases](https://github.com/MarshMeg/hakaton-ipek-2026/releases). Приложение открывает сервер
 `https://hakaton.marshmeg.ru`; адрес можно поменять в самом приложении (экран «Нет связи с сервером»).
+
+**Сборка с выбором адреса** — для проверки на своём сервере, при каждом запуске спрашивает, какой
+адрес открыть: https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes-ask.apk
+(локально: `mise run apk:ask`).
 
 Сборка вручную (Flutter и Java ставит mise, Android SDK — Android Studio), см. [LOCAL_SETUP.md](LOCAL_SETUP.md):
 ```bash
@@ -96,7 +100,7 @@ mise run css         # или mise run css:watch
 
 ## Контент
 Курс описывается в `backend/seeds/content.yaml` (формат описан в начале файла) и загружается командой
-`python manage.py seed --reset`. Также его можно редактировать в админке.
+`mise run seed`. Также его можно редактировать в админке.
 
 > ⚠️ Стартовые слова и фразы демонстрационные. Перед сдачей их нужно сверить с носителем языка
 > или с материалами кейса.
