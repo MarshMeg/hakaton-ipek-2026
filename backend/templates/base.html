@@ -23,9 +23,11 @@
         <span class="whitespace-nowrap" title="Дней подряд">🔥 {{ profile.streak }}</span>
         <span class="whitespace-nowrap" title="Опыт">⭐ {{ profile.xp }}</span>
         <a href="{% url 'learning:leaderboard' %}" title="Таблица лидеров" aria-label="Таблица лидеров">🏆</a>
-        <a href="{% url 'accounts:profile' %}" title="Профиль" class="flex min-w-0 items-center gap-2">
+        <a href="{% url 'accounts:profile' %}" title="Профиль" aria-label="Профиль: {{ profile.display_name }}"
+           class="flex min-w-0 items-center gap-2">
           {% include "accounts/_avatar.html" with size="h-9 w-9" %}
-          <span class="truncate text-sm">{{ profile.display_name }}</span>
+          {# На узком экране имя не помещается («Ива…») — там остаётся только аватарка. #}
+          <span class="hidden truncate text-sm sm:inline" aria-hidden="true">{{ profile.display_name }}</span>
         </a>
       </div>
       {% endif %}
@@ -34,5 +36,27 @@
   </header>
   {% endblock %}
   <main class="mx-auto max-w-xl px-4 pb-10">{% block content %}{% endblock %}</main>
+  <script>
+    // Свои русские подсказки HTML5-валидации вместо браузерных (на телефоне с английским
+    // языком было бы «Please fill out this field»). Серверная валидация Django не меняется.
+    document.addEventListener("invalid", (e) => {
+      const f = e.target;
+      if (!f.validity || f.validity.customError) return;
+      if (f.validity.valueMissing) {
+        f.setCustomValidity(f.type === "file" ? "Выбери файл" : "Заполни это поле");
+      } else if (f.validity.tooShort) {
+        f.setCustomValidity("Слишком коротко: нужно не меньше " + f.minLength + " символов");
+      } else if (f.validity.tooLong) {
+        f.setCustomValidity("Слишком длинно: не больше " + f.maxLength + " символов");
+      } else if (f.validity.typeMismatch || f.validity.patternMismatch) {
+        f.setCustomValidity("Проверь, правильно ли заполнено поле");
+      }
+    }, true);
+    // Как только игрок начинает исправлять поле, сбрасываем подсказку — иначе поле так и
+    // осталось бы «неверным» и форма не отправилась бы.
+    const resetValidity = (e) => { if (e.target.setCustomValidity) e.target.setCustomValidity(""); };
+    document.addEventListener("input", resetValidity, true);
+    document.addEventListener("change", resetValidity, true);
+  </script>
 </body>
 </html>
