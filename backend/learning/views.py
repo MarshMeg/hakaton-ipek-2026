@@ -71,7 +71,10 @@ def leaderboard(request):
     for index, entry in enumerate(top, start=1):
         if not rows or entry.xp != rows[-1]["profile"].xp:
             place = index
-        rows.append({"place": place, "profile": entry, "me": entry.user_id == player.id})
+        me = entry.user_id == player.id
+        # Анонимного игрока другие видят как «Аноним», а сам он — под своим именем.
+        hidden = entry.leaderboard_anonymous and not me
+        rows.append({"place": place, "profile": entry, "me": me, "hidden": hidden})
     mine = player.profile
     my_place = None
     if not mine.is_guest and mine.xp > 0:

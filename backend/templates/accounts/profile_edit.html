@@ -18,7 +18,7 @@
       {% for err in form.avatar.errors %}<span class="text-sm text-bad">{{ err }}</span>{% endfor %}
     </div>
   </div>
-  {% for field in form %}{% if field.name != "avatar" and field.name != "remove_avatar" %}
+  {% for field in form %}{% if field.name != "avatar" and field.name != "remove_avatar" and field.name != "leaderboard_anonymous" %}
   <label class="grid gap-1 font-bold">
     {{ field.label }}
     <input type="text" name="{{ field.html_name }}" required value="{{ field.value|default:'' }}"
@@ -26,6 +26,13 @@
     {% for err in field.errors %}<span class="text-sm text-bad">{{ err }}</span>{% endfor %}
   </label>
   {% endif %}{% endfor %}
+  <label class="flex items-start gap-3 font-bold">
+    <input type="checkbox" name="leaderboard_anonymous" class="mt-1 h-5 w-5 shrink-0"
+           {% if form.leaderboard_anonymous.value %}checked{% endif %}>
+    <span>{{ form.leaderboard_anonymous.label }}
+      <span class="block text-sm font-normal text-gray-500">Другие игроки увидят «Аноним» вместо твоего имени и аватарки.</span>
+    </span>
+  </label>
   <button class="btn-primary">Сохранить</button>
   <a href="{% url 'accounts:profile' %}" class="btn-ghost">Отмена</a>
 </form>

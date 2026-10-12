@@ -16,6 +16,8 @@ class Profile(models.Model):
     streak = models.PositiveIntegerField("серия дней", default=0)
     last_active = models.DateField("последнее занятие", null=True, blank=True)
     avatar = models.ImageField("аватарка", upload_to="avatars/", blank=True)
+    # В таблице лидеров другие игроки видят вместо имени и аватарки «Аноним».
+    leaderboard_anonymous = models.BooleanField("анонимно в таблице лидеров", default=False)
 
     class Meta:
         verbose_name = "профиль"
