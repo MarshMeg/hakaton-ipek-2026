@@ -1,7 +1,11 @@
 # Стартовый контент курса. Загружается командой: python manage.py seed [--reset]
+# Без --reset команда только добавляет новые разделы и уроки (по названию); чтобы изменить уже
+# загруженный урок, правьте его в админке или переименуйте урок здесь.
 #
 # ВНИМАНИЕ: слова и фразы — демонстрационные. Перед сдачей их нужно сверить
 # с носителем языка / материалами кейса (критерий «контент соответствует действительности»).
+# Все разделы начиная с «Цвета вокруг» добавлены без проверки носителем —
+# особенно внимательно проверьте фразы (упражнения assemble) и слова родства.
 #
 # Типы упражнений (kind):
 #   choice   — prompt + options, answer = один из options
@@ -119,3 +123,583 @@ units:
           - kind: type
             prompt: чёрный
             answer: сьӧд
+
+  - title: Цвета вокруг
+    title_udm: ""
+    lessons:
+      - title: Зелёный, синий, жёлтый
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [вож, зелёный]
+              - [лыз, синий]
+              - [ӵуж, жёлтый]
+          - kind: choice
+            prompt: зелёный
+            answer: вож
+            options: [вож, лыз, горд]
+          - kind: choice
+            prompt: ӵуж
+            answer: жёлтый
+            options: [жёлтый, синий, белый]
+          - kind: type
+            prompt: синий
+            answer: лыз
+          - kind: type
+            prompt: жёлтый
+            answer: ӵуж
+            hint: первая буква — «ӵ»
+
+  - title: Семья
+    title_udm: ""
+    lessons:
+      - title: Мама и папа
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [анай, мама]
+              - [атай, папа]
+              - [пи, мальчик]
+              - [ныл, девочка]
+          - kind: choice
+            prompt: мама
+            answer: анай
+            options: [анай, атай, ныл]
+          - kind: choice
+            prompt: атай
+            answer: папа
+            options: [папа, мама, мальчик]
+          - kind: type
+            prompt: папа
+            answer: атай
+          - kind: assemble
+            prompt: Моя мама
+            answer: Мынам анае
+            options: [Мынам, анае, атай, тау]
+      - title: Братья и сёстры
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [агай, старший брат]
+              - [апай, старшая сестра]
+              - [выны, младший брат]
+              - [сузэр, младшая сестра]
+          - kind: choice
+            prompt: старшая сестра
+            answer: апай
+            options: [апай, агай, сузэр]
+          - kind: choice
+            prompt: выны
+            answer: младший брат
+            options: [младший брат, старший брат, младшая сестра]
+          - kind: type
+            prompt: младшая сестра
+            answer: сузэр
+          - kind: choice
+            prompt: друг
+            answer: эш
+            options: [эш, пи, выны]
+
+  - title: Животные
+    title_udm: ""
+    lessons:
+      - title: Дома и во дворе
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [пуны, собака]
+              - [коӵыш, кошка]
+              - [вал, лошадь]
+              - [скал, корова]
+          - kind: choice
+            prompt: кошка
+            answer: коӵыш
+            options: [коӵыш, пуны, скал]
+          - kind: choice
+            prompt: вал
+            answer: лошадь
+            options: [лошадь, корова, собака]
+          - kind: type
+            prompt: собака
+            answer: пуны
+          - kind: choice
+            prompt: курица
+            answer: курег
+            options: [курег, скал, вал]
+      - title: В лесу
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [гондыр, медведь]
+              - [кион, волк]
+              - [ӟичы, лиса]
+              - [лудкеч, заяц]
+          - kind: choice
+            prompt: медведь
+            answer: гондыр
+            options: [гондыр, кион, ӟичы]
+          - kind: choice
+            prompt: лудкеч
+            answer: заяц
+            options: [заяц, волк, лиса]
+          - kind: type
+            prompt: волк
+            answer: кион
+          - kind: type
+            prompt: лиса
+            answer: ӟичы
+            hint: первая буква — «ӟ»
+
+  - title: Еда
+    title_udm: ""
+    lessons:
+      - title: Хлеб и вода
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [нянь, хлеб]
+              - [ву, вода]
+              - [йӧл, молоко]
+              - [шыд, суп]
+          - kind: choice
+            prompt: молоко
+            answer: йӧл
+            options: [йӧл, ву, шыд]
+          - kind: choice
+            prompt: нянь
+            answer: хлеб
+            options: [хлеб, суп, вода]
+          - kind: type
+            prompt: вода
+            answer: ву
+          - kind: assemble
+            prompt: Я пью воду.
+            answer: Мон ву юисько
+            options: [Мон, ву, юисько, нянь, тау]
+      - title: За столом
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [сӥль, мясо]
+              - [чорыг, рыба]
+              - [улмо, яблоко]
+              - [сылал, соль]
+          - kind: choice
+            prompt: рыба
+            answer: чорыг
+            options: [чорыг, сӥль, улмо]
+          - kind: choice
+            prompt: улмо
+            answer: яблоко
+            options: [яблоко, соль, мясо]
+          - kind: type
+            prompt: мясо
+            answer: сӥль
+          - kind: assemble
+            prompt: Я ем хлеб.
+            answer: Мон нянь сиисько
+            options: [Мон, нянь, сиисько, ву, шыд]
+
+  - title: Природа
+    title_udm: ""
+    lessons:
+      - title: На небе
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [шунды, солнце]
+              - [толэзь, луна]
+              - [кизили, звезда]
+          - kind: choice
+            prompt: солнце
+            answer: шунды
+            options: [шунды, толэзь, кизили]
+          - kind: choice
+            prompt: кизили
+            answer: звезда
+            options: [звезда, луна, солнце]
+          - kind: type
+            prompt: луна
+            answer: толэзь
+          - kind: assemble
+            prompt: Солнце светит.
+            answer: Шунды пиштэ
+            options: [Шунды, пиштэ, толэзь, зоре]
+      - title: Погода
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [зор, дождь]
+              - [лымы, снег]
+              - [тӧл, ветер]
+          - kind: choice
+            prompt: снег
+            answer: лымы
+            options: [лымы, зор, тӧл]
+          - kind: choice
+            prompt: тӧл
+            answer: ветер
+            options: [ветер, дождь, снег]
+          - kind: type
+            prompt: дождь
+            answer: зор
+          - kind: assemble
+            prompt: Идёт дождь.
+            answer: Зор зоре
+            options: [Зор, зоре, лымы, пиштэ]
+      - title: Лес и река
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [нюлэс, лес]
+              - [шур, река]
+              - [писпу, дерево]
+              - [сяська, цветок]
+          - kind: choice
+            prompt: река
+            answer: шур
+            options: [шур, нюлэс, писпу]
+          - kind: choice
+            prompt: сяська
+            answer: цветок
+            options: [цветок, дерево, лес]
+          - kind: type
+            prompt: лес
+            answer: нюлэс
+          - kind: type
+            prompt: дерево
+            answer: писпу
+
+  - title: Тело
+    title_udm: ""
+    lessons:
+      - title: Голова, руки, ноги
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [йыр, голова]
+              - [ки, рука]
+              - [пыд, нога]
+          - kind: choice
+            prompt: рука
+            answer: ки
+            options: [ки, пыд, йыр]
+          - kind: choice
+            prompt: йыр
+            answer: голова
+            options: [голова, нога, рука]
+          - kind: type
+            prompt: нога
+            answer: пыд
+          - kind: type
+            prompt: голова
+            answer: йыр
+      - title: Лицо
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [син, глаз]
+              - [пель, ухо]
+              - [ныр, нос]
+              - [ым, рот]
+          - kind: choice
+            prompt: нос
+            answer: ныр
+            options: [ныр, ым, син]
+          - kind: choice
+            prompt: пель
+            answer: ухо
+            options: [ухо, глаз, рот]
+          - kind: type
+            prompt: глаз
+            answer: син
+          - kind: choice
+            prompt: зуб
+            answer: пинь
+            options: [пинь, пель, ныр]
+
+  - title: Дом
+    title_udm: ""
+    lessons:
+      - title: В доме
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [корка, дом]
+              - [ӧс, дверь]
+              - [укно, окно]
+          - kind: choice
+            prompt: окно
+            answer: укно
+            options: [укно, ӧс, корка]
+          - kind: choice
+            prompt: ӧс
+            answer: дверь
+            options: [дверь, окно, дом]
+          - kind: type
+            prompt: дом
+            answer: корка
+          - kind: type
+            prompt: дверь
+            answer: ӧс
+            hint: первая буква — «ӧ»
+      - title: Стол и стул
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [ӝӧк, стол]
+              - [пукон, стул]
+              - [гур, печь]
+          - kind: choice
+            prompt: стол
+            answer: ӝӧк
+            options: [ӝӧк, пукон, укно]
+          - kind: choice
+            prompt: пукон
+            answer: стул
+            options: [стул, стол, дверь]
+          - kind: type
+            prompt: стул
+            answer: пукон
+          - kind: type
+            prompt: стол
+            answer: ӝӧк
+            hint: буквы «ӝ» и «ӧ»
+
+  - title: Время
+    title_udm: ""
+    lessons:
+      - title: День и ночь
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [ӵукна, утро]
+              - [нунал, день]
+              - [ӝыт, вечер]
+              - [уй, ночь]
+          - kind: choice
+            prompt: вечер
+            answer: ӝыт
+            options: [ӝыт, уй, ӵукна]
+          - kind: choice
+            prompt: нунал
+            answer: день
+            options: [день, ночь, утро]
+          - kind: type
+            prompt: ночь
+            answer: уй
+          - kind: type
+            prompt: утро
+            answer: ӵукна
+            hint: первая буква — «ӵ»
+      - title: Вчера, сегодня, завтра
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [толон, вчера]
+              - [туннэ, сегодня]
+              - [ӵуказе, завтра]
+          - kind: choice
+            prompt: сегодня
+            answer: туннэ
+            options: [туннэ, толон, ӵуказе]
+          - kind: choice
+            prompt: толон
+            answer: вчера
+            options: [вчера, завтра, сегодня]
+          - kind: type
+            prompt: завтра
+            answer: ӵуказе
+          - kind: type
+            prompt: сегодня
+            answer: туннэ
+      - title: Времена года
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [тулыс, весна]
+              - [гужем, лето]
+              - [сӥзьыл, осень]
+              - [тол, зима]
+          - kind: choice
+            prompt: лето
+            answer: гужем
+            options: [гужем, тол, тулыс]
+          - kind: choice
+            prompt: сӥзьыл
+            answer: осень
+            options: [осень, весна, зима]
+          - kind: type
+            prompt: зима
+            answer: тол
+          - kind: type
+            prompt: весна
+            answer: тулыс
+
+  - title: Что я делаю
+    title_udm: ""
+    lessons:
+      - title: Читать и писать
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [лыдӟыны, читать]
+              - [гожтыны, писать]
+              - [ужаны, работать]
+          - kind: choice
+            prompt: читать
+            answer: лыдӟыны
+            options: [лыдӟыны, гожтыны, ужаны]
+          - kind: choice
+            prompt: гожтыны
+            answer: писать
+            options: [писать, читать, работать]
+          - kind: type
+            prompt: работать
+            answer: ужаны
+          - kind: assemble
+            prompt: Я читаю.
+            answer: Мон лыдӟисько
+            options: [Мон, лыдӟисько, гожтыны, тау]
+      - title: Петь и играть
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [кырӟаны, петь]
+              - [эктыны, танцевать]
+              - [шудыны, играть]
+              - [изьыны, спать]
+          - kind: choice
+            prompt: играть
+            answer: шудыны
+            options: [шудыны, изьыны, эктыны]
+          - kind: choice
+            prompt: кырӟаны
+            answer: петь
+            options: [петь, спать, танцевать]
+          - kind: type
+            prompt: спать
+            answer: изьыны
+          - kind: assemble
+            prompt: Я пою.
+            answer: Мон кырӟасько
+            options: [Мон, кырӟасько, шудыны, уй]
+
+  - title: Большие числа
+    title_udm: ""
+    lessons:
+      - title: Одиннадцать — пятнадцать
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [дас одӥг, одиннадцать]
+              - [дас кык, двенадцать]
+              - [дас куинь, тринадцать]
+          - kind: choice
+            prompt: четырнадцать
+            answer: дас ньыль
+            options: [дас ньыль, дас вить, дас кык]
+          - kind: choice
+            prompt: дас вить
+            answer: пятнадцать
+            options: [пятнадцать, одиннадцать, тринадцать]
+          - kind: assemble
+            prompt: двенадцать
+            answer: дас кык
+            options: [дас, кык, вить, куинь]
+          - kind: type
+            prompt: одиннадцать
+            answer: дас одӥг
+            hint: десять и один
+      - title: Десятки и сотня
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [кызь, двадцать]
+              - [куамын, тридцать]
+              - [ньыльдон, сорок]
+              - [витьтон, пятьдесят]
+          - kind: choice
+            prompt: сто
+            answer: сю
+            options: [сю, дас, кызь]
+          - kind: choice
+            prompt: куамын
+            answer: тридцать
+            options: [тридцать, сорок, двадцать]
+          - kind: type
+            prompt: двадцать
+            answer: кызь
+          - kind: type
+            prompt: сто
+            answer: сю
+
+  - title: Разговор
+    title_udm: ""
+    lessons:
+      - title: Добрый день
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [Ӟеч ӵукна!, Доброе утро!]
+              - [Ӟеч нунал!, Добрый день!]
+              - [Ӟеч ӝыт!, Добрый вечер!]
+          - kind: choice
+            prompt: Добрый вечер!
+            answer: Ӟеч ӝыт!
+            options: [Ӟеч ӝыт!, Ӟеч ӵукна!, Ӟеч луэ!]
+          - kind: assemble
+            prompt: Доброе утро!
+            answer: Ӟеч ӵукна
+            options: [Ӟеч, ӵукна, ӝыт, уй]
+          - kind: choice
+            prompt: умой
+            answer: хорошо
+            options: [хорошо, спасибо, нет]
+          - kind: type
+            prompt: хорошо
+            answer: умой
+      - title: Как тебя зовут?
+        exercises:
+          - kind: choice
+            prompt: Как тебя зовут?
+            answer: "Тынад нимыд кызьы?"
+            options: ["Тынад нимыд кызьы?", "Кызьы улӥськод?", "Ӟеч нунал!"]
+          - kind: assemble
+            prompt: Как тебя зовут?
+            answer: Тынад нимыд кызьы
+            options: [Тынад, нимыд, кызьы, Мынам, тау]
+          - kind: assemble
+            prompt: Меня зовут Айно.
+            answer: Мынам нимы Айно
+            options: [Мынам, нимы, Айно, Тынад, нимыд]
+          - kind: choice
+            prompt: "Кызьы улӥськод?"
+            answer: "Как дела?"
+            options: ["Как дела?", "Как тебя зовут?", "Добрый день!"]
+          - kind: assemble
+            prompt: Спасибо, хорошо.
+            answer: Тау умой
+            options: [Тау, умой, бен, ӧвӧл]
