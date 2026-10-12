@@ -6,12 +6,20 @@
 {% if rows %}
 <ol class="mt-6 grid gap-2">
   {% for row in rows %}
-  <li class="flex items-center gap-3 rounded-2xl border-2 bg-white px-3 py-2 {% if row.me %}border-brand-red{% else %}border-gray-300{% endif %}">
+  <li class="flex min-w-0 items-center gap-3 rounded-2xl border-2 bg-white px-3 py-2 {% if row.me %}border-brand-red{% else %}border-gray-300{% endif %}">
     <span class="w-8 shrink-0 text-center text-lg font-extrabold {% if row.place > 3 %}text-gray-500{% endif %}">
       {% if row.place == 1 %}🥇{% elif row.place == 2 %}🥈{% elif row.place == 3 %}🥉{% else %}{{ row.place }}{% endif %}
     </span>
+    {% if row.hidden %}
+    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-300 font-extrabold text-gray-500" aria-hidden="true">?</span>
+    <span class="min-w-0 flex-1 truncate font-bold text-gray-500">Аноним</span>
+    {% else %}
     {% include "accounts/_avatar.html" with profile=row.profile size="h-10 w-10" %}
-    <span class="min-w-0 flex-1 truncate font-bold">{{ row.profile.display_name }}{% if row.me %} <span class="font-normal text-gray-500">(ты)</span>{% endif %}</span>
+    <span class="min-w-0 flex-1">
+      <span class="block truncate font-bold">{{ row.profile.display_name }}{% if row.me %} <span class="font-normal text-gray-500">(ты)</span>{% endif %}</span>
+      {% if row.me and row.profile.leaderboard_anonymous %}<span class="block truncate text-xs text-gray-500" title="Другие игроки видят тебя как «Аноним»">🕶 аноним</span>{% endif %}
+    </span>
+    {% endif %}
     <span class="shrink-0 whitespace-nowrap text-sm font-bold text-gray-500" title="Дней подряд">🔥 {{ row.profile.streak }}</span>
     <span class="shrink-0 whitespace-nowrap font-extrabold" title="Опыт">⭐ {{ row.profile.xp }}</span>
   </li>
