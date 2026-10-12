@@ -218,3 +218,47 @@ def test_password_change_from_profile(client):
     assert get_user_model().objects.get().check_password("newpass")
     # После смены пароля игрок остаётся в игре.
     assert client.get(reverse("learning:home")).status_code == 200
+
+
+def test_seed_adds_new_lessons_and_keeps_progress(client, lesson, tmp_path):
+    player = get_user_model().objects.get(username="player")
+    LessonResult.objects.create(user=player, lesson=lesson, xp=10)
+    lessons_before = Lesson.objects.count()
+
+    # Повторный запуск ничего не меняет.
+    call_command("seed")
+    assert Lesson.objects.count() == lessons_before
+
+    extra = tmp_path / "content.yaml"
+    extra.write_text(
+        """
+course: {slug: udmurt-basics, title: Удмуртский для начинающих}
+units:
+  - title: Новый раздел
+    lessons:
+      - title: Новый урок
+        exercises:
+          - {kind: type, prompt: один, answer: одӥг}
+""",
+        encoding="utf-8",
+    )
+    call_command("seed", file=str(extra))
+    assert Lesson.objects.count() == lessons_before + 1
+    assert Lesson.objects.get(title="Новый урок").exercises.count() == 1
+    assert LessonResult.objects.filter(lesson=lesson).exists()
+
+
+def test_every_seed_lesson_can_be_completed(client, lesson):
+    """Правильные ответы из content.yaml принимаются во всех уроках (в т.ч. сборка фраз)."""
+    for current in Lesson.objects.all():
+        client.get(reverse("learning:lesson_start", args=[current.id]))
+        for exercise in current.exercises.all():
+            r = client.post(
+                reverse("learning:lesson_answer", args=[current.id]),
+                {"answer": _right_answer(exercise)},
+                **HTMX,
+            )
+            assert "Верно" in r.content.decode(), f"{current}: {exercise}"
+            r = client.get(reverse("learning:lesson_next", args=[current.id]), **HTMX)
+        assert r["HX-Redirect"] == reverse("learning:lesson_result", args=[current.id])
+    assert LessonResult.objects.count() == Lesson.objects.count() >= 25

@@ -65,7 +65,7 @@ mise run dev          # http://localhost:8000
 | `mise run fmt` | автоформатирование ruff |
 | `mise run css` | пересобрать `static/css/app.css` после правки классов Tailwind в шаблонах |
 | `mise run css:watch` | то же, в режиме наблюдения |
-| `mise run seed` | перезагрузить курс из `seeds/content.yaml` |
+| `mise run seed` | перезагрузить курс из `seeds/content.yaml` (удаляет курс и результаты игроков) |
 
 `app.css` лежит в репозитории: после изменения классов в шаблонах обязательно `mise run css`
 и закоммитить результат, иначе новые классы не будут работать.

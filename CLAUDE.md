@@ -24,7 +24,7 @@ commit both); there are no `requirements*.txt`.
 Backend (run from `backend/`):
 
 ```bash
-mise install && mise run setup                          # uv sync, migrate, seed (seed is idempotent)
+mise install && mise run setup                          # uv sync, migrate, seed (seed only adds what is missing)
 mise run dev                                            # runserver 0.0.0.0:8000
 mise run test                                           # pytest (settings in pyproject.toml)
 mise run test -- tests/test_answer_check.py::test_check_answer   # single test
@@ -75,7 +75,9 @@ and unpublishes the web/MinIO ports. The server's `/opt/votes/.env` (secrets, `S
 Three Django apps under `backend/`:
 
 - `courses` — content only: `Course → Unit → Lesson → Exercise`, edited via Django Admin or loaded
-  from `seeds/content.yaml` by `courses/management/commands/seed.py`. `Exercise.kind` is one of
+  from `seeds/content.yaml` by `courses/management/commands/seed.py`. Plain `seed` (run on every
+  container start) only adds units/lessons missing by title and never rewrites an existing lesson —
+  player results reference lessons; `seed --reset` deletes the course together with those results. `Exercise.kind` is one of
   `choice | type | assemble | match`, and the meaning of `answer`/`options` depends on the kind
   (documented on the model and at the top of `content.yaml`). Multiple accepted answers are separated by `|`.
 - `learning` — playing a lesson.
@@ -119,6 +121,7 @@ Media uses `django-storages` S3 backend against MinIO when `USE_S3=1`; public UR
 
 ## Content caveat
 
+Every unit from «Цвета вокруг» onwards was added without native-speaker review.
 The seed vocabulary is demo content and must be verified by a native speaker before submission
 ("контент соответствует действительности" is a judging criterion). Don't invent new Udmurt words
 or phrases without flagging them as unverified.
