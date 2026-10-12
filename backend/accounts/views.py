@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, PasswordChangeView
 from django.shortcuts import redirect, render
+from django.urls import reverse_lazy
 
 from courses.models import Lesson
 
@@ -60,6 +61,13 @@ def profile_edit(request):
         form.save()
         return redirect("accounts:profile")
     return render(request, "accounts/profile_edit.html", {"form": form})
+
+
+class PlayerPasswordChangeView(PasswordChangeView):
+    """Смена пароля из профиля: старый пароль и новый дважды; игрок остаётся в игре."""
+
+    template_name = "accounts/password_change.html"
+    success_url = reverse_lazy("accounts:profile")
 
 
 class PlayerLoginView(LoginView):
