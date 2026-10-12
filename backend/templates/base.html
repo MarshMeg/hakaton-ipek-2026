@@ -22,6 +22,10 @@
       <div class="flex items-center gap-4 font-bold">
         <span title="Дней подряд">🔥 {{ profile.streak }}</span>
         <span title="Опыт">⭐ {{ profile.xp }}</span>
+        <form method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button class="text-sm text-gray-500 underline" title="{{ user.username }}">Выйти</button>
+        </form>
       </div>
       {% endif %}
     </div>
