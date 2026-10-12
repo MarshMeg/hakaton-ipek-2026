@@ -32,7 +32,7 @@
 | Frontend | Django Templates, HTMX, Alpine.js, Tailwind CSS (брендбук в `backend/tailwind.config.js`) |
 | Данные | PostgreSQL 16, MinIO (S3) для аудио и картинок |
 | Мобильное приложение | Flutter (Dart) + `webview_flutter` |
-| Инфраструктура | Docker Compose, GitHub Actions (тесты, линтер, сборка APK) |
+| Инфраструктура | mise (версии инструментов и задачи), Docker Compose, GitHub Actions (тесты, линтер, сборка APK) |
 
 Подробнее: [docs/architecture.md](docs/architecture.md).
 
@@ -54,13 +54,12 @@ docker compose up --build
 `backend/seeds/content.yaml` и создаётся администратор.
 
 ## Запуск без Docker (для разработки)
+Инструменты ставятся через [mise](https://mise.jdx.dev), подробная инструкция — [LOCAL_SETUP.md](LOCAL_SETUP.md).
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
-python manage.py migrate
-python manage.py seed
-python manage.py runserver 0.0.0.0:8000
+mise trust && mise install   # Python 3.12 + Tailwind CLI
+mise run setup               # venv, зависимости, миграции, стартовый курс
+mise run dev                 # http://localhost:8000
 ```
 Без переменной `DATABASE_URL` используется SQLite, без `USE_S3=1` медиа хранятся в `backend/media/`.
 
@@ -72,26 +71,27 @@ Actions → Android → Run workflow) и публикуется в
 [Releases](https://github.com/MarshMeg/hakaton-ipek-2026/releases). Приложение открывает сервер
 `https://hakaton.marshmeg.ru`; адрес можно поменять в самом приложении (экран «Нет связи с сервером»).
 
-Сборка вручную — см. [mobile/README.md](mobile/README.md):
+Сборка вручную (Flutter и Java ставит mise, Android SDK — Android Studio), см. [LOCAL_SETUP.md](LOCAL_SETUP.md):
 ```bash
 cd mobile
-flutter create --platforms=android --org ru.votes .
-flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000   # локальный сервер из эмулятора
+mise trust && mise install
+mise run setup   # flutter create + pub get
+mise run dev     # эмулятор против локального сервера http://10.0.2.2:8000
 ```
 
 ## Тесты и линтер
 ```bash
 cd backend
-pytest
-ruff check . && ruff format --check .
+mise run test
+mise run lint
 ```
 
 ## Изменение стилей
-CSS собирается [standalone-версией Tailwind](https://github.com/tailwindlabs/tailwindcss/releases/tag/v3.4.17)
-(Node.js не нужен), готовый `static/css/app.css` лежит в репозитории:
+CSS собирается standalone-версией Tailwind 3.4.17 (ставится через mise, Node.js не нужен),
+готовый `static/css/app.css` лежит в репозитории:
 ```bash
 cd backend
-./tailwindcss -i static/css/input.css -o static/css/app.css --minify --watch
+mise run css         # или mise run css:watch
 ```
 
 ## Контент
@@ -133,4 +133,6 @@ backend/            Django-проект
 mobile/             Flutter-приложение (WebView)
 docs/               архитектура, скриншоты
 ROADMAP.md          план дальнейшей реализации
+LOCAL_SETUP.md      настройка окружения через mise (инструкция и для Claude Code)
+mise.toml           задачи Docker; инструменты — в backend/mise.toml и mobile/mise.toml
 ```

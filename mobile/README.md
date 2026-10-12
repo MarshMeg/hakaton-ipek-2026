@@ -4,13 +4,16 @@ Flutter-обёртка: открывает веб-приложение (Django) 
 генерируются командой `flutter create`, в репозитории хранится только `AndroidManifest.xml`
 (разрешение на интернет и HTTP для локального сервера).
 
+Flutter 3.47 и Java 17 ставятся через mise (`mobile/mise.toml`), Android SDK — через Android Studio.
+Подробно: [LOCAL_SETUP.md](../LOCAL_SETUP.md).
+
 ```bash
 cd mobile
-flutter create --platforms=android --org ru.votes .   # один раз, создаст android/
-flutter pub get
-flutter run                                            # сервер по умолчанию: https://hakaton.marshmeg.ru
-flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000   # локальный сервер из эмулятора
-flutter build apk
+mise trust && mise install
+mise run setup    # flutter create (создаст android/) + pub get
+mise run check    # flutter analyze + flutter test
+mise run dev      # эмулятор против локального сервера http://10.0.2.2:8000
+mise run apk      # release APK, сервер https://hakaton.marshmeg.ru
 ```
 
 Адрес сервера можно поменять прямо в приложении: на экране «Нет связи с сервером» →

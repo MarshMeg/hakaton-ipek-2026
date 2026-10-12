@@ -1,0 +1,23 @@
+# Android-приложение: Flutter + Java (для Gradle). Android SDK ставится отдельно (Android Studio).
+[tools]
+flutter = "3.47"
+java = "temurin-17"
+
+[tasks.setup]
+description = "Сгенерировать платформенные файлы Android и скачать зависимости"
+run = [
+  "flutter create --platforms=android --org ru.votes .",
+  "flutter pub get",
+]
+
+[tasks.check]
+description = "flutter analyze + flutter test (как в CI)"
+run = ["flutter analyze", "flutter test"]
+
+[tasks.dev]
+description = "Запустить в эмуляторе против локального сервера (cd backend && mise run dev)"
+run = "flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000"
+
+[tasks.apk]
+description = "Собрать release APK (сервер https://hakaton.marshmeg.ru)"
+run = "flutter build apk --release"
