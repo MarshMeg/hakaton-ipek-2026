@@ -1,3 +1,7 @@
+import json
+import os
+import subprocess
+import sys
 from io import BytesIO
 
 import pytest
@@ -22,7 +26,26 @@ def lesson(db):
 
 
 def _right_answer(exercise):
-    return "ok" if exercise.kind == Exercise.Kind.MATCH else exercise.accepted_answers[0]
+    if exercise.kind == Exercise.Kind.MATCH:
+        return json.dumps(exercise.options)
+    return exercise.accepted_answers[0]
+
+
+def _course_lessons():
+    return Lesson.objects.order_by("unit__order", "unit_id", "order", "id")
+
+
+def _play_lesson(client, lesson):
+    """Проходит урок без ошибок."""
+    client.get(reverse("learning:lesson_start", args=[lesson.id]))
+    for exercise in lesson.exercises.all():
+        client.post(
+            reverse("learning:lesson_answer", args=[lesson.id]),
+            {"answer": _right_answer(exercise)},
+            **HTMX,
+        )
+        response = client.get(reverse("learning:lesson_next", args=[lesson.id]), **HTMX)
+    return response
 
 
 @pytest.fixture
@@ -50,12 +73,14 @@ def test_logged_in_player_skips_login_page(client):
 
 def test_signup_and_login(db):
     anon = Client()
-    anon.post(
+    response = anon.post(
         reverse("accounts:signup"),
         {"name": "Айно", "family": "корепанова", "username": "aino", "password": "secret123"},
     )
+    assert response.url == reverse("learning:welcome")  # после регистрации — правила игры
     profile = Profile.objects.get()
     assert not profile.is_guest
+    assert "Сердечки" in anon.get(reverse("learning:welcome")).content.decode()
     assert profile.display_name == "Айно К."
     assert "Айно К." in anon.get(reverse("learning:home")).content.decode()
     assert anon.get(reverse("learning:home")).status_code == 200
@@ -250,7 +275,7 @@ units:
 
 def test_every_seed_lesson_can_be_completed(client, lesson):
     """Правильные ответы из content.yaml принимаются во всех уроках (в т.ч. сборка фраз)."""
-    for current in Lesson.objects.all():
+    for current in _course_lessons():
         client.get(reverse("learning:lesson_start", args=[current.id]))
         for exercise in current.exercises.all():
             r = client.post(
@@ -291,3 +316,153 @@ def test_leaderboard_without_xp_and_for_anonymous(client, db):
     assert response.context["rows"] == []
     assert response.context["my_place"] is None
     assert Client().get(reverse("learning:leaderboard")).status_code == 302
+
+
+def test_locked_lesson_is_not_opened_by_direct_link(client, lesson):
+    first, second, third = _course_lessons()[:3]
+    home = reverse("learning:home")
+    for name in ("lesson_start", "lesson_play", "lesson_next"):
+        response = client.get(reverse(f"learning:{name}", args=[third.id]))
+        assert response.status_code == 302
+        assert response.url == home
+    response = client.post(
+        reverse("learning:lesson_answer", args=[third.id]), {"answer": "x"}, **HTMX
+    )
+    assert response["HX-Redirect"] == home
+    assert "lesson_run" not in client.session
+
+    # Пройден первый урок — открыт второй, третий всё ещё закрыт.
+    _play_lesson(client, first)
+    assert client.get(reverse("learning:lesson_start", args=[second.id])).url.endswith(
+        f"/lesson/{second.id}/"
+    )
+    assert client.get(reverse("learning:lesson_start", args=[third.id])).url == home
+    states = {
+        i["obj"].id: i["open"] for u in client.get(home).context["units"] for i in u["lessons"]
+    }
+    assert states[first.id] and states[second.id] and not states[third.id]
+
+
+def _start_match(client):
+    exercise = Exercise.objects.filter(kind=Exercise.Kind.MATCH).select_related("lesson").first()
+    lesson = exercise.lesson
+    # Открываем урок: все предыдущие отмечены пройденными.
+    player = get_user_model().objects.get(username="player")
+    for previous in _course_lessons():
+        if previous == lesson:
+            break
+        LessonResult.objects.create(user=player, lesson=previous)
+    client.get(reverse("learning:lesson_start", args=[lesson.id]))
+    session = client.session
+    session["lesson_run"]["queue"] = [exercise.id]
+    session.save()
+    return exercise
+
+
+@pytest.mark.parametrize("answer", ["ok", "", "[]", "[[1, 2]]", "{}"])
+def test_match_without_right_pairs_is_wrong(client, lesson, answer):
+    exercise = _start_match(client)
+    if answer == "":
+        answer = json.dumps([[left, "не то"] for left, _ in exercise.options])
+    r = client.post(
+        reverse("learning:lesson_answer", args=[exercise.lesson_id]), {"answer": answer}, **HTMX
+    )
+    assert "Неверно" in r.content.decode()
+    assert client.session["lesson_run"]["hearts"] == 4
+
+
+def test_match_mistakes_are_counted_without_losing_hearts(client, lesson):
+    exercise = _start_match(client)
+    pairs = list(reversed(exercise.options))  # порядок пар не важен
+    r = client.post(
+        reverse("learning:lesson_answer", args=[exercise.lesson_id]),
+        {"answer": json.dumps(pairs), "mistakes": "2"},
+        **HTMX,
+    )
+    assert "Верно" in r.content.decode()
+    run = client.session["lesson_run"]
+    assert run["hearts"] == 5
+    assert run["mistakes"] == 2
+    client.get(reverse("learning:lesson_next", args=[exercise.lesson_id]), **HTMX)
+    assert LessonResult.objects.get(lesson=exercise.lesson, xp__gt=0).mistakes == 2
+
+
+def test_replayed_lesson_gives_half_xp(client, lesson, settings):
+    _play_lesson(client, lesson)
+    first = LessonResult.objects.get()
+    _play_lesson(client, lesson)
+    replay = LessonResult.objects.order_by("-id").first()
+    assert replay.xp == first.xp // 2
+    profile = Profile.objects.get(user__username="player")
+    assert profile.xp == first.xp + replay.xp
+    result = client.get(reverse("learning:lesson_result", args=[lesson.id]))
+    assert "половина опыта" in result.content.decode()
+
+
+def test_empty_answer_costs_no_heart(client, lesson):
+    exercise = Exercise.objects.filter(kind=Exercise.Kind.ASSEMBLE).first()
+    player = get_user_model().objects.get(username="player")
+    for previous in _course_lessons():
+        if previous == exercise.lesson:
+            break
+        LessonResult.objects.create(user=player, lesson=previous)
+    client.get(reverse("learning:lesson_start", args=[exercise.lesson_id]))
+    session = client.session
+    session["lesson_run"]["queue"] = [exercise.id]
+    session.save()
+    r = client.post(
+        reverse("learning:lesson_answer", args=[exercise.lesson_id]), {"answer": " "}, **HTMX
+    )
+    html = r.content.decode()
+    assert "Неверно" not in html
+    assert "Проверить" in html
+    run = client.session["lesson_run"]
+    assert run["hearts"] == 5 and not run["answered"]
+
+
+def test_lesson_exit_asks_for_confirmation(client, lesson):
+    html = client.get(reverse("learning:lesson_start", args=[lesson.id]), follow=True)
+    assert "Выйти из урока?" in html.content.decode()
+
+
+def test_404_page_is_russian(client):
+    response = client.get("/nет-такой-страницы/")
+    assert response.status_code == 404
+    assert "Такой страницы нет" in response.content.decode()
+
+
+@pytest.mark.parametrize("taken", ["демо", "Демо", "demo"])
+def test_username_taken_ignores_cyrillic_case(db, taken):
+    get_user_model().objects.create_user(username=taken)
+    response = Client().post(
+        reverse("accounts:signup"),
+        {"name": "Айно", "family": "К", "username": taken.upper(), "password": "secret123"},
+    )
+    assert "уже занято" in response.content.decode()
+    assert get_user_model().objects.count() == 1
+
+
+def test_profile_edit_rejects_taken_cyrillic_username(client):
+    get_user_model().objects.create_user(username="демо")
+    data = {"name": "Айно", "family": "Корепанова", "username": "ДЕМО"}
+    assert "уже занято" in client.post(reverse("accounts:profile_edit"), data).content.decode()
+    # Своё имя, набранное в другом регистре, — не «занято».
+    data["username"] = "PLAYER"
+    assert client.post(reverse("accounts:profile_edit"), data).status_code == 302
+
+
+@pytest.mark.parametrize("https_only", ["0", "1"])
+def test_secure_cookies_and_hsts_on_https(https_only):
+    code = (
+        "from config import settings as s; "
+        "print(getattr(s, 'SESSION_COOKIE_SECURE', False), getattr(s, 'CSRF_COOKIE_SECURE', False),"
+        " getattr(s, 'SECURE_HSTS_SECONDS', 0))"
+    )
+    env = os.environ | {"DJANGO_HTTPS_ONLY": https_only}
+    out = subprocess.run(
+        [sys.executable, "-c", code], env=env, capture_output=True, text=True, check=True
+    ).stdout.split()
+    if https_only == "1":
+        assert out == ["True", "True", "31536000"]
+    else:
+        assert out == ["False", "False", "0"]

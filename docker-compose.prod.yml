@@ -20,6 +20,9 @@ services:
 
   web:
     restart: unless-stopped
+    environment:
+      # Secure-cookie и HSTS: снаружи сайт доступен только по HTTPS (вход по http://IP при этом не работает).
+      DJANGO_HTTPS_ONLY: ${DJANGO_HTTPS_ONLY:-1}
     ports: !reset []
 
   minio:

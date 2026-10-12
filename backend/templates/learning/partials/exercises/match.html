@@ -1,12 +1,14 @@
-{# Пары проверяются на клиенте: неверная пара подсвечивается, когда все найдены — форма отправляется. #}
+{# Пары собираются на клиенте: неверная пара подсвечивается и считается ошибкой (сердечко не снимает). #}
+{# Когда все пары найдены, форма отправляет их на сервер — там они сверяются с заданием. #}
 {% if feedback %}
-  <p class="text-lg font-bold text-ok">Все пары найдены!</p>
+  {% if feedback.verdict == "correct" %}<p class="text-lg font-bold text-ok">Все пары найдены!</p>{% endif %}
 {% else %}
 {{ options|json_script:"match-data" }}
 <div class="grid grid-cols-2 gap-3" x-data="{
   data: JSON.parse(document.getElementById('match-data').textContent),
-  sel: null, matched: [], wrong: null,
+  sel: null, matched: [], wrong: null, mistakes: 0,
   get matchedRight() { return this.matched.map(l => this.data.pairs[l]) },
+  get answer() { return JSON.stringify(this.matched.map(l => [l, this.data.pairs[l]])) },
   pickRight(r) {
     if (!this.sel || this.matchedRight.includes(r)) return;
     if (this.data.pairs[this.sel] === r) {
@@ -16,6 +18,7 @@
         this.$nextTick(() => this.$root.closest('form').requestSubmit());
       }
     } else {
+      this.mistakes++;
       this.wrong = r;
       setTimeout(() => this.wrong = null, 600);
     }
@@ -35,6 +38,7 @@
               @click="pickRight(r)"></button>
     </template>
   </div>
-  <input type="hidden" name="answer" value="ok">
+  <input type="hidden" name="answer" :value="answer">
+  <input type="hidden" name="mistakes" :value="mistakes">
 </div>
 {% endif %}

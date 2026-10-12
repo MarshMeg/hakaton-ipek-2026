@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Как играть — Вотэс{% endblock %}
+{% block content %}
+{# Онбординг: три экрана с целью и правилами игры. Показывается один раз — сразу после регистрации. #}
+<div class="mt-8 flex min-h-[70vh] flex-col" x-data="{ step: 0, last: 2 }">
+  <section x-show="step === 0" class="flex-1 text-center">
+    <img src="{% static 'img/logo.svg' %}" alt="" class="mx-auto h-24 w-24">
+    <h1 class="mt-6 text-3xl font-extrabold">Ӟечбуресь!</h1>
+    <p class="mt-1 text-lg font-bold text-brand-red">(Здравствуй!)</p>
+    <p class="mt-6 text-lg">В «Вотэс» ты учишь удмуртский язык: слова, фразы и буквы, которых нет в русском, —
+      <b>Ӝ Ӟ Ӥ Ӧ Ӵ</b>.</p>
+    <p class="mt-4 text-lg">Уроки идут по дорожке: пройди урок — откроется следующий.</p>
+  </section>
+
+  <section x-show="step === 1" x-cloak class="flex-1 text-center">
+    <div class="text-7xl">❤</div>
+    <h1 class="mt-6 text-3xl font-extrabold">Сердечки</h1>
+    <p class="mt-6 text-lg">В начале урока у тебя <b>{{ game.MAX_HEARTS }} сердечек</b>. Ошибся — одно сердечко
+      пропадёт, а задание повторится в конце урока.</p>
+    <p class="mt-4 text-lg">Сердечки закончились — урок начнётся заново. Неверная пара в «Найди пары» сердечко
+      не отнимает, но считается ошибкой.</p>
+  </section>
+
+  <section x-show="step === 2" x-cloak class="flex-1 text-center">
+    <div class="text-7xl">⭐ 🔥</div>
+    <h1 class="mt-6 text-3xl font-extrabold">Опыт и серия дней</h1>
+    <p class="mt-6 text-lg">За верный ответ с первой попытки — <b>{{ game.XP_PER_CORRECT }} опыта</b>, за пройденный
+      урок — ещё <b>{{ game.XP_LESSON_BONUS }}</b>. Повтор пройденного урока даёт половину опыта.</p>
+    <p class="mt-4 text-lg">Занимайся каждый день, чтобы 🔥 серия дней росла. Самые опытные игроки — в таблице
+      лидеров 🏆.</p>
+  </section>
+
+  <div class="mt-6 flex justify-center gap-2" aria-hidden="true">
+    <template x-for="i in last + 1" :key="i">
+      <span class="h-3 w-3 rounded-full" :class="i - 1 === step ? 'bg-brand-red' : 'bg-gray-300'"></span>
+    </template>
+  </div>
+  <div class="mt-6 grid gap-3">
+    <button type="button" class="btn-primary" x-show="step < last" @click="step++">Дальше</button>
+    <a href="{% url 'learning:home' %}" class="btn-primary" x-show="step === last" x-cloak>Начать учиться</a>
+    <a href="{% url 'learning:home' %}" class="btn-ghost" x-show="step < last">Пропустить</a>
+  </div>
+</div>
+{% endblock %}
