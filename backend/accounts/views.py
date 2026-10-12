@@ -36,7 +36,7 @@ def signup(request):
             Profile.objects.create(user=user, is_guest=False)
         # После смены пароля сессию нужно обновить, иначе игрока разлогинит.
         login(request, user)
-        return redirect("learning:home")
+        return redirect("learning:welcome")
     return render(request, "accounts/signup.html", {"form": form})
 
 

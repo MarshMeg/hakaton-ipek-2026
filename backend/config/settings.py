@@ -15,6 +15,13 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 # За обратным прокси (nginx/caddy с HTTPS) Django узнаёт протокол из этого заголовка.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Сайт открыт только по HTTPS (прод за Caddy, см. docker-compose.prod.yml): cookie лишь по HTTPS
+# и HSTS. Не привязано к DEBUG — локальный `docker compose up` работает с DEBUG=0 по HTTP.
+HTTPS_ONLY = env.bool("DJANGO_HTTPS_ONLY", default=False)
+if HTTPS_ONLY:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = env.int("DJANGO_HSTS_SECONDS", default=60 * 60 * 24 * 365)
 
 INSTALLED_APPS = [
     "django.contrib.admin",

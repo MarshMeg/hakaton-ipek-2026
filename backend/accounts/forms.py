@@ -4,10 +4,21 @@ from io import BytesIO
 from django import forms
 from django.contrib.auth import get_user_model
 from django.core.files.base import ContentFile
+from django.db.models.functions import Length
 from PIL import Image, ImageOps
 
 AVATAR_SIZE = 256  # аватарка хранится квадратом 256×256, что бы ни загрузили
 AVATAR_MAX_BYTES = 5 * 1024 * 1024
+
+
+def username_taken(username: str, exclude_pk=None) -> bool:
+    """Занято ли имя без учёта регистра. Сравниваем в Python: на SQLite `iexact` и LOWER()
+    понимают только латиницу, и «ДЕМО» не совпало бы с «демо».
+    Из БД берём лишь имена той же длины."""
+    candidates = get_user_model().objects.annotate(length=Length("username"))
+    candidates = candidates.filter(length=len(username)).exclude(pk=exclude_pk)
+    folded = username.casefold()
+    return any(name.casefold() == folded for name in candidates.values_list("username", flat=True))
 
 
 class SignupForm(forms.Form):
@@ -20,7 +31,7 @@ class SignupForm(forms.Form):
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
-        if get_user_model().objects.filter(username__iexact=username).exists():
+        if username_taken(username):
             raise forms.ValidationError("Такое имя уже занято")
         return username
 
@@ -45,8 +56,7 @@ class ProfileForm(forms.Form):
 
     def clean_username(self):
         username = self.cleaned_data["username"].strip()
-        taken = get_user_model().objects.filter(username__iexact=username).exclude(pk=self.user.pk)
-        if taken.exists():
+        if username_taken(username, exclude_pk=self.user.pk):
             raise forms.ValidationError("Такое имя уже занято")
         return username
 

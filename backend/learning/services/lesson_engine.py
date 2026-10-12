@@ -3,9 +3,12 @@
 Правила (как в Duolingo):
 - у игрока есть «сердечки»; за ошибку теряется одно, при нуле урок проигран;
 - упражнение с ошибкой один раз повторяется в конце урока;
-- опыт начисляется за верные ответы с первой попытки + бонус за прохождение урока.
+- опыт начисляется за верные ответы с первой попытки + бонус за прохождение урока;
+- за повтор уже пройденного урока — половина опыта (чтобы не накручивать таблицу лидеров);
+- в «Найди пары» неверная пара сердечко не отнимает, но считается ошибкой в итогах урока.
 """
 
+import json
 import random
 from dataclasses import dataclass
 
@@ -67,16 +70,32 @@ def is_finished(run: dict) -> bool:
     return run["pos"] >= len(run["queue"])
 
 
-def submit(session, run: dict, exercise: Exercise, given: str) -> Feedback:
-    """Проверяет ответ на текущее упражнение и обновляет состояние прохождения."""
+def match_pairs(given: str) -> set[tuple[str, str]] | None:
+    """Пары из ответа на «Найди пары»: JSON-список [[удмуртское, русское], ...]."""
+    try:
+        pairs = json.loads(given)
+        return {(left, right) for left, right in pairs}
+    except (TypeError, ValueError):
+        return None
+
+
+def submit(session, run: dict, exercise: Exercise, given: str, match_mistakes: int = 0) -> Feedback:
+    """Проверяет ответ на текущее упражнение и обновляет состояние прохождения.
+
+    match_mistakes — сколько неверных пар игрок выбрал, пока собирал «Найди пары».
+    """
     if exercise.kind == Exercise.Kind.MATCH:
-        # Пары сопоставляются на клиенте; сервер лишь фиксирует завершение.
-        verdict = Verdict.CORRECT
+        expected = {(left, right) for left, right in exercise.options}
+        verdict = Verdict.CORRECT if match_pairs(given) == expected else Verdict.WRONG
+        correct = ", ".join(f"{left} — {right}" for left, right in exercise.options)
     else:
         verdict = check_answer(given, exercise.accepted_answers)
+        correct = exercise.accepted_answers[0] if exercise.accepted_answers else ""
 
     if not run["answered"]:
         run["answered"] = True
+        if exercise.kind == Exercise.Kind.MATCH:
+            run["mistakes"] += max(match_mistakes, 0)
         first_try = exercise.id not in run["retried"]
         if verdict == Verdict.WRONG:
             run["hearts"] -= 1
@@ -88,7 +107,6 @@ def submit(session, run: dict, exercise: Exercise, given: str) -> Feedback:
             run["xp"] += settings.GAME["XP_PER_CORRECT"]
         session.modified = True
 
-    correct = exercise.accepted_answers[0] if exercise.accepted_answers else ""
     return Feedback(verdict=verdict, correct_answer=correct)
 
 
@@ -102,6 +120,9 @@ def advance(session, run: dict) -> None:
 def finish(session, user, run: dict) -> dict:
     """Сохраняет результат, начисляет опыт и стрик. Возвращает данные для экрана итогов."""
     xp = run["xp"] + settings.GAME["XP_LESSON_BONUS"]
+    replay = LessonResult.objects.filter(user=user, lesson_id=run["lesson_id"]).exists()
+    if replay:
+        xp //= 2
     LessonResult.objects.create(
         user=user, lesson_id=run["lesson_id"], xp=xp, mistakes=run["mistakes"]
     )
@@ -111,6 +132,7 @@ def finish(session, user, run: dict) -> dict:
         "xp": xp,
         "mistakes": run["mistakes"],
         "streak": user.profile.streak,
+        "replay": replay,
     }
     session[RESULT_KEY] = result
     session.pop(SESSION_KEY, None)
