@@ -60,6 +60,14 @@ otherwise `flutter create` generates a default test referencing `MyApp` and `flu
 The same job also builds `votes-ask.apk` with `--dart-define=ASK_SERVER_URL=true`: that build shows the
 server-address screen on every launch (for testing against another server); both APKs go into the release.
 
+Deploy: the `deploy` job in `ci.yml` (push to `main`, after `backend` passes) rsyncs the sources to
+`/opt/votes` on the server (`vars.DEPLOY_USER@vars.DEPLOY_HOST`, key in `secrets.DEPLOY_SSH_KEY`) and runs
+`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`, then curls
+`vars.DEPLOY_URL`. `docker-compose.prod.yml` adds Caddy (`deploy/Caddyfile`: HTTPS, `/votes-media/*` → MinIO)
+and unpublishes the web/MinIO ports. The server's `/opt/votes/.env` (secrets, `SITE_ADDRESS`,
+`S3_PUBLIC_*`) is not in git and is excluded from rsync. The MinIO image is `pgsty/minio` — the official
+`minio/minio` was removed from the registries.
+
 ## Backend architecture
 
 Three Django apps under `backend/`:

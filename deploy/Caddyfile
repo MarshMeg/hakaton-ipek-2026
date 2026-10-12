@@ -1,0 +1,16 @@
+# Обратный прокси на сервере: HTTPS (сертификат Let's Encrypt Caddy получает сам) и раздача медиа.
+# SITE_ADDRESS берётся из .env на сервере, например:
+#   SITE_ADDRESS=hakaton.marshmeg.ru
+#   SITE_ADDRESS=hakaton.marshmeg.ru, http://195.209.218.45   (ещё и по IP без HTTPS)
+{$SITE_ADDRESS} {
+	encode gzip
+
+	# Медиа (аудио, картинки, аватарки) лежат в MinIO; бакет открыт только на чтение.
+	handle /votes-media/* {
+		reverse_proxy minio:9000
+	}
+
+	handle {
+		reverse_proxy web:8000
+	}
+}

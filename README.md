@@ -53,6 +53,21 @@ docker compose up --build
 При первом старте автоматически применяются миграции, загружается стартовый курс из
 `backend/seeds/content.yaml` и создаётся администратор.
 
+## Сервер и деплой
+Сервер — Debian с Docker, проект лежит в `/opt/votes`. Там тот же `docker-compose.yml` плюс
+надстройка [docker-compose.prod.yml](docker-compose.prod.yml): наружу смотрит только Caddy
+(порты 80/443, HTTPS-сертификат получает сам), он же раздаёт медиа из MinIO по пути `/votes-media/`.
+
+Деплой автоматический: после push в `main` и зелёных проверок задача `deploy` в
+[ci.yml](.github/workflows/ci.yml) копирует исходники на сервер по SSH и выполняет
+`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+(миграции и загрузка курса — в `backend/entrypoint.sh`). Настройки в GitHub: секрет
+`DEPLOY_SSH_KEY`, переменные `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_URL`.
+
+Секреты и адрес сайта хранятся в `/opt/votes/.env` на сервере (в git его нет, деплой его не трогает):
+пароль администратора — `DJANGO_SUPERUSER_PASSWORD`, адрес — `SITE_ADDRESS`, ссылки на медиа —
+`S3_PUBLIC_DOMAIN` и `S3_PUBLIC_PROTOCOL`. После правки `.env` — перезапуск той же командой `up -d`.
+
 ## Запуск без Docker (для разработки)
 Инструменты ставятся через [mise](https://mise.jdx.dev), подробная инструкция — [LOCAL_SETUP.md](LOCAL_SETUP.md).
 ```bash
