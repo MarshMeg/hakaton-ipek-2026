@@ -703,3 +703,290 @@ units:
             prompt: Спасибо, хорошо.
             answer: Тау умой
             options: [Тау, умой, бен, ӧвӧл]
+
+  - title: Какой?
+    title_udm: ""
+    lessons:
+      - title: Большой и маленький
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [бадӟым, большой]
+              - [пичи, маленький]
+              - [выль, новый]
+              - [вуж, старый]
+          - kind: choice
+            prompt: большой
+            answer: бадӟым
+            options: [бадӟым, пичи, вуж]
+          - kind: choice
+            prompt: выль
+            answer: новый
+            options: [новый, старый, маленький]
+          - kind: type
+            prompt: маленький
+            answer: пичи
+          - kind: assemble
+            prompt: "Большой дом"
+            answer: Бадӟым корка
+            options: [Бадӟым, корка, пичи, укно]
+      - title: Тёплый и холодный
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [шуныт, тёплый]
+              - [кезьыт, холодный]
+              - [пӧсь, горячий]
+              - [чебер, красивый]
+          - kind: choice
+            prompt: холодный
+            answer: кезьыт
+            options: [кезьыт, шуныт, пӧсь]
+          - kind: choice
+            prompt: чебер
+            answer: красивый
+            options: [красивый, тёплый, горячий]
+          - kind: type
+            prompt: тёплый
+            answer: шуныт
+          - kind: assemble
+            prompt: "Красивый цветок"
+            answer: Чебер сяська
+            options: [Чебер, сяська, кезьыт, писпу]
+
+  - title: Кто и что
+    title_udm: ""
+    lessons:
+      - title: Я, ты, мы
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [мон, я]
+              - [тон, ты]
+              - [ми, мы]
+              - [тӥ, вы]
+          - kind: choice
+            prompt: "он, она"
+            answer: со
+            options: [со, мон, ми]
+          - kind: choice
+            prompt: соос
+            answer: они
+            options: [они, мы, вы]
+          - kind: type
+            prompt: я
+            answer: мон
+          - kind: type
+            prompt: ты
+            answer: тон
+      - title: Вопросы
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [кин, кто]
+              - [ма, что]
+              - [кытын, где]
+              - [ку, когда]
+          - kind: choice
+            prompt: сколько
+            answer: кӧня
+            options: [кӧня, кин, кытын]
+          - kind: choice
+            prompt: кызьы
+            answer: как
+            options: [как, когда, кто]
+          - kind: type
+            prompt: кто
+            answer: кин
+          - kind: assemble
+            prompt: "Что это?"
+            answer: Та ма
+            options: [Та, ма, кин, ку]
+
+  - title: Одежда
+    title_udm: ""
+    lessons:
+      - title: Что надеть
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [дӥсь, одежда]
+              - [дэрем, рубашка]
+              - [изьы, шапка]
+              - [сапег, сапоги]
+          - kind: choice
+            prompt: шапка
+            answer: изьы
+            options: [изьы, дэрем, сапег]
+          - kind: choice
+            prompt: пӧзь
+            answer: варежки
+            options: [варежки, сапоги, рубашка]
+          - kind: type
+            prompt: рубашка
+            answer: дэрем
+          - kind: assemble
+            prompt: "Новая шапка"
+            answer: Выль изьы
+            options: [Выль, изьы, вуж, дэрем]
+
+  - title: Школа
+    title_udm: ""
+    lessons:
+      - title: В школе
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [дышетӥсь, учитель]
+              - [дышетскись, ученик]
+              - [кыл, язык]
+              - [нылпи, ребёнок]
+          - kind: choice
+            prompt: учитель
+            answer: дышетӥсь
+            options: [дышетӥсь, дышетскись, нылпи]
+          - kind: choice
+            prompt: кыл
+            answer: язык
+            options: [язык, ученик, ребёнок]
+          - kind: type
+            prompt: язык
+            answer: кыл
+          - kind: assemble
+            prompt: "Удмуртский язык"
+            answer: Удмурт кыл
+            options: [Удмурт, кыл, дышетӥсь, ма]
+
+  - title: Город и деревня
+    title_udm: ""
+    lessons:
+      - title: Где мы живём
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [кар, город]
+              - [гурт, деревня]
+              - [сюрес, дорога]
+              - [ульча, улица]
+          - kind: choice
+            prompt: деревня
+            answer: гурт
+            options: [гурт, кар, сюрес]
+          - kind: choice
+            prompt: Ижевск
+            answer: Ижкар
+            options: [Ижкар, гурт, сюрес]
+          - kind: type
+            prompt: город
+            answer: кар
+          - kind: assemble
+            prompt: "Большой город"
+            answer: Бадӟым кар
+            options: [Бадӟым, кар, пичи, гурт]
+
+  - title: Птицы и насекомые
+    title_udm: ""
+    lessons:
+      - title: Птицы
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [тылобурдо, птица]
+              - [ӟазег, гусь]
+              - [ӵӧж, утка]
+              - [атас, петух]
+          - kind: choice
+            prompt: гусь
+            answer: ӟазег
+            options: [ӟазег, ӵӧж, атас]
+          - kind: choice
+            prompt: атас
+            answer: петух
+            options: [петух, утка, птица]
+          - kind: type
+            prompt: птица
+            answer: тылобурдо
+          - kind: type
+            prompt: утка
+            answer: ӵӧж
+            hint: буквы «ӵ» и «ӧ»
+      - title: Насекомые
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [муш, пчела]
+              - [кузьыли, муравей]
+              - [бубыли, бабочка]
+          - kind: choice
+            prompt: бабочка
+            answer: бубыли
+            options: [бубыли, муш, кузьыли]
+          - kind: choice
+            prompt: муш
+            answer: пчела
+            options: [пчела, муравей, бабочка]
+          - kind: type
+            prompt: муравей
+            answer: кузьыли
+          - kind: assemble
+            prompt: "Красивая бабочка"
+            answer: Чебер бубыли
+            options: [Чебер, бубыли, муш, пичи]
+
+  - title: Огород и лес
+    title_udm: ""
+    lessons:
+      - title: В огороде
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [картофка, картошка]
+              - [сугон, лук]
+              - [кубиста, капуста]
+              - [кешыр, морковь]
+          - kind: choice
+            prompt: огурец
+            answer: кияр
+            options: [кияр, сугон, кешыр]
+          - kind: choice
+            prompt: кубиста
+            answer: капуста
+            options: [капуста, картошка, морковь]
+          - kind: type
+            prompt: лук
+            answer: сугон
+          - kind: type
+            prompt: морковь
+            answer: кешыр
+      - title: Ягоды и грибы
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [узы, земляника]
+              - [эмезь, малина]
+              - [губи, гриб]
+          - kind: choice
+            prompt: малина
+            answer: эмезь
+            options: [эмезь, узы, губи]
+          - kind: choice
+            prompt: губи
+            answer: гриб
+            options: [гриб, земляника, малина]
+          - kind: type
+            prompt: земляника
+            answer: узы
+          - kind: type
+            prompt: гриб
+            answer: губи
