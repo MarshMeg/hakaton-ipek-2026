@@ -98,7 +98,8 @@ Three Django apps under `backend/`:
     `HX-Redirect` to the result page. Non-HTMX requests fall back to full pages/redirects.
     Option order is shuffled with a seed of `(exercise.id, pos)` so it doesn't change after answering.
     `leaderboard` — top 50 non-guest profiles with XP, ordered by XP (equal XP shares a place); the
-    current player is highlighted, or shown separately when outside the top.
+    current player is highlighted, or shown separately when outside the top. A player can tick `Profile.leaderboard_anonymous` in
+    `accounts:profile_edit`: others then see «Аноним» with no name/avatar, the player still sees themselves.
 - `accounts` — `Profile` (xp, streak, `is_guest`). The login page is the first screen: every game view
   is `@login_required`, and an authenticated player is redirected from login straight to the course map.
   After signup the player sees the one-time rules screen `learning:welcome`. There is no play without registration any more; `is_guest` only marks accounts left from the old

@@ -312,6 +312,32 @@ def test_leaderboard_orders_by_xp_and_marks_player(client):
     assert "Айно" in response.content.decode()
 
 
+def test_leaderboard_anonymous_player(client):
+    hidden = _player("secret", 300, name="Тайна")
+    hidden.avatar = "avatars/secret.jpg"
+    hidden.leaderboard_anonymous = True
+    hidden.save()
+
+    page = client.get(reverse("learning:leaderboard")).content.decode()
+    assert "Аноним" in page
+    assert "Тайна" not in page and "avatars/secret.jpg" not in page
+
+    # Галочка в профиле: сам игрок видит себя под своим именем, с пометкой.
+    data = {"name": "Айно", "family": "Корепанова", "username": "player"}
+    client.post(reverse("accounts:profile_edit"), data | {"leaderboard_anonymous": "on"})
+    me = Profile.objects.get(user__username="player")
+    assert me.leaderboard_anonymous
+    me.xp = 10
+    me.save()
+    page = client.get(reverse("learning:leaderboard")).content.decode()
+    assert "Айно К." in page and "🕶 аноним" in page
+    assert "checked" in client.get(reverse("accounts:profile_edit")).content.decode()
+
+    client.post(reverse("accounts:profile_edit"), data)
+    me.refresh_from_db()
+    assert not me.leaderboard_anonymous
+
+
 def test_leaderboard_without_xp_and_for_anonymous(client, db):
     response = client.get(reverse("learning:leaderboard"))
     assert response.context["rows"] == []

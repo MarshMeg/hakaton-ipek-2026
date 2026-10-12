@@ -44,6 +44,9 @@ class ProfileForm(forms.Form):
     username = forms.CharField(label="Имя пользователя (для входа)", max_length=150)
     avatar = forms.ImageField(label="Аватарка", required=False)
     remove_avatar = forms.BooleanField(label="Убрать аватарку", required=False)
+    leaderboard_anonymous = forms.BooleanField(
+        label="Показывать меня в таблице лидеров анонимно", required=False
+    )
 
     def __init__(self, *args, user, **kwargs):
         self.user = user
@@ -51,6 +54,7 @@ class ProfileForm(forms.Form):
             "name": user.first_name,
             "family": user.last_name,
             "username": user.username,
+            "leaderboard_anonymous": user.profile.leaderboard_anonymous,
         }
         super().__init__(*args, initial=initial, **kwargs)
 
@@ -79,6 +83,9 @@ class ProfileForm(forms.Form):
         user.username = data["username"]
         user.first_name, user.last_name = data["name"].strip(), data["family"].strip()
         user.save(update_fields=["username", "first_name", "last_name"])
+        if profile.leaderboard_anonymous != data["leaderboard_anonymous"]:
+            profile.leaderboard_anonymous = data["leaderboard_anonymous"]
+            profile.save(update_fields=["leaderboard_anonymous"])
         if data["avatar"] or data["remove_avatar"]:
             if profile.avatar:
                 profile.avatar.delete(save=False)
