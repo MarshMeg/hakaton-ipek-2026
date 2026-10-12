@@ -67,7 +67,8 @@ python manage.py runserver 0.0.0.0:8000
 ## Android-приложение
 **Скачать APK:** https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes.apk
 
-APK собирается в GitHub Actions при каждом push в `main` и публикуется в
+APK собирается в GitHub Actions при изменениях в `mobile/` на ветке `main` (или вручную:
+Actions → Android → Run workflow) и публикуется в
 [Releases](https://github.com/MarshMeg/hakaton-ipek-2026/releases). Приложение открывает сервер
 `https://hakaton.marshmeg.ru`; адрес можно поменять в самом приложении (экран «Нет связи с сервером»).
 
@@ -116,7 +117,7 @@ cd backend
 ## Как вносить изменения
 1. Создайте ветку от `main`, сделайте изменения и откройте Pull Request.
 2. CI должен быть зелёным: ruff, pytest, сборка APK.
-3. После merge в `main` CI сам публикует новый APK в Releases.
+3. Если изменения затронули `mobile/`, после merge в `main` CI сам публикует новый APK в Releases.
 
 ## Структура
 ```
