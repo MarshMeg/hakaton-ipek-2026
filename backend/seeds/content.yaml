@@ -1,0 +1,121 @@
+# Стартовый контент курса. Загружается командой: python manage.py seed [--reset]
+#
+# ВНИМАНИЕ: слова и фразы — демонстрационные. Перед сдачей их нужно сверить
+# с носителем языка / материалами кейса (критерий «контент соответствует действительности»).
+#
+# Типы упражнений (kind):
+#   choice   — prompt + options, answer = один из options
+#   type     — prompt, answer (допустимые варианты через «|»)
+#   assemble — prompt, options = плитки (нужные + лишние), answer = собранная фраза
+#   match    — options = список пар [удмуртское, русское]
+# Необязательные поля: hint, audio, image (путь относительно seeds/media/).
+
+course:
+  slug: udmurt-basics
+  title: Удмуртский для начинающих
+  description: Первые слова и фразы на удмуртском языке.
+
+units:
+  - title: Знакомство
+    title_udm: Тодматскон
+    lessons:
+      - title: Приветствия
+        exercises:
+          - kind: choice
+            prompt: Здравствуйте!
+            answer: Ӟечбуресь!
+            options: [Ӟечбуресь!, Тау!, Ӟеч луэ!]
+          - kind: choice
+            prompt: Тау!
+            answer: Спасибо!
+            options: [Спасибо!, Привет!, До свидания!]
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [Ӟечбуресь!, Здравствуйте!]
+              - [Тау!, Спасибо!]
+              - [Ӟеч луэ!, До свидания!]
+          - kind: type
+            prompt: Спасибо!
+            answer: Тау
+          - kind: choice
+            prompt: Как дела?
+            answer: "Кызьы улӥськод?"
+            options: ["Кызьы улӥськод?", "Ӟеч луэ!", "Ӟечбуресь!"]
+      - title: Да и нет
+        exercises:
+          - kind: choice
+            prompt: Да
+            answer: Бен
+            options: [Бен, Ӧвӧл, Тау]
+          - kind: choice
+            prompt: Нет
+            answer: Ӧвӧл
+            options: [Ӧвӧл, Бен, Кык]
+          - kind: type
+            prompt: Нет
+            answer: Ӧвӧл
+            hint: в слове две буквы «ӧ»
+          - kind: assemble
+            prompt: Меня зовут Айно.
+            answer: Мынам нимы Айно
+            options: [Мынам, нимы, Айно, тау, бен]
+
+  - title: Числа
+    title_udm: Лыдпусъёс
+    lessons:
+      - title: Один — пять
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [одӥг, один]
+              - [кык, два]
+              - [куинь, три]
+              - [ньыль, четыре]
+          - kind: choice
+            prompt: пять
+            answer: вить
+            options: [вить, кык, ньыль]
+          - kind: type
+            prompt: один
+            answer: одӥг
+          - kind: choice
+            prompt: куинь
+            answer: три
+            options: [три, пять, два]
+      - title: Шесть — десять
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [куать, шесть]
+              - [сизьым, семь]
+              - [тямыс, восемь]
+              - [укмыс, девять]
+          - kind: choice
+            prompt: десять
+            answer: дас
+            options: [дас, вить, укмыс]
+          - kind: type
+            prompt: семь
+            answer: сизьым
+
+  - title: Цвета флага
+    title_udm: ""
+    lessons:
+      - title: Красный, белый, чёрный
+        exercises:
+          - kind: match
+            prompt: Найди пары
+            options:
+              - [горд, красный]
+              - [тӧдьы, белый]
+              - [сьӧд, чёрный]
+          - kind: choice
+            prompt: тӧдьы
+            answer: белый
+            options: [белый, чёрный, красный]
+          - kind: type
+            prompt: чёрный
+            answer: сьӧд

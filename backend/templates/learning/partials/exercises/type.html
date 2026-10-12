@@ -1,0 +1,19 @@
+{# Экранная панель с удмуртскими буквами — на обычной клавиатуре телефона их нет. #}
+<div x-data="{
+  insert(ch) {
+    const el = this.$refs.inp;
+    const s = el.selectionStart ?? el.value.length, e = el.selectionEnd ?? el.value.length;
+    el.value = el.value.slice(0, s) + ch + el.value.slice(e);
+    el.focus();
+    el.setSelectionRange(s + 1, s + 1);
+  }
+}">
+  <input x-ref="inp" name="answer" value="{{ given }}" required autocomplete="off" autocapitalize="off"
+         spellcheck="false" placeholder="Твой ответ"
+         class="w-full rounded-2xl border-2 border-gray-300 bg-white px-4 py-3 text-xl focus:border-brand-red focus:outline-none">
+  <div class="mt-3 flex flex-wrap gap-2" aria-label="Удмуртские буквы">
+    {% for key in udmurt_keys %}
+    <button type="button" class="tile min-w-12 px-3 py-2" @click="insert('{{ key }}')">{{ key }}</button>
+    {% endfor %}
+  </div>
+</div>

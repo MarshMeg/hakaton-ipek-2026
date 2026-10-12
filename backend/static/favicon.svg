@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Временный логотип-маскот: солнце-ромб. Заменить на символику из брендбука. -->
+  <rect width="64" height="64" rx="16" fill="#c8102e"/>
+  <path d="M32 10 L54 32 L32 54 L10 32 Z" fill="#fbf7f0"/>
+  <path d="M32 20 L44 32 L32 44 L20 32 Z" fill="#1b1b1b"/>
+  <circle cx="32" cy="32" r="5" fill="#f2b705"/>
+</svg>
