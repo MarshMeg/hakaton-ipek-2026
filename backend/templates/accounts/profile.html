@@ -46,6 +46,7 @@
 
 <div class="mt-10 grid gap-3">
   <a href="{% url 'learning:home' %}" class="btn-primary">К урокам</a>
+  <a href="{% url 'learning:leaderboard' %}" class="btn-ghost">🏆 Таблица лидеров</a>
   {% if not profile.is_guest %}<a href="{% url 'accounts:password_change' %}" class="btn-ghost">Сменить пароль</a>{% endif %}
   <form method="post" action="{% url 'accounts:logout' %}" class="grid">
     {% csrf_token %}
