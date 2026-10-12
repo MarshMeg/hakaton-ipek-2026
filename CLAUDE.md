@@ -83,8 +83,14 @@ Three Django apps under `backend/`:
   is `@login_required`, and an authenticated player is redirected from login straight to the course map.
   There is no play without registration any more; `is_guest` only marks accounts left from the old
   guest mode. Signup creates a new user, or converts such a legacy guest in place (renames + sets
-  password) so progress is kept. `get_player()` only ensures the profile exists. The avatar in the header links to the profile page
+  password) so progress is kept. `get_player()` only ensures the profile exists. Login is by `username`;
+  the player's name and family are `User.first_name`/`last_name` (asked at signup) and are only for
+  display: `Profile.display_name` gives «Айно К.» and falls back to the username. The avatar in the header links to the profile page
   (`accounts:profile`: stats, recent `LessonResult`s, the logout POST form).
+  `accounts:profile_edit` (`ProfileForm`) edits name, family, username and the avatar: the upload is
+  re-encoded with Pillow to a 256×256 JPEG and stored in `Profile.avatar` (default storage, `avatars/`).
+  In the APK the file chooser for that `<input type="file">` is wired in `mobile/lib/main.dart`
+  (`setOnShowFileSelector` + `image_picker`) — Android WebView does not open one by itself.
 
 Templates: each exercise kind has its own partial in `templates/learning/partials/exercises/`;
 client-side interaction (tile assembly, pair matching, the on-screen Udmurt letter keyboard) is

@@ -14,17 +14,17 @@
       hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
   {% block header %}
   <header class="sticky top-0 z-10 bg-white/90 backdrop-blur">
-    <div class="mx-auto flex max-w-xl items-center justify-between px-4 py-3">
-      <a href="{% url 'learning:home' %}" class="flex items-center gap-2 text-xl font-extrabold">
+    <div class="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 py-3">
+      <a href="{% url 'learning:home' %}" class="flex shrink-0 items-center gap-2 text-xl font-extrabold">
         <img src="{% static 'img/logo.svg' %}" alt="" class="h-8 w-8"> Вотэс
       </a>
       {% if profile %}
-      <div class="flex items-center gap-4 font-bold">
-        <span title="Дней подряд">🔥 {{ profile.streak }}</span>
-        <span title="Опыт">⭐ {{ profile.xp }}</span>
-        <a href="{% url 'accounts:profile' %}" title="Профиль" aria-label="Профиль"
-           class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-red font-extrabold uppercase text-white">
-          {{ user.username|first }}
+      <div class="flex min-w-0 items-center gap-3 font-bold">
+        <span class="whitespace-nowrap" title="Дней подряд">🔥 {{ profile.streak }}</span>
+        <span class="whitespace-nowrap" title="Опыт">⭐ {{ profile.xp }}</span>
+        <a href="{% url 'accounts:profile' %}" title="Профиль" class="flex min-w-0 items-center gap-2">
+          {% include "accounts/_avatar.html" with size="h-9 w-9" %}
+          <span class="truncate text-sm">{{ profile.display_name }}</span>
         </a>
       </div>
       {% endif %}

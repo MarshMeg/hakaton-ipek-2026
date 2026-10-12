@@ -5,7 +5,7 @@ from django.shortcuts import redirect, render
 
 from courses.models import Lesson
 
-from .forms import SignupForm
+from .forms import ProfileForm, SignupForm
 from .models import Profile
 from .services import get_player
 
@@ -16,17 +16,22 @@ def signup(request):
         return redirect("learning:home")
     form = SignupForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
-        username, password = form.cleaned_data["username"], form.cleaned_data["password"]
+        data = form.cleaned_data
+        username, password = data["username"], data["password"]
+        names = {"first_name": data["name"].strip(), "last_name": data["family"].strip()}
         if user.is_authenticated:
             # Гостевые аккаунты остались от прежней версии (игра без регистрации): такой гость
             # становится постоянным игроком на месте — прогресс сохраняется.
             user.username = username
+            user.first_name, user.last_name = names["first_name"], names["last_name"]
             user.set_password(password)
             user.save()
             user.profile.is_guest = False
             user.profile.save(update_fields=["is_guest"])
         else:
-            user = get_user_model().objects.create_user(username=username, password=password)
+            user = get_user_model().objects.create_user(
+                username=username, password=password, **names
+            )
             Profile.objects.create(user=user, is_guest=False)
         # После смены пароля сессию нужно обновить, иначе игрока разлогинит.
         login(request, user)
@@ -45,6 +50,16 @@ def profile(request):
         "recent_results": results[:5],
     }
     return render(request, "accounts/profile.html", context)
+
+
+@login_required
+def profile_edit(request):
+    player = get_player(request)
+    form = ProfileForm(request.POST or None, request.FILES or None, user=player)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        return redirect("accounts:profile")
+    return render(request, "accounts/profile_edit.html", {"form": form})
 
 
 class PlayerLoginView(LoginView):

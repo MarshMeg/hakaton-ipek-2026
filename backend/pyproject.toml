@@ -12,6 +12,7 @@ dependencies = [
     "gunicorn>=23.0",
     "whitenoise>=6.8",
     "PyYAML>=6.0",
+    "pillow>=11",
 ]
 
 [dependency-groups]

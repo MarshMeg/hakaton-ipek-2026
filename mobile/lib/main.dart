@@ -2,8 +2,10 @@
 // приложение отвечает за запуск, экран «нет связи», кнопку «назад» и выбор адреса сервера.
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 /// Адрес по умолчанию задаётся при сборке: flutter build apk --dart-define=SERVER_URL=https://...
 /// Для локального сервера в эмуляторе: --dart-define=SERVER_URL=http://10.0.2.2:8000
@@ -91,6 +93,15 @@ class _GameScreenState extends State<GameScreen> {
           },
         ),
       );
+    // Android WebView сам не открывает выбор файла для <input type="file"> (аватарка в профиле):
+    // показываем системную галерею и отдаём странице выбранную картинку.
+    final platform = _controller.platform;
+    if (platform is AndroidWebViewController) {
+      platform.setOnShowFileSelector((_) async {
+        final image = await ImagePicker().pickImage(source: ImageSource.gallery);
+        return image == null ? [] : [Uri.file(image.path).toString()];
+      });
+    }
     _loadSavedUrl();
   }
 
