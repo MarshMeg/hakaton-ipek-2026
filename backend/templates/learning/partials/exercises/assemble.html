@@ -2,11 +2,12 @@
   <p class="rounded-2xl border-2 border-gray-200 bg-white p-4 text-lg font-bold">{{ given|default:"—" }}</p>
 {% else %}
 {{ options|json_script:"assemble-tiles" }}
+{# Пока не выбрана ни одна плитка, кнопка «Проверить» выключена — пустой ответ не тратит сердечко. #}
 <div x-data="{
   tiles: JSON.parse(document.getElementById('assemble-tiles').textContent).map((w, i) => ({ w, i })),
   picked: [],
   isPicked(t) { return this.picked.includes(t) },
-}">
+}" x-effect="$root.closest('form').querySelector('[type=submit]').disabled = !picked.length">
   <div class="flex min-h-16 flex-wrap gap-2 border-b-2 border-gray-300 pb-3">
     <template x-for="t in picked" :key="t.i">
       <button type="button" class="tile" x-text="t.w" @click="picked.splice(picked.indexOf(t), 1)"></button>

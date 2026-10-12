@@ -67,7 +67,9 @@ Deploy: the `deploy` job in `ci.yml` (push to `main`, after `backend` passes) rs
 `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`, then curls
 `vars.DEPLOY_URL`. `docker-compose.prod.yml` adds Caddy (`deploy/Caddyfile`: HTTPS, `/votes-media/*` → MinIO)
 and unpublishes the web/MinIO ports. The server's `/opt/votes/.env` (secrets, `SITE_ADDRESS`,
-`S3_PUBLIC_*`) is not in git and is excluded from rsync. The MinIO image is `pgsty/minio` — the official
+`S3_PUBLIC_*`) is not in git and is excluded from rsync. The prod overlay sets `DJANGO_HTTPS_ONLY=1`
+(Secure cookies + HSTS). `minio-init` (every `up`) sets a bucket policy with anonymous `s3:GetObject`
+only — listing the bucket is forbidden. The MinIO image is `pgsty/minio` — the official
 `minio/minio` was removed from the registries.
 
 ## Backend architecture
@@ -84,7 +86,11 @@ Three Django apps under `backend/`:
   - `services/lesson_engine.py` holds the lesson run **in the Django session** (`lesson_run`: queue
     of exercise ids, position, hearts, xp, mistakes, `answered` flag). Wrong answers cost a heart and
     re-queue the exercise once; XP is only for first-try correct answers; `finish()` writes
-    `LessonResult` and calls `Profile.register_activity()` (XP + streak).
+    `LessonResult` and calls `Profile.register_activity()` (XP + streak). Replaying an already
+    completed lesson gives half the XP. Wrong pairs in `match` cost no heart but count as mistakes.
+  - `services/progress.py` — which lessons are done/open (a lesson opens when the previous one in
+    course order is done). Used by `home` and by `open_lesson_required` on every lesson view, so a
+    locked lesson can't be started by a direct link.
   - `services/answer_check.py` — answer normalization and the Udmurt-specific verdict: the five
     extra letters **Ӝ Ӟ Ӥ Ӧ Ӵ** typed as plain Cyrillic (ж з и о ч) give `ALMOST`, not `WRONG`.
   - `views.py` — HTMX flow: `lesson_answer` (POST) and `lesson_next` (GET) both re-render
@@ -95,7 +101,7 @@ Three Django apps under `backend/`:
     current player is highlighted, or shown separately when outside the top.
 - `accounts` — `Profile` (xp, streak, `is_guest`). The login page is the first screen: every game view
   is `@login_required`, and an authenticated player is redirected from login straight to the course map.
-  There is no play without registration any more; `is_guest` only marks accounts left from the old
+  After signup the player sees the one-time rules screen `learning:welcome`. There is no play without registration any more; `is_guest` only marks accounts left from the old
   guest mode. Signup creates a new user, or converts such a legacy guest in place (renames + sets
   password) so progress is kept. `get_player()` only ensures the profile exists. Login is by `username`;
   the player's name and family are `User.first_name`/`last_name` (asked at signup) and are only for
@@ -110,8 +116,9 @@ Three Django apps under `backend/`:
 
 Templates: each exercise kind has its own partial in `templates/learning/partials/exercises/`;
 client-side interaction (tile assembly, pair matching, the on-screen Udmurt letter keyboard) is
-Alpine.js inline in those partials. `match` is validated on the client and auto-submits `answer=ok`;
-the server always treats it as correct. Adding a new exercise kind means: a `Kind` choice, handling
+Alpine.js inline in those partials. `match` is checked on the client as the player goes and then submits the pairs as JSON
+(`answer=[[udm, rus], ...]`, plus the client-side wrong-pair count in `mistakes`); the server compares
+the pairs with `exercise.options`. An empty answer is not checked and costs no heart. Adding a new exercise kind means: a `Kind` choice, handling
 in `lesson_engine.submit`, a partial, and a branch in `lesson_body.html`.
 
 Game balance (hearts, XP) is in `settings.GAME`. Brand colors/fonts are tokens in

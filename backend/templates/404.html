@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Страница не найдена — Вотэс{% endblock %}
+{% block content %}
+<div class="mt-16 text-center">
+  <div class="text-7xl">🧭</div>
+  <h1 class="mt-6 text-3xl font-extrabold">Такой страницы нет</h1>
+  <p class="mt-2 text-lg text-gray-600">Возможно, ссылка устарела или в адресе опечатка.</p>
+  <a href="{% url 'learning:home' %}" class="btn-primary mt-10 w-full">К урокам</a>
+</div>
+{% endblock %}
