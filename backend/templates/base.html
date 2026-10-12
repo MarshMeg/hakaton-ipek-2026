@@ -22,10 +22,10 @@
       <div class="flex items-center gap-4 font-bold">
         <span title="Дней подряд">🔥 {{ profile.streak }}</span>
         <span title="Опыт">⭐ {{ profile.xp }}</span>
-        <form method="post" action="{% url 'accounts:logout' %}">
-          {% csrf_token %}
-          <button class="text-sm text-gray-500 underline" title="{{ user.username }}">Выйти</button>
-        </form>
+        <a href="{% url 'accounts:profile' %}" title="Профиль" aria-label="Профиль"
+           class="flex h-9 w-9 items-center justify-center rounded-full bg-brand-red font-extrabold uppercase text-white">
+          {{ user.username|first }}
+        </a>
       </div>
       {% endif %}
     </div>
