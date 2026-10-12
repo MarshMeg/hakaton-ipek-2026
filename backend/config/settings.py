@@ -111,7 +111,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "learning:home"
-LOGOUT_REDIRECT_URL = "learning:home"
+LOGOUT_REDIRECT_URL = "accounts:login"
 
 # Игровой баланс — вынесен в настройки, чтобы быстро крутить под ТЗ заказчика.
 GAME = {

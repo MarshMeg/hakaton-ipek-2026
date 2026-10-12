@@ -2,6 +2,7 @@
 
 import random
 
+from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -17,6 +18,7 @@ from .services.answer_check import UDMURT_TO_PLAIN
 UDMURT_KEYS = list(UDMURT_TO_PLAIN)  # ӝ ӟ ӥ ӧ ӵ — кнопки экранной клавиатуры
 
 
+@login_required
 def home(request):
     player = get_player(request)
     course = Course.objects.prefetch_related("units__lessons").first()
@@ -34,6 +36,7 @@ def home(request):
     return render(request, "learning/home.html", {"course": course, "units": units})
 
 
+@login_required
 def lesson_start(request, lesson_id):
     get_player(request)
     lesson = get_object_or_404(Lesson, id=lesson_id)
@@ -65,6 +68,7 @@ def _body_context(run, exercise, feedback=None, given=""):
     }
 
 
+@login_required
 def lesson_play(request, lesson_id):
     get_player(request)
     run = engine.get_run(request.session, lesson_id)
@@ -78,6 +82,7 @@ def lesson_play(request, lesson_id):
     return render(request, "learning/lesson.html", ctx)
 
 
+@login_required
 @require_POST
 def lesson_answer(request, lesson_id):
     run = engine.get_run(request.session, lesson_id)
@@ -95,6 +100,7 @@ def lesson_answer(request, lesson_id):
     return render(request, "learning/partials/lesson_body.html", ctx)
 
 
+@login_required
 def lesson_next(request, lesson_id):
     player = get_player(request)
     run = engine.get_run(request.session, lesson_id)
@@ -121,6 +127,7 @@ def lesson_next(request, lesson_id):
     return render(request, "learning/partials/lesson_body.html", ctx)
 
 
+@login_required
 def lesson_result(request, lesson_id):
     get_player(request)
     result = request.session.get(engine.RESULT_KEY)

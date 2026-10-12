@@ -3,7 +3,7 @@
 {% if profile and profile.is_guest %}
 <div class="mt-4 rounded-2xl border-2 border-dashed border-gray-300 bg-white p-4 text-sm">
   Ты играешь как гость. <a class="font-bold text-brand-red underline" href="{% url 'accounts:signup' %}">Создай аккаунт</a>,
-  чтобы не потерять прогресс, или <a class="font-bold underline" href="{% url 'accounts:login' %}">войди</a>.
+  чтобы не потерять прогресс.
 </div>
 {% endif %}
 

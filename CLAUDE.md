@@ -79,9 +79,12 @@ Three Django apps under `backend/`:
     `templates/learning/partials/lesson_body.html` into `#lesson-body`; finishing returns an
     `HX-Redirect` to the result page. Non-HTMX requests fall back to full pages/redirects.
     Option order is shuffled with a seed of `(exercise.id, pos)` so it doesn't change after answering.
-- `accounts` — `Profile` (xp, streak, `is_guest`). `accounts.services.get_player()` silently creates
-  and logs in a guest user for anonymous visitors; every game view calls it. Signup converts the
-  guest in place (renames + sets password) so progress is kept.
+- `accounts` — `Profile` (xp, streak, `is_guest`). The login page is the first screen: every game view
+  is `@login_required`, and an authenticated player is redirected from login straight to the course map.
+  Guest play is explicit — the «Играть без регистрации» button POSTs to `accounts:guest`
+  (`accounts.services.create_guest()`). Signup converts a guest in place (renames + sets password) so
+  progress is kept, or creates a new user for an anonymous visitor. `get_player()` only ensures the
+  profile exists. Logout is a POST form in the header.
 
 Templates: each exercise kind has its own partial in `templates/learning/partials/exercises/`;
 client-side interaction (tile assembly, pair matching, the on-screen Udmurt letter keyboard) is
