@@ -3,6 +3,11 @@
 Мобильная игра для детей в стиле Duolingo для изучения удмуртского языка.
 Проект для хакатона «Удмуртский ИТ-класс „Вотэс“» (направление «Мобильная разработка»).
 
+[![CI](https://github.com/MarshMeg/hakaton-ipek-2026/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MarshMeg/hakaton-ipek-2026/actions/workflows/ci.yml)
+· **[Скачать APK](https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes.apk)**
+· **[План реализации](ROADMAP.md)**
+· Сервер: https://hakaton.marshmeg.ru
+
 <p>
   <img src="docs/screenshots/home.png" width="180">
   <img src="docs/screenshots/choice.png" width="180">
@@ -95,6 +100,24 @@ cd backend
 > ⚠️ Стартовые слова и фразы демонстрационные. Перед сдачей их нужно сверить с носителем языка
 > или с материалами кейса.
 
+## План и статус
+Сейчас готов рабочий каркас: 4 типа упражнений, игровая механика, админка, Docker и APK.
+Дальше работаем по этапам хакатона: разбор кейса (15.10), MVP, стабилизация, сдача до 26.10 и
+очный этап 06.11. Подробный план с приоритетами и чек-листами: **[ROADMAP.md](ROADMAP.md)**.
+
+## Команда
+| Участник | Роль |
+|---|---|
+| _имя_ | проектный менеджер / разработчик |
+| _имя_ | разработчик (бэкенд) |
+| _имя_ | разработчик (мобильное приложение) |
+| _имя_ | дизайнер / аналитик |
+
+## Как вносить изменения
+1. Создайте ветку от `main`, сделайте изменения и откройте Pull Request.
+2. CI должен быть зелёным: ruff, pytest, сборка APK.
+3. После merge в `main` CI сам публикует новый APK в Releases.
+
 ## Структура
 ```
 backend/            Django-проект
@@ -108,4 +131,5 @@ backend/            Django-проект
   tests/            pytest
 mobile/             Flutter-приложение (WebView)
 docs/               архитектура, скриншоты
+ROADMAP.md          план дальнейшей реализации
 ```
