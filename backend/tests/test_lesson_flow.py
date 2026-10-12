@@ -262,3 +262,32 @@ def test_every_seed_lesson_can_be_completed(client, lesson):
             r = client.get(reverse("learning:lesson_next", args=[current.id]), **HTMX)
         assert r["HX-Redirect"] == reverse("learning:lesson_result", args=[current.id])
     assert LessonResult.objects.count() == Lesson.objects.count() >= 25
+
+
+def _player(username, xp, *, name="", is_guest=False):
+    user = get_user_model().objects.create_user(username=username, first_name=name)
+    return Profile.objects.create(user=user, xp=xp, is_guest=is_guest)
+
+
+def test_leaderboard_orders_by_xp_and_marks_player(client):
+    Profile.objects.filter(user__username="player").update(xp=50)
+    _player("top", 300, name="Айно")
+    _player("tie", 50)
+    _player("zero", 0)
+    _player("guest", 999, is_guest=True)
+
+    response = client.get(reverse("learning:leaderboard"))
+    rows = response.context["rows"]
+    assert [(r["place"], r["profile"].user.username) for r in rows][0] == (1, "top")
+    assert {r["profile"].user.username for r in rows} == {"top", "player", "tie"}
+    assert [r["place"] for r in rows] == [1, 2, 2]  # одинаковый опыт — общее место
+    assert response.context["my_place"] == 2
+    assert response.context["in_top"]
+    assert "Айно" in response.content.decode()
+
+
+def test_leaderboard_without_xp_and_for_anonymous(client, db):
+    response = client.get(reverse("learning:leaderboard"))
+    assert response.context["rows"] == []
+    assert response.context["my_place"] is None
+    assert Client().get(reverse("learning:leaderboard")).status_code == 302

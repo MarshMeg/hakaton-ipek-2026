@@ -8,6 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from accounts.models import Profile
 from accounts.services import get_player
 from courses.models import Course, Exercise, Lesson
 
@@ -16,6 +17,7 @@ from .services import lesson_engine as engine
 from .services.answer_check import UDMURT_TO_PLAIN
 
 UDMURT_KEYS = list(UDMURT_TO_PLAIN)  # ӝ ӟ ӥ ӧ ӵ — кнопки экранной клавиатуры
+LEADERBOARD_SIZE = 50
 
 
 @login_required
@@ -34,6 +36,26 @@ def home(request):
                 unlocked = done
             units.append({"obj": unit, "lessons": lessons})
     return render(request, "learning/home.html", {"course": course, "units": units})
+
+
+@login_required
+def leaderboard(request):
+    """Таблица лидеров по опыту. Старые гостевые аккаунты и игроки без опыта в неё не попадают."""
+    player = get_player(request)
+    ranked = Profile.objects.filter(is_guest=False, xp__gt=0).select_related("user")
+    top = list(ranked.order_by("-xp", "-streak", "user__date_joined")[:LEADERBOARD_SIZE])
+    # Место считается по опыту: у игроков с одинаковым опытом оно общее.
+    rows, place = [], 0
+    for index, entry in enumerate(top, start=1):
+        if not rows or entry.xp != rows[-1]["profile"].xp:
+            place = index
+        rows.append({"place": place, "profile": entry, "me": entry.user_id == player.id})
+    mine = player.profile
+    my_place = None
+    if not mine.is_guest and mine.xp > 0:
+        my_place = ranked.filter(xp__gt=mine.xp).count() + 1
+    context = {"rows": rows, "my_place": my_place, "in_top": any(r["me"] for r in rows)}
+    return render(request, "learning/leaderboard.html", context)
 
 
 @login_required
