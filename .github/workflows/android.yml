@@ -31,6 +31,8 @@ jobs:
           cache: true
       - run: flutter create --platforms=android --org ru.votes .
       - run: flutter pub get
+      # Иконка приложения поверх стандартной из flutter create (настройки — в pubspec.yaml).
+      - run: dart run flutter_launcher_icons
       - run: flutter analyze
       # Адрес сервера вшивается в APK. Можно переопределить переменной репозитория SERVER_URL
       # (Settings → Secrets and variables → Actions → Variables).
