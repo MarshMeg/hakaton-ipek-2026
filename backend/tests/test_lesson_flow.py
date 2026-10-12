@@ -10,6 +10,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import Client
 from django.urls import reverse
+from django.utils.html import escape
 from PIL import Image
 
 from accounts.models import Profile
@@ -341,6 +342,20 @@ def test_locked_lesson_is_not_opened_by_direct_link(client, lesson):
         i["obj"].id: i["open"] for u in client.get(home).context["units"] for i in u["lessons"]
     }
     assert states[first.id] and states[second.id] and not states[third.id]
+
+
+def test_course_map_lesson_labels_and_locked_hint(client, lesson):
+    """Карта курса: у уроков есть aria-label с названием и состоянием, подпись — часть ссылки,
+    у закрытого урока — подсказка «Сначала пройди предыдущий урок»."""
+    first, second, third = _course_lessons()[:3]
+    _play_lesson(client, first)
+    html = client.get(reverse("learning:home")).content.decode()
+    start = reverse("learning:lesson_start", args=[first.id])
+    assert f'href="{start}" class="flex flex-col items-center"' in html
+    assert f'aria-label="{escape(first.title)} — пройден"' in html
+    assert f'aria-label="{escape(second.title)} — не пройден"' in html
+    assert f'aria-label="{escape(third.title)} — закрыт"' in html
+    assert "Сначала пройди предыдущий урок" in html
 
 
 def _start_match(client):
