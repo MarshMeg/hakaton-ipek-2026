@@ -60,13 +60,18 @@ python manage.py runserver 0.0.0.0:8000
 Без переменной `DATABASE_URL` используется SQLite, без `USE_S3=1` медиа хранятся в `backend/media/`.
 
 ## Android-приложение
-См. [mobile/README.md](mobile/README.md). Кратко:
+**Скачать APK:** https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes.apk
+
+APK собирается в GitHub Actions при каждом push в `main` и публикуется в
+[Releases](https://github.com/MarshMeg/hakaton-ipek-2026/releases). Приложение открывает сервер
+`https://hakaton.marshmeg.ru`; адрес можно поменять в самом приложении (экран «Нет связи с сервером»).
+
+Сборка вручную — см. [mobile/README.md](mobile/README.md):
 ```bash
 cd mobile
 flutter create --platforms=android --org ru.votes .
-flutter run          # в эмуляторе сервер доступен по http://10.0.2.2:8000
+flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000   # локальный сервер из эмулятора
 ```
-Готовый APK собирается в GitHub Actions: артефакт `votes-apk` во вкладке Actions.
 
 ## Тесты и линтер
 ```bash

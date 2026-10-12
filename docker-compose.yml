@@ -62,6 +62,7 @@ services:
       S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
       S3_BUCKET: ${S3_BUCKET:-votes-media}
       S3_PUBLIC_DOMAIN: ${S3_PUBLIC_DOMAIN:-localhost:9000/votes-media}
+      S3_PUBLIC_PROTOCOL: ${S3_PUBLIC_PROTOCOL:-http:}
     ports:
       - "8000:8000"
     depends_on:

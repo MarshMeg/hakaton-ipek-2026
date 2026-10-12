@@ -8,8 +8,9 @@ Flutter-обёртка: открывает веб-приложение (Django) 
 cd mobile
 flutter create --platforms=android --org ru.votes .   # один раз, создаст android/
 flutter pub get
-flutter run                                            # эмулятор: сервер на http://10.0.2.2:8000
-flutter build apk --dart-define=SERVER_URL=https://ваш-сервер
+flutter run                                            # сервер по умолчанию: https://hakaton.marshmeg.ru
+flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000   # локальный сервер из эмулятора
+flutter build apk
 ```
 
 Адрес сервера можно поменять прямо в приложении: на экране «Нет связи с сервером» →

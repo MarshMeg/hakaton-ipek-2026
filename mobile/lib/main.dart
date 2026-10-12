@@ -6,9 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// Адрес по умолчанию задаётся при сборке: flutter build apk --dart-define=SERVER_URL=https://...
-/// 10.0.2.2 — это localhost компьютера, если приложение запущено в Android-эмуляторе.
+/// Для локального сервера в эмуляторе: --dart-define=SERVER_URL=http://10.0.2.2:8000
 const String defaultServerUrl =
-    String.fromEnvironment('SERVER_URL', defaultValue: 'http://10.0.2.2:8000');
+    String.fromEnvironment('SERVER_URL', defaultValue: 'https://hakaton.marshmeg.ru');
 
 const String _prefsKey = 'server_url';
 
