@@ -1,12 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="mt-8 flex items-center gap-4">
-  <div class="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-brand-red text-4xl font-extrabold uppercase text-white">
-    {{ player.username|first }}
-  </div>
+  {% include "accounts/_avatar.html" with size="h-20 w-20 text-4xl" %}
   <div class="min-w-0">
-    <h1 class="truncate text-2xl font-extrabold">{{ player.username }}</h1>
-    <p class="text-sm text-gray-600">В игре с {{ player.date_joined|date:"j E Y" }}</p>
+    <h1 class="break-words text-2xl font-extrabold leading-tight">{{ player.get_full_name|default:player.username }}</h1>
+    <p class="text-sm text-gray-600">@{{ player.username }} · в игре с {{ player.date_joined|date:"j E Y" }}</p>
   </div>
 </div>
 
@@ -42,6 +40,7 @@
 
 <div class="mt-10 grid gap-3">
   <a href="{% url 'learning:home' %}" class="btn-primary">К урокам</a>
+  <a href="{% url 'accounts:profile_edit' %}" class="btn-ghost">Изменить профиль</a>
   <form method="post" action="{% url 'accounts:logout' %}" class="grid">
     {% csrf_token %}
     <button class="btn-ghost">Выйти</button>

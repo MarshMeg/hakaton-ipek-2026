@@ -1,8 +1,12 @@
+from io import BytesIO
+
 import pytest
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import Client
 from django.urls import reverse
+from PIL import Image
 
 from accounts.models import Profile
 from courses.models import Exercise, Lesson
@@ -46,8 +50,14 @@ def test_logged_in_player_skips_login_page(client):
 
 def test_signup_and_login(db):
     anon = Client()
-    anon.post(reverse("accounts:signup"), {"username": "aino", "password": "secret123"})
-    assert not Profile.objects.get().is_guest
+    anon.post(
+        reverse("accounts:signup"),
+        {"name": "Айно", "family": "корепанова", "username": "aino", "password": "secret123"},
+    )
+    profile = Profile.objects.get()
+    assert not profile.is_guest
+    assert profile.display_name == "Айно К."
+    assert "Айно К." in anon.get(reverse("learning:home")).content.decode()
     assert anon.get(reverse("learning:home")).status_code == 200
     anon.post(reverse("accounts:logout"))
     assert anon.get(reverse("learning:home")).status_code == 302
@@ -97,7 +107,10 @@ def test_signup_keeps_guest_progress(client, lesson):
     # Гости остались от прежней версии игры; регистрация должна сохранять их аккаунт.
     Profile.objects.update(is_guest=True)
     guest = Profile.objects.get().user
-    client.post(reverse("accounts:signup"), {"username": "aino", "password": "secret123"})
+    client.post(
+        reverse("accounts:signup"),
+        {"name": "Айно", "family": "Корепанова", "username": "aino", "password": "secret123"},
+    )
     guest.refresh_from_db()
     assert guest.username == "aino"
     assert not guest.profile.is_guest
@@ -139,3 +152,50 @@ def test_admin_cannot_edit_lesson_results(admin_client, lesson):
     assert admin_client.get(reverse("admin:learning_lessonresult_add")).status_code == 403
     result.refresh_from_db()
     assert result.xp == 10
+
+
+def test_display_name_falls_back_to_username(db):
+    user = get_user_model().objects.create_user(username="aino")
+    profile = Profile.objects.create(user=user)
+    assert profile.display_name == "aino"
+    user.first_name = "Айно"
+    assert profile.display_name == "Айно"
+
+
+def _png(size=(600, 300)):
+    buffer = BytesIO()
+    Image.new("RGB", size, "red").save(buffer, format="PNG")
+    return SimpleUploadedFile("me.png", buffer.getvalue(), content_type="image/png")
+
+
+def test_profile_edit_updates_data_and_avatar(client, settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    url = reverse("accounts:profile_edit")
+    data = {"name": "Айно", "family": "Корепанова", "username": "aino"}
+
+    response = client.post(url, data | {"avatar": _png()})
+    assert response.status_code == 302
+    profile = Profile.objects.select_related("user").get()
+    assert profile.user.username == "aino"
+    assert profile.display_name == "Айно К."
+    with Image.open(profile.avatar.path) as saved:
+        assert saved.size == (256, 256)
+    assert profile.avatar.url in client.get(reverse("accounts:profile")).content.decode()
+
+    old_path = profile.avatar.path
+    client.post(url, data | {"remove_avatar": "on"})
+    profile.refresh_from_db()
+    assert not profile.avatar
+    assert not (tmp_path / old_path).exists()
+
+
+def test_profile_edit_rejects_taken_username_and_bad_image(client):
+    get_user_model().objects.create_user(username="taken")
+    url = reverse("accounts:profile_edit")
+    data = {"name": "Айно", "family": "Корепанова", "username": "Taken"}
+    assert "уже занято" in client.post(url, data).content.decode()
+
+    fake = SimpleUploadedFile("me.png", b"not an image", content_type="image/png")
+    response = client.post(url, data | {"username": "aino", "avatar": fake})
+    assert response.status_code == 200
+    assert get_user_model().objects.filter(username="player").exists()
