@@ -41,9 +41,34 @@ jobs:
       - run: flutter create --platforms=android --org ru.votes .
       - run: flutter pub get
       - run: flutter analyze
-      # Адрес сервера для сборки задаётся переменной репозитория SERVER_URL (Settings → Variables).
-      - run: flutter build apk --release --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'http://10.0.2.2:8000' }}
+      # Адрес сервера вшивается в APK. Можно переопределить переменной репозитория SERVER_URL
+      # (Settings → Secrets and variables → Actions → Variables).
+      - run: flutter build apk --release --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+      - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes.apk
       - uses: actions/upload-artifact@v4
         with:
           name: votes-apk
-          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          path: mobile/build/votes.apk
+
+  # На каждый push в main публикуется GitHub Release с APK — его можно скачать без входа в GitHub:
+  # https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes.apk
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [backend, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: votes-apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Вотэс — сборка ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: votes.apk
+          body: |
+            APK для Android, сервер: ${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+            Коммит: ${{ github.sha }}
