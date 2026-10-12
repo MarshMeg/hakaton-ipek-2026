@@ -9,5 +9,4 @@ urlpatterns = [
     path("login/", views.PlayerLoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("signup/", views.signup, name="signup"),
-    path("guest/", views.guest_login, name="guest"),
 ]

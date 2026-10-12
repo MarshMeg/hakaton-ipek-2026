@@ -1,4 +1,5 @@
 import pytest
+from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.test import Client
 from django.urls import reverse
@@ -22,8 +23,10 @@ def _right_answer(exercise):
 
 @pytest.fixture
 def client(client, db):
-    """Клиент, вошедший как гость: игровые экраны доступны только после входа."""
-    client.post(reverse("accounts:guest"))
+    """Клиент вошедшего игрока: игровые экраны доступны только после входа."""
+    user = get_user_model().objects.create_user(username="player", password="secret123")
+    Profile.objects.create(user=user, is_guest=False)
+    client.force_login(user)
     return client
 
 
@@ -41,11 +44,7 @@ def test_logged_in_player_skips_login_page(client):
     assert response.url == reverse("learning:home")
 
 
-def test_guest_button_creates_guest(client):
-    assert Profile.objects.filter(is_guest=True).count() == 1
-
-
-def test_signup_and_login_without_guest(db):
+def test_signup_and_login(db):
     anon = Client()
     anon.post(reverse("accounts:signup"), {"username": "aino", "password": "secret123"})
     assert not Profile.objects.get().is_guest
@@ -95,6 +94,8 @@ def test_lesson_failed_when_hearts_run_out(client, lesson, settings):
 
 
 def test_signup_keeps_guest_progress(client, lesson):
+    # Гости остались от прежней версии игры; регистрация должна сохранять их аккаунт.
+    Profile.objects.update(is_guest=True)
     guest = Profile.objects.get().user
     client.post(reverse("accounts:signup"), {"username": "aino", "password": "secret123"})
     guest.refresh_from_db()

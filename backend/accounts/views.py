@@ -1,11 +1,9 @@
 from django.contrib.auth import get_user_model, login
 from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_POST
 
 from .forms import SignupForm
 from .models import Profile
-from .services import create_guest
 
 
 def signup(request):
@@ -16,7 +14,8 @@ def signup(request):
     if request.method == "POST" and form.is_valid():
         username, password = form.cleaned_data["username"], form.cleaned_data["password"]
         if user.is_authenticated:
-            # Гость становится постоянным игроком на месте — прогресс сохраняется.
+            # Гостевые аккаунты остались от прежней версии (игра без регистрации): такой гость
+            # становится постоянным игроком на месте — прогресс сохраняется.
             user.username = username
             user.set_password(password)
             user.save()
@@ -29,13 +28,6 @@ def signup(request):
         login(request, user)
         return redirect("learning:home")
     return render(request, "accounts/signup.html", {"form": form})
-
-
-@require_POST
-def guest_login(request):
-    if not request.user.is_authenticated:
-        create_guest(request)
-    return redirect("learning:home")
 
 
 class PlayerLoginView(LoginView):

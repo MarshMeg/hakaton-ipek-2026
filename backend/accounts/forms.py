@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 
 
 class SignupForm(forms.Form):
-    """Регистрация превращает гостевой аккаунт в постоянный — прогресс сохраняется."""
+    """Регистрация игрока (и превращение старого гостевого аккаунта в постоянный)."""
 
     username = forms.CharField(label="Имя пользователя", max_length=150)
     password = forms.CharField(label="Пароль", widget=forms.PasswordInput, min_length=6)
