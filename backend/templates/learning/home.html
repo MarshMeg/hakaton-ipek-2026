@@ -18,8 +18,7 @@
   <p class="mt-10 text-center text-gray-500">Курс ещё не загружен. Выполните <code>python manage.py seed</code>.</p>
 {% else %}
 
-  {# Разделы — аккордеон. Шапка раздела прилипает к свёрнутому разделу над ней (без отступа и скруглений),
-     даже когда сам раздел развёрнут. #}
+  {# Разделы — аккордеон. Шапка прилипает к свёрнутому разделу над ней, даже когда сам раздел развёрнут. #}
   <div x-data="{
          open: [{% for unit in units %}{{ unit.expanded|yesno:'true,false' }}{% if not forloop.last %}, {% endif %}{% endfor %}],
          joinedUp(i) { return i > 0 && !this.open[i - 1] },
