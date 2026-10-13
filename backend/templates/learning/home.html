@@ -13,17 +13,34 @@
   <h1 class="mt-6 text-2xl font-extrabold">{{ course.title }}</h1>
   <p class="text-gray-600">{{ course.description }}</p>
 
+  {# Разделы — аккордеон. Соседние свёрнутые разделы слипаются: без отступа и без скруглений между ними. #}
+  <div x-data="{
+         open: [{% for unit in units %}{{ unit.expanded|yesno:'true,false' }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+         joinedUp(i) { return i > 0 && !this.open[i] && !this.open[i - 1] },
+         joinedDown(i) { return i < this.open.length - 1 && !this.open[i] && !this.open[i + 1] },
+       }"
+       x-init="$nextTick(() => document.getElementById('next-lesson')?.scrollIntoView({ block: 'center', behavior: 'smooth' }))">
   {% for unit in units %}
-  <section class="mt-8">
-    <div class="rounded-2xl bg-brand-red p-4 text-white">
-      <p class="text-sm font-bold uppercase opacity-80">Раздел {{ forloop.counter }}</p>
-      <h2 class="text-xl font-extrabold">{{ unit.obj.title }}</h2>
-      {% if unit.obj.title_udm %}<p class="font-bold opacity-90">{{ unit.obj.title_udm }}</p>{% endif %}
-    </div>
+  <section :class="joinedUp({{ forloop.counter0 }}) ? 'mt-0' : 'mt-8'">
+    <button type="button" @click="open[{{ forloop.counter0 }}] = !open[{{ forloop.counter0 }}]"
+            :aria-expanded="open[{{ forloop.counter0 }}].toString()" aria-controls="unit-lessons-{{ unit.obj.id }}"
+            class="flex w-full items-center gap-3 bg-brand-red p-4 text-left text-white"
+            :class="{ 'rounded-t-2xl': !joinedUp({{ forloop.counter0 }}),
+                      'rounded-b-2xl': !joinedDown({{ forloop.counter0 }}),
+                      'border-t border-white/30': joinedUp({{ forloop.counter0 }}) }">
+      <span class="min-w-0 flex-1">
+        <span class="block text-sm font-bold uppercase opacity-80">Раздел {{ forloop.counter }} · {{ unit.done_count }} из {{ unit.lessons|length }}</span>
+        <span role="heading" aria-level="2" class="block text-xl font-extrabold">{{ unit.obj.title }}</span>
+        {% if unit.obj.title_udm %}<span class="block font-bold opacity-90">{{ unit.obj.title_udm }}</span>{% endif %}
+      </span>
+      <span aria-hidden="true" class="text-2xl transition-transform" :class="open[{{ forloop.counter0 }}] && 'rotate-180'">▾</span>
+    </button>
     {# Дорожка уроков: кружки смещаются змейкой, как в Duolingo. #}
-    <ol class="mt-6 flex flex-col items-center gap-5">
+    <ol id="unit-lessons-{{ unit.obj.id }}" x-show="open[{{ forloop.counter0 }}]"
+        {% if not unit.expanded %}style="display: none"{% endif %}
+        class="mt-6 flex flex-col items-center gap-5">
       {% for item in unit.lessons %}
-      <li class="{% cycle 'translate-x-0' '-translate-x-12' 'translate-x-0' 'translate-x-12' %} flex flex-col items-center">
+      <li {% if item.next %}id="next-lesson"{% endif %} class="{% cycle 'translate-x-0' '-translate-x-12' 'translate-x-0' 'translate-x-12' %} flex flex-col items-center">
         {% if item.open %}
         {# Кружок и подпись — одна ссылка; диктор читает название и состояние, а не «★»/«✓». #}
         <a href="{% url 'learning:lesson_start' item.obj.id %}" class="flex flex-col items-center"
@@ -56,5 +73,6 @@
     </ol>
   </section>
   {% endfor %}
+  </div>
 {% endif %}
 {% endblock %}
