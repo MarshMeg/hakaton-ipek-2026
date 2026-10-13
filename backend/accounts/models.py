@@ -4,6 +4,8 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
+from django.db.models import OuterRef, Subquery
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 
@@ -34,8 +36,10 @@ class Profile(models.Model):
             return self.user.get_username()
         return f"{name} {family[0].upper()}." if family else name
 
-    def register_activity(self, xp_gained: int) -> None:
-        """Начисляет опыт и продлевает стрик, если сегодня ещё не занимались."""
+    def register_activity(self) -> None:
+        """Продлевает стрик, если сегодня ещё не занимались, и обновляет суммарный опыт."""
+        from learning.models import PlayerXp  # learning зависит от accounts, не наоборот
+
         today = timezone.localdate()
         if self.last_active != today:
             if self.last_active == today - timedelta(days=1):
@@ -43,5 +47,9 @@ class Profile(models.Model):
             else:
                 self.streak = 1
             self.last_active = today
-        self.xp += xp_gained
-        self.save(update_fields=["xp", "streak", "last_active"])
+        # Опыт считает БД (представление learning_player_xp) — тем же запросом, что и стрик.
+        total_xp = PlayerXp.objects.filter(user_id=OuterRef("user_id")).values("xp")
+        Profile.objects.filter(pk=self.pk).update(
+            streak=self.streak, last_active=self.last_active, xp=Coalesce(Subquery(total_xp), 0)
+        )
+        self.refresh_from_db(fields=["xp"])
