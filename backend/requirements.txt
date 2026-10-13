@@ -1,8 +1,0 @@
-Django>=5.2,<5.3
-django-environ>=0.12
-django-htmx>=1.21
-django-storages[s3]>=1.14
-psycopg[binary]>=3.2
-gunicorn>=23.0
-whitenoise>=6.8
-PyYAML>=6.0

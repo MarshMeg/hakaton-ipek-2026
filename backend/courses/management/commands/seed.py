@@ -14,7 +14,11 @@ SEEDS_DIR = Path(settings.BASE_DIR) / "seeds"
 
 
 class Command(BaseCommand):
-    help = "Загружает курс из seeds/content.yaml. Без --reset пропускает уже загруженный курс."
+    help = (
+        "Загружает курс из seeds/content.yaml. Если курс уже есть, добавляет только новые разделы "
+        "и уроки (существующие уроки и прогресс игроков не трогает). "
+        "С --reset курс удаляется и загружается заново."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument("--file", default=str(SEEDS_DIR / "content.yaml"))
@@ -25,29 +29,43 @@ class Command(BaseCommand):
         data = yaml.safe_load(Path(opts["file"]).read_text(encoding="utf-8"))
         course_data = data["course"]
 
-        existing = Course.objects.filter(slug=course_data["slug"])
-        if existing.exists():
-            if not opts["reset"]:
-                self.stdout.write("Курс уже загружен — пропускаю (используйте --reset).")
-                return
-            existing.delete()
+        if opts["reset"]:
+            Course.objects.filter(slug=course_data["slug"]).delete()
+        course, created = Course.objects.get_or_create(
+            slug=course_data["slug"], defaults=course_data
+        )
 
-        course = Course.objects.create(**course_data)
-        n_exercises = 0
+        # Разделы и уроки сопоставляются по названию. Уже существующий урок не перезаписывается:
+        # его могли поправить в админке, и на него ссылаются результаты игроков.
+        n_lessons = n_exercises = 0
         for u_order, unit_data in enumerate(data["units"]):
-            unit = Unit.objects.create(
+            unit, _ = Unit.objects.get_or_create(
                 course=course,
                 title=unit_data["title"],
-                title_udm=unit_data.get("title_udm") or "",
-                order=u_order,
+                defaults={"title_udm": unit_data.get("title_udm") or "", "order": u_order},
             )
+            if unit.order != u_order:
+                unit.order = u_order
+                unit.save(update_fields=["order"])
             for l_order, lesson_data in enumerate(unit_data["lessons"]):
-                lesson = Lesson.objects.create(unit=unit, title=lesson_data["title"], order=l_order)
+                lesson, is_new = Lesson.objects.get_or_create(
+                    unit=unit, title=lesson_data["title"], defaults={"order": l_order}
+                )
+                if lesson.order != l_order:
+                    lesson.order = l_order
+                    lesson.save(update_fields=["order"])
+                if not is_new:
+                    continue
+                n_lessons += 1
                 for e_order, ex in enumerate(lesson_data["exercises"]):
                     self._create_exercise(lesson, e_order, ex)
                     n_exercises += 1
 
-        message = f"Загружен курс «{course}»: {n_exercises} упражнений."
+        if not n_lessons:
+            self.stdout.write("Курс уже загружен, новых уроков нет.")
+            return
+        verb = "Загружен" if created else "Дополнен"
+        message = f"{verb} курс «{course}»: уроков — {n_lessons}, упражнений — {n_exercises}."
         self.stdout.write(self.style.SUCCESS(message))
 
     def _create_exercise(self, lesson, order, ex):
@@ -56,6 +74,8 @@ class Command(BaseCommand):
             raise CommandError(f"Неизвестный тип упражнения: {kind}")
         if kind == Exercise.Kind.CHOICE and ex["answer"] not in ex["options"]:
             raise CommandError(f"Ответ «{ex['answer']}» отсутствует среди вариантов")
+        if kind == Exercise.Kind.ASSEMBLE and not set(ex["answer"].split()) <= set(ex["options"]):
+            raise CommandError(f"Для фразы «{ex['answer']}» не хватает плиток")
         exercise = Exercise(
             lesson=lesson,
             kind=kind,

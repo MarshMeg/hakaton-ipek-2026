@@ -5,8 +5,10 @@
 - упражнение с ошибкой один раз повторяется в конце урока;
 - очки за ответ зависят от вердикта и растут с комбо (серией ответов без ошибок);
 - опыт за урок — доля набранного счёта от идеального, см. scoring.py.
+- в «Найди пары» неверная пара сердечко не отнимает, но считается ошибкой в итогах урока.
 """
 
+import json
 import random
 from dataclasses import dataclass
 
@@ -73,16 +75,32 @@ def is_finished(run: dict) -> bool:
     return run["pos"] >= len(run["queue"])
 
 
-def submit(session, run: dict, exercise: Exercise, given: str) -> Feedback:
-    """Проверяет ответ на текущее упражнение и обновляет состояние прохождения."""
+def match_pairs(given: str) -> set[tuple[str, str]] | None:
+    """Пары из ответа на «Найди пары»: JSON-список [[удмуртское, русское], ...]."""
+    try:
+        pairs = json.loads(given)
+        return {(left, right) for left, right in pairs}
+    except (TypeError, ValueError):
+        return None
+
+
+def submit(session, run: dict, exercise: Exercise, given: str, match_mistakes: int = 0) -> Feedback:
+    """Проверяет ответ на текущее упражнение и обновляет состояние прохождения.
+
+    match_mistakes — сколько неверных пар игрок выбрал, пока собирал «Найди пары».
+    """
     if exercise.kind == Exercise.Kind.MATCH:
-        # Пары сопоставляются на клиенте; сервер лишь фиксирует завершение.
-        verdict = Verdict.CORRECT
+        expected = {(left, right) for left, right in exercise.options}
+        verdict = Verdict.CORRECT if match_pairs(given) == expected else Verdict.WRONG
+        correct = ", ".join(f"{left} — {right}" for left, right in exercise.options)
     else:
         verdict = check_answer(given, exercise.accepted_answers)
+        correct = exercise.accepted_answers[0] if exercise.accepted_answers else ""
 
     if not run["answered"]:
         run["answered"] = True
+        if exercise.kind == Exercise.Kind.MATCH:
+            run["mistakes"] += max(match_mistakes, 0)
         first_try = exercise.id not in run["retried"]
         hit = scoring.hit_value(verdict, first_try)
         run["hits"][str(exercise.id)] = hit
@@ -99,7 +117,6 @@ def submit(session, run: dict, exercise: Exercise, given: str) -> Feedback:
             run["max_combo"] = max(run["max_combo"], run["combo"])
         session.modified = True
 
-    correct = exercise.accepted_answers[0] if exercise.accepted_answers else ""
     return Feedback(verdict=verdict, correct_answer=correct)
 
 

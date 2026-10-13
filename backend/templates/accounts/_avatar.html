@@ -1,0 +1,6 @@
+{# Аватарка игрока: загруженная картинка или кружок с первой буквой имени. Размер — в size. #}
+{% if profile.avatar %}
+<img src="{{ profile.avatar.url }}" alt="" class="{{ size }} shrink-0 rounded-full object-cover">
+{% else %}
+<span class="{{ size }} flex shrink-0 items-center justify-center rounded-full bg-brand-red font-extrabold uppercase text-white">{{ profile.display_name|first }}</span>
+{% endif %}

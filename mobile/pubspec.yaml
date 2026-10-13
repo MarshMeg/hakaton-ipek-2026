@@ -10,12 +10,24 @@ dependencies:
   flutter:
     sdk: flutter
   webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.0.0
+  image_picker: ^1.1.0
   shared_preferences: ^2.3.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.0
+
+# Иконка приложения: `dart run flutter_launcher_icons` (входит в `mise run setup` и в CI) раскладывает
+# её по android/app/src/main/res поверх стандартной иконки Flutter.
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/icon/icon.png
+  adaptive_icon_background: "#c8102e"
+  adaptive_icon_foreground: assets/icon/icon_foreground.png
 
 flutter:
   uses-material-design: true

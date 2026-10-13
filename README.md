@@ -22,13 +22,13 @@
   засчитывается как «почти верно», и игра показывает правильное написание.
 - **Игровая механика**: 5 сердечек, опыт (XP), серия дней подряд, повтор ошибок в конце урока,
   мгновенная обратная связь.
-- **Без регистрации**: играть можно сразу как гость, а регистрация сохраняет прогресс.
+- **Вход и регистрация**: игра встречает экраном входа; чтобы играть, нужно войти или создать аккаунт.
 - **Админка** `/admin`: слова, уроки, аудио и картинки редактируются без программиста.
 
 ## Стек
 | Слой | Технологии |
 |---|---|
-| Backend | Python 3.12, Django 5.2, gunicorn, whitenoise |
+| Backend | Python 3.12 (uv), Django 5.2, gunicorn, whitenoise |
 | Frontend | Django Templates, HTMX, Alpine.js, Tailwind CSS (брендбук в `backend/tailwind.config.js`) |
 | Данные | PostgreSQL 16, MinIO (S3) для аудио и картинок |
 | Мобильное приложение | Flutter (Dart) + `webview_flutter` |
@@ -53,12 +53,27 @@ docker compose up --build
 При первом старте автоматически применяются миграции, загружается стартовый курс из
 `backend/seeds/content.yaml` и создаётся администратор.
 
+## Сервер и деплой
+Сервер — Debian с Docker, проект лежит в `/opt/votes`. Там тот же `docker-compose.yml` плюс
+надстройка [docker-compose.prod.yml](docker-compose.prod.yml): наружу смотрит только Caddy
+(порты 80/443, HTTPS-сертификат получает сам), он же раздаёт медиа из MinIO по пути `/votes-media/`.
+
+Деплой автоматический: после push в `main` и зелёных проверок задача `deploy` в
+[ci.yml](.github/workflows/ci.yml) копирует исходники на сервер по SSH и выполняет
+`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+(миграции и загрузка курса — в `backend/entrypoint.sh`). Настройки в GitHub: секрет
+`DEPLOY_SSH_KEY`, переменные `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_URL`.
+
+Секреты и адрес сайта хранятся в `/opt/votes/.env` на сервере (в git его нет, деплой его не трогает):
+пароль администратора — `DJANGO_SUPERUSER_PASSWORD`, адрес — `SITE_ADDRESS`, ссылки на медиа —
+`S3_PUBLIC_DOMAIN` и `S3_PUBLIC_PROTOCOL`. После правки `.env` — перезапуск той же командой `up -d`.
+
 ## Запуск без Docker (для разработки)
 Инструменты ставятся через [mise](https://mise.jdx.dev), подробная инструкция — [LOCAL_SETUP.md](LOCAL_SETUP.md).
 ```bash
 cd backend
-mise trust && mise install   # Python 3.12 + Tailwind CLI
-mise run setup               # venv, зависимости, миграции, стартовый курс
+mise trust && mise install   # uv + Tailwind CLI
+mise run setup               # uv sync (Python 3.12, зависимости), миграции, стартовый курс
 mise run dev                 # http://localhost:8000
 ```
 Без переменной `DATABASE_URL` используется SQLite, без `USE_S3=1` медиа хранятся в `backend/media/`.
@@ -70,6 +85,10 @@ APK собирается в GitHub Actions при изменениях в `mobil
 Actions → Android → Run workflow) и публикуется в
 [Releases](https://github.com/MarshMeg/hakaton-ipek-2026/releases). Приложение открывает сервер
 `https://hakaton.marshmeg.ru`; адрес можно поменять в самом приложении (экран «Нет связи с сервером»).
+
+**Сборка с выбором адреса** — для проверки на своём сервере, при каждом запуске спрашивает, какой
+адрес открыть: https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes-ask.apk
+(локально: `mise run apk:ask`).
 
 Сборка вручную (Flutter и Java ставит mise, Android SDK — Android Studio), см. [LOCAL_SETUP.md](LOCAL_SETUP.md):
 ```bash
@@ -96,7 +115,10 @@ mise run css         # или mise run css:watch
 
 ## Контент
 Курс описывается в `backend/seeds/content.yaml` (формат описан в начале файла) и загружается командой
-`python manage.py seed --reset`. Также его можно редактировать в админке.
+`python manage.py seed`: на существующем курсе команда только добавляет новые разделы и уроки (по
+названию), не трогая уже загруженные уроки и прогресс игроков — так новый контент попадает на сервер
+при деплое. `mise run seed` (`seed --reset`) удаляет курс вместе с результатами и загружает заново.
+Также курс можно редактировать в админке.
 
 > ⚠️ Стартовые слова и фразы демонстрационные. Перед сдачей их нужно сверить с носителем языка
 > или с материалами кейса.
@@ -125,7 +147,7 @@ backend/            Django-проект
   config/           настройки, URL
   courses/          контент курса: модели, админка, команда seed
   learning/         игра: экраны урока, проверка ответов, логика урока
-  accounts/         игроки: гостевой режим, регистрация, XP и стрик
+  accounts/         игроки: вход, регистрация, XP и стрик
   templates/        HTML-шаблоны (HTMX + Alpine.js)
   static/           CSS, шрифты с удмуртскими буквами, htmx/alpine
   seeds/            стартовый контент
