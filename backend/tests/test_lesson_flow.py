@@ -188,6 +188,10 @@ def test_profile_shows_progress(client, lesson):
     html = response.content.decode()
     assert "player" in html
     assert lesson.title in html
+    # Разбор опыта во вкладке «Лучшие» сходится с тем, что посчитала БД.
+    best = response.context["best"]
+    assert best["total"] == Profile.objects.get().xp
+    assert [row["percent"] for row in best["rows"]] == [100]
 
 
 def test_profile_requires_login(db):
