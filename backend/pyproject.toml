@@ -1,3 +1,31 @@
+[project]
+name = "votes-backend"
+version = "0.1.0"
+description = "Вотэс — игра для изучения удмуртского языка (Django-приложение)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "Django>=5.2,<5.3",
+    "django-environ>=0.12",
+    "django-htmx>=1.21",
+    "django-storages[s3]>=1.14",
+    "psycopg[binary]>=3.2",
+    "gunicorn>=23.0",
+    "whitenoise>=6.8",
+    "PyYAML>=6.0",
+    "pillow>=11",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-django>=4.9",
+    "ruff>=0.8",
+]
+
+[tool.uv]
+# Это приложение, а не библиотека: ставим только зависимости, сам проект не собираем.
+package = false
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

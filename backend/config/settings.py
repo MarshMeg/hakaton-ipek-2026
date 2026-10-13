@@ -15,6 +15,13 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 # За обратным прокси (nginx/caddy с HTTPS) Django узнаёт протокол из этого заголовка.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Сайт открыт только по HTTPS (прод за Caddy, см. docker-compose.prod.yml): cookie лишь по HTTPS
+# и HSTS. Не привязано к DEBUG — локальный `docker compose up` работает с DEBUG=0 по HTTP.
+HTTPS_ONLY = env.bool("DJANGO_HTTPS_ONLY", default=False)
+if HTTPS_ONLY:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = env.int("DJANGO_HSTS_SECONDS", default=60 * 60 * 24 * 365)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -65,7 +72,11 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {"default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")}
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    # Та же минимальная длина, что и в форме регистрации (accounts.forms.SignupForm).
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 6},
+    },
 ]
 
 LANGUAGE_CODE = "ru"
@@ -111,7 +122,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "learning:home"
-LOGOUT_REDIRECT_URL = "learning:home"
+LOGOUT_REDIRECT_URL = "accounts:login"
 
 # Игровой баланс — вынесен в настройки, чтобы быстро крутить под ТЗ заказчика.
 GAME = {

@@ -1,6 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
+{% if profile and profile.is_guest %}
 <h1 class="mt-8 text-2xl font-extrabold">Сохрани свой прогресс</h1>
 <p class="text-gray-600">Весь опыт и пройденные уроки останутся с тобой.</p>
+{% else %}
+<h1 class="mt-8 text-2xl font-extrabold">Новый аккаунт</h1>
+<p class="text-gray-600">Придумай имя и пароль — и можно играть.</p>
+{% endif %}
 {% include "accounts/_form.html" with submit_label="Создать аккаунт" %}
+{% if not profile %}
+<p class="mt-4 text-center text-sm">Уже есть аккаунт? <a class="font-bold text-brand-red underline" href="{% url 'accounts:login' %}">Войти</a></p>
+{% endif %}
 {% endblock %}

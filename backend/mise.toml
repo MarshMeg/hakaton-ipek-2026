@@ -1,40 +1,35 @@
-# Бэкенд: Python + Tailwind CLI. Используется и локально, и в Dockerfile.
+# Бэкенд: uv (ставит Python и зависимости) + Tailwind CLI.
 [tools]
-python = "3.12"
+uv = "0.13"
 "github:tailwindlabs/tailwindcss" = "3.4.17"      # standalone CLI, Node.js не нужен
-
-[env]
-# Виртуальное окружение backend/.venv создаётся и активируется автоматически
-# (--seed: если mise создаёт его через uv, в нём должен быть pip).
-_.python.venv = { path = ".venv", create = true, uv_create_args = ["--seed"] }
 
 [tasks.setup]
 description = "Установить зависимости, применить миграции, загрузить стартовый курс"
 run = [
-  "python -m pip install -r requirements-dev.txt",
-  "python manage.py migrate",
-  "python manage.py seed",
+  "uv sync",
+  "uv run python manage.py migrate",
+  "uv run python manage.py seed",
 ]
 
 [tasks.dev]
 description = "Сервер разработки на http://localhost:8000"
-run = "python manage.py runserver 0.0.0.0:8000"
+run = "uv run python manage.py runserver 0.0.0.0:8000"
 
 [tasks.test]
 description = "Тесты (pytest); аргументы пробрасываются: mise run test -- -k lesson"
-run = "pytest"
+run = "uv run pytest"
 
 [tasks.lint]
 description = "Проверки как в CI: ruff, формат, миграции"
 run = [
-  "ruff check .",
-  "ruff format --check .",
-  "python manage.py makemigrations --check --dry-run",
+  "uv run ruff check .",
+  "uv run ruff format --check .",
+  "uv run python manage.py makemigrations --check --dry-run",
 ]
 
 [tasks.fmt]
 description = "Автоформатирование и автоисправления ruff"
-run = ["ruff format .", "ruff check --fix ."]
+run = ["uv run ruff format .", "uv run ruff check --fix ."]
 
 [tasks.css]
 description = "Пересобрать static/css/app.css после изменения классов Tailwind"
@@ -46,4 +41,4 @@ run = "tailwindcss -i static/css/input.css -o static/css/app.css --watch"
 
 [tasks.seed]
 description = "Перезагрузить курс из seeds/content.yaml"
-run = "python manage.py seed --reset"
+run = "uv run python manage.py seed --reset"

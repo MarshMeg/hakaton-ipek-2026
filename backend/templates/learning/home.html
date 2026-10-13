@@ -3,7 +3,7 @@
 {% if profile and profile.is_guest %}
 <div class="mt-4 rounded-2xl border-2 border-dashed border-gray-300 bg-white p-4 text-sm">
   Ты играешь как гость. <a class="font-bold text-brand-red underline" href="{% url 'accounts:signup' %}">Создай аккаунт</a>,
-  чтобы не потерять прогресс, или <a class="font-bold underline" href="{% url 'accounts:login' %}">войди</a>.
+  чтобы не потерять прогресс.
 </div>
 {% endif %}
 
@@ -25,16 +25,32 @@
       {% for item in unit.lessons %}
       <li class="{% cycle 'translate-x-0' '-translate-x-12' 'translate-x-0' 'translate-x-12' %} flex flex-col items-center">
         {% if item.open %}
-        <a href="{% url 'learning:lesson_start' item.obj.id %}"
-           class="flex h-20 w-20 items-center justify-center rounded-full border-b-8 text-3xl shadow
-                  {% if item.done %}bg-brand-sun border-yellow-700{% else %}bg-brand-red border-brand-redDark text-white{% endif %}">
-          {% if item.done %}✓{% else %}★{% endif %}
+        {# Кружок и подпись — одна ссылка; диктор читает название и состояние, а не «★»/«✓». #}
+        <a href="{% url 'learning:lesson_start' item.obj.id %}" class="flex flex-col items-center"
+           aria-label="{{ item.obj.title }} — {% if item.done %}пройден{% else %}не пройден{% endif %}">
+          <span aria-hidden="true"
+                class="flex h-20 w-20 items-center justify-center rounded-full border-b-8 text-3xl shadow
+                       {% if item.done %}bg-brand-sun border-yellow-700{% else %}bg-brand-red border-brand-redDark text-white{% endif %}">
+            {% if item.done %}✓{% else %}★{% endif %}
+          </span>
+          <span aria-hidden="true" class="mt-1 text-sm font-bold">{{ item.obj.title }}</span>
         </a>
         {% else %}
-        <span class="flex h-20 w-20 items-center justify-center rounded-full border-b-8 border-gray-400 bg-gray-300 text-3xl text-gray-500"
-              aria-disabled="true">🔒</span>
+        {# Закрытый урок: по нажатию на пару секунд показываем подсказку (без alert — в WebView он неудобен). #}
+        <div class="relative flex flex-col items-center" x-data="{ hint: false, timer: null }">
+          <button type="button" aria-disabled="true" aria-label="{{ item.obj.title }} — закрыт"
+                  class="flex flex-col items-center"
+                  @click="hint = true; clearTimeout(timer); timer = setTimeout(() => hint = false, 2500)">
+            <span aria-hidden="true"
+                  class="flex h-20 w-20 items-center justify-center rounded-full border-b-8 border-gray-400 bg-gray-300 text-3xl text-gray-500">🔒</span>
+            <span aria-hidden="true" class="mt-1 text-sm font-bold text-gray-500">{{ item.obj.title }}</span>
+          </button>
+          <p x-show="hint" x-cloak x-transition.opacity role="status"
+             class="absolute left-1/2 top-full z-10 mt-1 w-max max-w-[16rem] -translate-x-1/2 rounded-xl bg-brand-ink px-3 py-2 text-center text-xs font-bold text-white shadow">
+            Сначала пройди предыдущий урок
+          </p>
+        </div>
         {% endif %}
-        <span class="mt-1 text-sm font-bold">{{ item.obj.title }}</span>
       </li>
       {% endfor %}
     </ol>

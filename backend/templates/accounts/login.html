@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
-<h1 class="mt-8 text-2xl font-extrabold">Вход</h1>
+<h1 class="mt-8 text-2xl font-extrabold">Ӟечбуресь!</h1>
+<p class="text-gray-600">Войди, чтобы учить удмуртский и не терять прогресс.</p>
 {% include "accounts/_form.html" with submit_label="Войти" %}
-<p class="mt-4 text-center text-sm">Нет аккаунта? <a class="font-bold text-brand-red underline" href="{% url 'accounts:signup' %}">Зарегистрироваться</a></p>
+<a class="btn-ghost mt-3 w-full" href="{% url 'accounts:signup' %}">Создать аккаунт</a>
 {% endblock %}

@@ -31,15 +31,22 @@ jobs:
           cache: true
       - run: flutter create --platforms=android --org ru.votes .
       - run: flutter pub get
+      # Иконка приложения поверх стандартной из flutter create (настройки — в pubspec.yaml).
+      - run: dart run flutter_launcher_icons
       - run: flutter analyze
       # Адрес сервера вшивается в APK. Можно переопределить переменной репозитория SERVER_URL
       # (Settings → Secrets and variables → Actions → Variables).
       - run: flutter build apk --release --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
       - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes.apk
+      # Вторая сборка — для проверки: при запуске спрашивает, какой адрес открыть.
+      - run: flutter build apk --release --dart-define=ASK_SERVER_URL=true --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+      - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes-ask.apk
       - uses: actions/upload-artifact@v4
         with:
           name: votes-apk
-          path: mobile/build/votes.apk
+          path: |
+            mobile/build/votes.apk
+            mobile/build/votes-ask.apk
 
   # Сборка из main публикуется как GitHub Release с APK:
   # https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes.apk
@@ -59,7 +66,10 @@ jobs:
           name: Вотэс — сборка ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           make_latest: true
-          files: votes.apk
+          files: |
+            votes.apk
+            votes-ask.apk
           body: |
-            APK для Android, сервер: ${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+            votes.apk — APK для Android, сервер: ${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+            votes-ask.apk — сборка для проверки: при запуске спрашивает адрес сервера
             Коммит: ${{ github.sha }}
