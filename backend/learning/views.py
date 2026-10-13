@@ -28,11 +28,25 @@ def home(request):
     player = get_player(request)
     course = Course.objects.prefetch_related("units__lessons").first()
     units = []
+    next_lesson_id = None
     if course:
         states = lesson_states(player, course.id)
         for unit in course.units.all():
             lessons = [{"obj": lesson} | states[lesson.id] for lesson in unit.lessons.all()]
-            units.append({"obj": unit, "lessons": lessons})
+            for item in lessons:
+                # Следующий урок — первый открытый и ещё не пройденный: к нему прокручивается карта.
+                item["next"] = next_lesson_id is None and item["open"] and not item["done"]
+                if item["next"]:
+                    next_lesson_id = item["obj"].id
+            units.append(
+                {
+                    "obj": unit,
+                    "lessons": lessons,
+                    "done_count": sum(item["done"] for item in lessons),
+                    # Развёрнут только раздел со следующим уроком, остальные свёрнуты.
+                    "expanded": any(item["next"] for item in lessons),
+                }
+            )
     return render(request, "learning/home.html", {"course": course, "units": units})
 
 
