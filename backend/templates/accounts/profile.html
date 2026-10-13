@@ -36,7 +36,8 @@
       <p class="truncate font-bold">{{ result.lesson.title }}</p>
       <p class="text-sm text-gray-600">{{ result.completed_at|date:"j E, H:i" }} · ошибок: {{ result.mistakes }}</p>
     </div>
-    <span class="shrink-0 font-extrabold text-brand-red">+{{ result.xp }}</span>
+    {# Счёт прохождения, а не «+опыт»: общий опыт растёт только за побитый рекорд и не равен сумме уроков. #}
+    {% if result.score %}<span class="shrink-0 text-right text-sm font-bold text-gray-500">Счёт <span class="block text-lg font-extrabold leading-tight text-brand-red">{{ result.score }}</span></span>{% endif %}
   </li>
   {% endfor %}
 </ul>

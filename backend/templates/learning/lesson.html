@@ -2,7 +2,8 @@
 {% block header %}{% endblock %}
 {% block title %}{{ lesson.title }} — Вотэс{% endblock %}
 {% block content %}
-<div id="lesson-body" class="flex min-h-screen flex-col pt-4">
+{# -mb-10 гасит нижний отступ <main> (pb-10): иначе экран урока на 40 px выше окна и прокручивается. #}
+<div id="lesson-body" class="-mb-10 flex min-h-screen flex-col pt-4">
   {% include "learning/partials/lesson_body.html" %}
 </div>
 {% endblock %}
