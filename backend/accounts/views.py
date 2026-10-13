@@ -5,6 +5,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 
 from courses.models import Lesson
+from learning.services.scoring import xp_breakdown
 
 from .forms import ProfileForm, SignupForm
 from .models import Profile
@@ -49,6 +50,7 @@ def profile(request):
         "lessons_done": results.values("lesson").distinct().count(),
         "lessons_total": Lesson.objects.count(),
         "recent_results": results[:5],
+        "best": xp_breakdown(player),
     }
     return render(request, "accounts/profile.html", context)
 
