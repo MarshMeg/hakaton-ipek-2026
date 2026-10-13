@@ -42,3 +42,38 @@ def lesson_xp(score: int, total: int) -> int:
     if not total:
         return 0
     return max(1, round(settings.GAME["XP_PER_CORRECT"] * total * score / max_score(total)))
+
+
+# Коэффициенты представления learning_player_xp (learning/migrations/0002). Здесь они нужны
+# только чтобы показать игроку разбор по урокам; сам опыт по-прежнему считает БД.
+XP_WEIGHT_BASE = 0.95
+XP_BONUS_MAX = 100
+XP_BONUS_BASE = 0.9
+
+
+def xp_breakdown(user) -> dict:
+    """Из чего сложился суммарный опыт: лучшие результаты по урокам с их весами и бонус.
+
+    rows — лучший результат каждого урока по убыванию опыта: сколько опыта получено (xp),
+    какой процент применился (percent) и сколько вошло в сумму (applied).
+    """
+    best = {}
+    for result in user.lesson_results.select_related("lesson").order_by("-xp", "-completed_at"):
+        best.setdefault(result.lesson_id, result)
+    rows = []
+    for pos, result in enumerate(best.values()):
+        weight = XP_WEIGHT_BASE**pos
+        rows.append(
+            {
+                "result": result,
+                "xp": result.xp,
+                "percent": round(weight * 100),
+                "applied": result.xp * weight,
+            }
+        )
+    bonus = XP_BONUS_MAX * (1 - XP_BONUS_BASE ** len(rows))
+    return {
+        "rows": rows,
+        "bonus": bonus,
+        "total": round(sum(row["applied"] for row in rows) + bonus),
+    }
