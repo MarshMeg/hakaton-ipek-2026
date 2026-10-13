@@ -1,4 +1,11 @@
 {% extends "base.html" %}
+{% block subheader %}
+{% if course %}
+<div class="bg-brand-paper/95">
+  <h1 class="mx-auto max-w-xl px-4 py-2 text-2xl font-extrabold">{{ course.title }}</h1>
+</div>
+{% endif %}
+{% endblock %}
 {% block content %}
 {% if profile and profile.is_guest %}
 <div class="mt-4 rounded-2xl border-2 border-dashed border-gray-300 bg-white p-4 text-sm">
@@ -10,14 +17,13 @@
 {% if not course %}
   <p class="mt-10 text-center text-gray-500">Курс ещё не загружен. Выполните <code>python manage.py seed</code>.</p>
 {% else %}
-  <h1 class="mt-6 text-2xl font-extrabold">{{ course.title }}</h1>
-  <p class="text-gray-600">{{ course.description }}</p>
 
-  {# Разделы — аккордеон. Соседние свёрнутые разделы слипаются: без отступа и без скруглений между ними. #}
+  {# Разделы — аккордеон. Шапка раздела прилипает к свёрнутому разделу над ней (без отступа и скруглений),
+     даже когда сам раздел развёрнут. #}
   <div x-data="{
          open: [{% for unit in units %}{{ unit.expanded|yesno:'true,false' }}{% if not forloop.last %}, {% endif %}{% endfor %}],
-         joinedUp(i) { return i > 0 && !this.open[i] && !this.open[i - 1] },
-         joinedDown(i) { return i < this.open.length - 1 && !this.open[i] && !this.open[i + 1] },
+         joinedUp(i) { return i > 0 && !this.open[i - 1] },
+         joinedDown(i) { return i < this.open.length - 1 && !this.open[i] },
        }"
        x-init="$nextTick(() => document.getElementById('next-lesson')?.scrollIntoView({ block: 'center', behavior: 'smooth' }))">
   {% for unit in units %}
