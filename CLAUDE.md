@@ -84,10 +84,16 @@ Three Django apps under `backend/`:
   (documented on the model and at the top of `content.yaml`). Multiple accepted answers are separated by `|`.
 - `learning` — playing a lesson.
   - `services/lesson_engine.py` holds the lesson run **in the Django session** (`lesson_run`: queue
-    of exercise ids, position, hearts, xp, mistakes, `answered` flag). Wrong answers cost a heart and
-    re-queue the exercise once; XP is only for first-try correct answers; `finish()` writes
-    `LessonResult` and calls `Profile.register_activity()` (XP + streak). Replaying an already
-    completed lesson gives half the XP. Wrong pairs in `match` cost no heart but count as mistakes.
+    of exercise ids, position, hearts, score, combo, per-exercise `hits`, mistakes, `answered` flag).
+    Wrong answers cost a heart, reset the combo and re-queue the exercise once; `finish()` writes
+    `LessonResult` and calls `Profile.register_activity()` (streak + total XP).
+  - `services/scoring.py` — osu!-style scoring of one run: hit value 100/50/10/0
+    (correct / almost / correct on retry / miss), combo multiplier, accuracy %, lesson XP
+    (share of the perfect score × lesson length). Total XP is **computed by the DB**: the view
+    `learning_player_xp` (model `PlayerXp`, created in `learning/migrations/0002`) is a pp-like
+    weighted sum of the best result per lesson (`0.95^i`) plus a bonus for lessons done; replaying
+    a lesson only adds XP when the record is beaten. `Profile.xp` is a cache of that view. The SQL
+    must stay portable (PostgreSQL + SQLite); changing its coefficients needs a new migration.
   - `services/progress.py` — which lessons are done/open (a lesson opens when the previous one in
     course order is done). Used by `home` and by `open_lesson_required` on every lesson view, so a
     locked lesson can't be started by a direct link.
@@ -122,7 +128,7 @@ Alpine.js inline in those partials. `match` is checked on the client as the play
 the pairs with `exercise.options`. An empty answer is not checked and costs no heart. Adding a new exercise kind means: a `Kind` choice, handling
 in `lesson_engine.submit`, a partial, and a branch in `lesson_body.html`.
 
-Game balance (hearts, XP) is in `settings.GAME`. Brand colors/fonts are tokens in
+Game balance (hearts, hit values, combo step, XP per exercise) is in `settings.GAME`. Brand colors/fonts are tokens in
 `backend/tailwind.config.js` (mirrored as constants in `mobile/lib/main.dart`). Fonts, htmx and Alpine
 are vendored in `backend/static/` (no CDNs — the font must contain the Udmurt letters).
 

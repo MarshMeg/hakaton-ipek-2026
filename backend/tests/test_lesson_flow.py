@@ -15,7 +15,7 @@ from PIL import Image
 
 from accounts.models import Profile
 from courses.models import Exercise, Lesson
-from learning.models import LessonResult
+from learning.models import LessonResult, PlayerXp
 
 HTMX = {"HTTP_HX_REQUEST": "true"}
 
@@ -91,23 +91,52 @@ def test_signup_and_login(db):
     assert anon.get(reverse("learning:home")).status_code == 200
 
 
-def test_complete_lesson_without_mistakes(client, lesson):
+def _play(client, lesson, wrong_first=False):
+    """Проходит урок до конца; wrong_first — ошибиться в первом упражнении."""
     client.get(reverse("learning:lesson_start", args=[lesson.id]))
-    for exercise in lesson.exercises.all():
+    queue = list(lesson.exercises.all())
+    if wrong_first:
+        queue.append(queue[0])
+    for i, exercise in enumerate(queue):
+        answer = "абракадабра" if wrong_first and i == 0 else _right_answer(exercise)
         r = client.post(
-            reverse("learning:lesson_answer", args=[lesson.id]),
-            {"answer": _right_answer(exercise)},
-            **HTMX,
+            reverse("learning:lesson_answer", args=[lesson.id]), {"answer": answer}, **HTMX
         )
-        assert "Верно" in r.content.decode()
         r = client.get(reverse("learning:lesson_next", args=[lesson.id]), **HTMX)
-
     assert r["HX-Redirect"] == reverse("learning:lesson_result", args=[lesson.id])
+
+
+def test_complete_lesson_without_mistakes(client, lesson):
+    _play(client, lesson)
+    total = lesson.exercises.count()
     result = LessonResult.objects.get()
     assert result.mistakes == 0
+    assert result.accuracy == 1.0
+    assert result.max_combo == total
+    assert result.xp == 10 * total
     profile = result.user.profile
-    assert profile.xp == result.xp > 0
+    # Суммарный опыт считает представление БД: результат урока + бонус 10 за первый урок.
+    assert profile.xp == PlayerXp.objects.get(user=result.user).xp == result.xp + 10
     assert profile.streak == 1
+    page = client.get(reverse("learning:lesson_result", args=[lesson.id])).content.decode()
+    assert "100%" in page
+    assert f"+{profile.xp}" in page
+
+
+def test_worse_replay_keeps_xp_and_streak(client, lesson):
+    _play(client, lesson)
+    profile = Profile.objects.get()
+    best_xp = profile.xp
+    _play(client, lesson, wrong_first=True)
+    worse, best = LessonResult.objects.all()  # сортировка: новые первыми
+    assert worse.mistakes == 1
+    assert worse.xp < best.xp
+    assert worse.accuracy < 1.0
+    profile.refresh_from_db()
+    assert profile.xp == best_xp
+    assert profile.streak == 1
+    page = client.get(reverse("learning:lesson_result", args=[lesson.id])).content.decode()
+    assert "Рекорд не побит" in page
 
 
 def test_wrong_answer_costs_heart_and_repeats_exercise(client, lesson):
@@ -428,16 +457,18 @@ def test_match_mistakes_are_counted_without_losing_hearts(client, lesson):
     assert LessonResult.objects.get(lesson=exercise.lesson, xp__gt=0).mistakes == 2
 
 
-def test_replayed_lesson_gives_half_xp(client, lesson, settings):
+def test_replayed_lesson_adds_no_xp_without_new_record(client, lesson):
     _play_lesson(client, lesson)
     first = LessonResult.objects.get()
+    profile = Profile.objects.get(user__username="player")
+    total_xp = profile.xp
     _play_lesson(client, lesson)
     replay = LessonResult.objects.order_by("-id").first()
-    assert replay.xp == first.xp // 2
-    profile = Profile.objects.get(user__username="player")
-    assert profile.xp == first.xp + replay.xp
+    assert replay.xp == first.xp
+    profile.refresh_from_db()
+    assert profile.xp == total_xp
     result = client.get(reverse("learning:lesson_result", args=[lesson.id]))
-    assert "половина опыта" in result.content.decode()
+    assert "Рекорд не побит" in result.content.decode()
 
 
 def test_empty_answer_costs_no_heart(client, lesson):

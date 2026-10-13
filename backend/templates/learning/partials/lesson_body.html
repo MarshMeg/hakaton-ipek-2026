@@ -6,6 +6,7 @@
        aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100">
     <div class="h-full rounded-full bg-ok transition-all duration-500" style="width: {{ progress }}%"></div>
   </div>
+  {% if run.combo >= 2 %}<span class="font-extrabold text-brand-red" title="Комбо">×{{ run.combo }}</span>{% endif %}
   <span class="font-extrabold text-bad" title="Сердечки">❤ {{ run.hearts }}</span>
 
   {# Подтверждение выхода: свой диалог, а не confirm() — в WebView приложения он может не показаться. #}
