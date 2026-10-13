@@ -3,7 +3,8 @@
 Правила (как в Duolingo):
 - у игрока есть «сердечки»; за ошибку теряется одно, при нуле урок проигран;
 - упражнение с ошибкой один раз повторяется в конце урока;
-- опыт начисляется за верные ответы с первой попытки + бонус за прохождение урока.
+- очки за ответ зависят от вердикта и растут с комбо (серией ответов без ошибок);
+- опыт за урок — доля набранного счёта от идеального, см. scoring.py.
 """
 
 import random
@@ -15,6 +16,7 @@ from django.db import transaction
 from courses.models import Exercise, Lesson
 from learning.models import LessonResult
 
+from . import scoring
 from .answer_check import Verdict, check_answer
 
 SESSION_KEY = "lesson_run"
@@ -34,7 +36,11 @@ def start(session, lesson: Lesson) -> None:
         "queue": queue,
         "pos": 0,
         "hearts": settings.GAME["MAX_HEARTS"],
-        "xp": 0,
+        "total": len(queue),
+        "score": 0,
+        "combo": 0,
+        "max_combo": 0,
+        "hits": {},  # итоговые очки за упражнение без комбо; ключ — str(id), т.к. сессия в JSON
         "mistakes": 0,
         "answered": False,
         "retried": [],
@@ -78,14 +84,19 @@ def submit(session, run: dict, exercise: Exercise, given: str) -> Feedback:
     if not run["answered"]:
         run["answered"] = True
         first_try = exercise.id not in run["retried"]
+        hit = scoring.hit_value(verdict, first_try)
+        run["hits"][str(exercise.id)] = hit
+        run["score"] += scoring.combo_score(hit, run["combo"])
         if verdict == Verdict.WRONG:
+            run["combo"] = 0
             run["hearts"] -= 1
             run["mistakes"] += 1
             if first_try:
                 run["queue"].append(exercise.id)
                 run["retried"].append(exercise.id)
-        elif first_try:
-            run["xp"] += settings.GAME["XP_PER_CORRECT"]
+        else:
+            run["combo"] += 1
+            run["max_combo"] = max(run["max_combo"], run["combo"])
         session.modified = True
 
     correct = exercise.accepted_answers[0] if exercise.accepted_answers else ""
@@ -101,16 +112,30 @@ def advance(session, run: dict) -> None:
 @transaction.atomic
 def finish(session, user, run: dict) -> dict:
     """Сохраняет результат, начисляет опыт и стрик. Возвращает данные для экрана итогов."""
-    xp = run["xp"] + settings.GAME["XP_LESSON_BONUS"]
+    accuracy = scoring.accuracy(run["hits"], run["total"])
+    xp = scoring.lesson_xp(run["score"], run["total"])
     LessonResult.objects.create(
-        user=user, lesson_id=run["lesson_id"], xp=xp, mistakes=run["mistakes"]
+        user=user,
+        lesson_id=run["lesson_id"],
+        xp=xp,
+        score=run["score"],
+        accuracy=accuracy,
+        max_combo=run["max_combo"],
+        mistakes=run["mistakes"],
     )
-    user.profile.register_activity(xp)
+    profile = user.profile
+    old_xp = profile.xp
+    profile.register_activity()
     result = {
         "lesson_id": run["lesson_id"],
         "xp": xp,
+        # Суммарный опыт растёт, только если побит рекорд урока.
+        "xp_gained": profile.xp - old_xp,
+        "score": run["score"],
+        "accuracy": round(accuracy * 100),
+        "max_combo": run["max_combo"],
         "mistakes": run["mistakes"],
-        "streak": user.profile.streak,
+        "streak": profile.streak,
     }
     session[RESULT_KEY] = result
     session.pop(SESSION_KEY, None)

@@ -66,9 +66,16 @@ Three Django apps under `backend/`:
   (documented on the model and at the top of `content.yaml`). Multiple accepted answers are separated by `|`.
 - `learning` — playing a lesson.
   - `services/lesson_engine.py` holds the lesson run **in the Django session** (`lesson_run`: queue
-    of exercise ids, position, hearts, xp, mistakes, `answered` flag). Wrong answers cost a heart and
-    re-queue the exercise once; XP is only for first-try correct answers; `finish()` writes
-    `LessonResult` and calls `Profile.register_activity()` (XP + streak).
+    of exercise ids, position, hearts, score, combo, per-exercise `hits`, mistakes, `answered` flag).
+    Wrong answers cost a heart, reset the combo and re-queue the exercise once; `finish()` writes
+    `LessonResult` and calls `Profile.register_activity()` (streak + total XP).
+  - `services/scoring.py` — osu!-style scoring of one run: hit value 100/50/10/0
+    (correct / almost / correct on retry / miss), combo multiplier, accuracy %, lesson XP
+    (share of the perfect score × lesson length). Total XP is **computed by the DB**: the view
+    `learning_player_xp` (model `PlayerXp`, created in `learning/migrations/0002`) is a pp-like
+    weighted sum of the best result per lesson (`0.95^i`) plus a bonus for lessons done; replaying
+    a lesson only adds XP when the record is beaten. `Profile.xp` is a cache of that view. The SQL
+    must stay portable (PostgreSQL + SQLite); changing its coefficients needs a new migration.
   - `services/answer_check.py` — answer normalization and the Udmurt-specific verdict: the five
     extra letters **Ӝ Ӟ Ӥ Ӧ Ӵ** typed as plain Cyrillic (ж з и о ч) give `ALMOST`, not `WRONG`.
   - `views.py` — HTMX flow: `lesson_answer` (POST) and `lesson_next` (GET) both re-render
@@ -85,7 +92,7 @@ Alpine.js inline in those partials. `match` is validated on the client and auto-
 the server always treats it as correct. Adding a new exercise kind means: a `Kind` choice, handling
 in `lesson_engine.submit`, a partial, and a branch in `lesson_body.html`.
 
-Game balance (hearts, XP) is in `settings.GAME`. Brand colors/fonts are tokens in
+Game balance (hearts, hit values, combo step, XP per exercise) is in `settings.GAME`. Brand colors/fonts are tokens in
 `backend/tailwind.config.js` (mirrored as constants in `mobile/lib/main.dart`). Fonts, htmx and Alpine
 are vendored in `backend/static/` (no CDNs — the font must contain the Udmurt letters).
 
