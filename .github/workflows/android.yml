@@ -49,7 +49,7 @@ jobs:
         with:
           channel: stable
           cache: true
-      - run: flutter create --platforms=android --org ru.votes .
+      - run: flutter create --platforms=android --org ru.marshmeg --project-name hakaton .
       - run: flutter pub get
       # Иконка приложения поверх стандартной из flutter create (настройки — в pubspec.yaml).
       - run: dart run flutter_launcher_icons

@@ -4,8 +4,11 @@
 // интернета, WebView получает страницы, словарь и картинки не из сети, а из офлайн-снимка
 // (assets APK или скачанное обновление, см. bundle.dart). Адрес при этом остаётся настоящим
 // (https://hakaton.marshmeg.ru/…), поэтому прогресс в localStorage и вход в облачный аккаунт
-// работают одинаково онлайн и офлайн. В сеть уходят только /api/ (синхронизация) и /admin/.
+// работают одинаково онлайн и офлайн. В сеть уходят только /api/ (вход и сохранение) и /admin/.
 // Мост для JS (резервная копия прогресса, уведомления, геолокация, «поделиться») — bridge.dart.
+//
+// Запуск: загрузить снимок → проверить обновление снимка (не дольше [updateBudget], без сети —
+// сразу дальше) → открыть WebView. Вход и синхронизация сохранения — уже в JS (app.js).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -25,6 +28,12 @@ const String defaultServerUrl =
 const bool askServerUrl = bool.fromEnvironment('ASK_SERVER_URL');
 
 const String _prefsKey = 'server_url';
+
+/// Сколько ждать обновления снимка при запуске, прежде чем открыть игру на текущем.
+const Duration updateBudget = Duration(seconds: 20);
+
+/// Метка в User-Agent: по ней JS понимает, что открыт в приложении и стоит ждать мост.
+const String userAgentMark = 'VotesApp';
 
 /// Приводит введённый адрес к виду со схемой; null — если это не http(s)-адрес.
 /// Без схемы подставляется http:// — так обычно вводят локальный сервер (192.168.0.10:8000).
@@ -84,6 +93,7 @@ class _GameScreenState extends State<GameScreen> {
   double _progress = 0;
   String? _error;
   bool _asking = false;
+  bool _updating = true;
 
   @override
   void initState() {
@@ -101,8 +111,20 @@ class _GameScreenState extends State<GameScreen> {
       _bridge = Bridge(bundle);
       _asking = askServerUrl;
     });
-    // Новая версия снимка качается в фоне и включится при следующем запуске.
-    if (!askServerUrl) bundle.update(_server);
+    if (!askServerUrl) await _updateBundle();
+  }
+
+  /// Шаги 1–2 цикла запуска: новая версия снимка включается сразу, до показа WebView.
+  Future<void> _updateBundle() async {
+    final bundle = _bundle!;
+    setState(() => _updating = true);
+    try {
+      await bundle.update(_server).timeout(updateBudget);
+    } catch (_) {
+      // Тайм-аут: обновление докачается в фоне и включится при следующем запуске.
+    }
+    bundle.freeze();
+    if (mounted) setState(() => _updating = false);
   }
 
   Future<void> _applyServerUrl(String url) async {
@@ -113,8 +135,12 @@ class _GameScreenState extends State<GameScreen> {
       _asking = false;
       _error = null;
     });
-    _bundle?.update(_server);
-    _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())));
+    final controller = _controller;
+    if (controller == null) {
+      await _updateBundle();
+    } else {
+      controller.loadUrl(urlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())));
+    }
   }
 
   /// Ответ на запрос WebView из снимка. null — пусть WebView идёт в сеть.
@@ -164,9 +190,11 @@ class _GameScreenState extends State<GameScreen> {
       child: Scaffold(
         body: SafeArea(
           child: bundle == null
-              ? const Center(child: CircularProgressIndicator(color: brandRed))
+              ? const _SplashView(text: 'Загрузка…')
               : _asking
               ? _ServerUrlView(initialUrl: _server.toString(), onSubmit: _applyServerUrl)
+              : _updating
+              ? const _SplashView(text: 'Проверяем обновления…')
               : Stack(
                   children: [
                     InAppWebView(
@@ -178,6 +206,7 @@ class _GameScreenState extends State<GameScreen> {
                         mediaPlaybackRequiresUserGesture: false,
                         transparentBackground: true,
                         supportZoom: false,
+                        applicationNameForUserAgent: userAgentMark,
                       ),
                       onWebViewCreated: (controller) {
                         _controller = controller;
@@ -203,6 +232,38 @@ class _GameScreenState extends State<GameScreen> {
                   ],
                 ),
         ),
+      ),
+    );
+  }
+}
+
+/// Заставка при запуске: пока загружается и обновляется офлайн-снимок.
+class _SplashView extends StatelessWidget {
+  const _SplashView({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Image.asset('assets/icon/icon.png', width: 112, height: 112),
+          ),
+          const SizedBox(height: 24),
+          const SizedBox(
+            width: 160,
+            child: LinearProgressIndicator(color: brandRed, backgroundColor: Color(0x33C8102E)),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: brandInk),
+          ),
+        ],
       ),
     );
   }

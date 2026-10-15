@@ -7,13 +7,15 @@
 <p class="text-gray-600">Нажми на карточку, чтобы увидеть перевод.</p>
 
 {% comment %} Карточки: лицевая сторона — слово по-удмуртски и картинка, оборот — перевод.
-   Первое открытие карточки за день записывается в журнал как «просмотр». {% endcomment %}
+   Открытые карточки копятся на странице и записываются в сохранение как «просмотры» одним
+   действием — при уходе из темы или по кнопке «Готово» (ZB.cardViews в app.js). {% endcomment %}
+<div x-data="ZB.cardViews()">
 <div class="mt-5 grid grid-cols-2 gap-4">
   {% for word in words %}
   <div class="card relative cursor-pointer select-none text-center transition"
        x-data="{ open: false }"
        :class="open ? 'border-brand-sun' : ''"
-       @click="open = !open; if (open) { const seen = ZB.Store.events().some(e => e.w === {{ word.id }} && e.g === 'card' && ZB.dayKey(e.t) === ZB.dayKey(Date.now())); if (!seen) ZB.Store.record({{ word.id }}, 'card', null); }">
+       @click="open = !open; if (open) see({{ word.id }})">
     <div class="mx-auto h-20 w-20 text-6xl">{% include "vocab/_pic.html" %}</div>
     <p class="mt-2 text-xl font-extrabold leading-tight">{{ word.udm }}</p>
     {% if word.transcription %}<p class="text-sm text-gray-500">[{{ word.transcription }}]</p>{% endif %}
@@ -32,6 +34,8 @@
   {% empty %}
   <p class="col-span-2 text-gray-500">В этой теме пока нет слов.</p>
   {% endfor %}
+</div>
+<button type="button" class="btn-primary mt-5 w-full" @click="done('{% url 'vocab:topics' %}')">Готово</button>
 </div>
 
 <h2 class="mt-8 text-lg font-extrabold">Закрепи в игре</h2>

@@ -38,7 +38,7 @@
           const pos = await ZB.locate();
           if (!pos) { this.error = 'Не удалось определить место: разреши доступ к геолокации.'; return; }
         }
-        ZB.Store.setSetting(key, value);
+        ZB.Settings.set(key, value);
       },
     };
   }
