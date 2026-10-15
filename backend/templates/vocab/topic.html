@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ topic.title }} — Ӟеч-а бур-а удмурт кыл?{% endblock %}
+{% block content %}
+<a href="{% url 'vocab:topics' %}" class="font-bold text-muted">← Все темы</a>
+<h1 class="mt-2 text-2xl font-extrabold">{{ topic.icon }} {{ topic.title }}</h1>
+{% if topic.title_udm %}<p class="font-bold text-brand-red">{{ topic.title_udm }}</p>{% endif %}
+<p class="text-muted-strong">Нажми на карточку, чтобы увидеть перевод. Слово станет выученным ✅,
+  когда ты дважды правильно ответишь на него в играх.</p>
+
+{% comment %} Карточки: лицевая сторона — слово по-удмуртски и картинка, оборот — перевод.
+   Открытые карточки копятся на странице и записываются в сохранение как «просмотры» одним
+   действием — при уходе из темы или по кнопке «Готово» (ZB.cardViews в app.js). {% endcomment %}
+<div x-data="ZB.cardViews()">
+<div class="mt-5 grid grid-cols-2 gap-4">
+  {% for word in words %}
+  <div class="card relative cursor-pointer select-none text-center transition"
+       x-data="{ open: false }"
+       :class="open ? 'border-brand-sun' : ''"
+       @click="open = !open; if (open) see({{ word.id }})">
+    <div class="mx-auto h-20 w-20 text-6xl">{% include "vocab/_pic.html" %}</div>
+    <p class="mt-2 text-xl font-extrabold leading-tight">{{ word.udm }}</p>
+    {% if word.transcription %}<p class="text-sm text-muted">[{{ word.transcription }}]</p>{% endif %}
+    <div x-show="open" x-cloak class="mt-1">
+      <p class="text-lg font-bold text-brand-red">{{ word.ru }}</p>
+      {% if word.alt %}<p class="text-sm text-muted">также: {{ word.alt }}</p>{% endif %}
+    </div>
+    <p x-show="!open" class="mt-1 text-sm font-bold text-muted-soft">перевод?</p>
+    {% if word.audio %}
+    <button type="button" class="absolute right-2 top-2 text-2xl" title="Послушать"
+            @click.stop="ZB.playAudio({ audio: '{{ word.audio_url }}' })">🔊</button>
+    {% endif %}
+    <span class="absolute left-2 top-2 text-lg" x-cloak title="Выучено"
+          x-show="(() => { const w = $store.app.stats.byWord[{{ word.id }}]; return w && w.ok >= 2 && w.ok > w.bad })()">✅</span>
+  </div>
+  {% empty %}
+  <p class="col-span-2 text-muted">В этой теме пока нет слов.</p>
+  {% endfor %}
+</div>
+<button type="button" class="btn-primary mt-5 w-full" @click="done('{% url 'vocab:topics' %}')">Готово</button>
+</div>
+
+<h2 class="mt-8 text-lg font-extrabold">Закрепи в игре</h2>
+<div class="mt-2 grid grid-cols-2 gap-3">
+  <a href="{% url 'play:game' 'choose' %}?topic={{ topic.slug }}" class="btn-ghost">🎯 Выбери перевод</a>
+  <a href="{% url 'play:game' 'memory' %}?topic={{ topic.slug }}" class="btn-ghost">🃏 Найди пару</a>
+  <a href="{% url 'play:game' 'truefalse' %}?topic={{ topic.slug }}" class="btn-ghost">✅ Правда/ложь</a>
+  {% if topic.kind != "phrases" %}<a href="{% url 'play:game' 'assemble' %}?topic={{ topic.slug }}" class="btn-ghost">🧩 Собери слово</a>{% endif %}
+</div>
+{% endblock %}

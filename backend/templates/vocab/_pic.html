@@ -1,0 +1,6 @@
+{# «Картинка» слова — та же логика, что ZB.pic в static/js/app.js. #}
+{% if word.image %}<img src="{{ word.image_url }}" alt="" class="h-full w-full object-contain">
+{% elif word.color %}<span class="block h-full w-full rounded-full border-4 border-line-soft" style="background:{{ word.color }}"></span>
+{% elif word.number is not None %}<span class="flex h-full w-full items-center justify-center font-extrabold leading-none">{{ word.number }}</span>
+{% elif word.emoji %}<span class="flex h-full w-full items-center justify-center font-extrabold leading-none">{{ word.emoji }}</span>
+{% else %}<span class="flex h-full w-full items-center justify-center rounded-2xl bg-surface-sunk text-base font-bold text-muted-soft">нет картинки</span>{% endif %}

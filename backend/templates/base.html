@@ -1,0 +1,81 @@
+{% load static %}<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#c8102e">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}Ӟеч-а бур-а удмурт кыл?{% endblock %}</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {# Порядок важен: app.js и games.js регистрируют компоненты до запуска Alpine. #}
+  <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/games.js' %}" defer></script>
+  <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+</head>
+{% with section=request.resolver_match.url_name %}
+<body class="min-h-screen bg-brand-paper font-sans text-brand-ink antialiased" x-data>
+  <header class="sticky top-0 z-20 bg-surface/95 backdrop-blur">
+    <div class="mx-auto flex max-w-xl items-center justify-between gap-2 px-4 py-2">
+      <a href="{% url 'play:home' %}" class="flex min-w-0 items-center gap-2 text-lg font-extrabold">
+        <img src="{% static 'img/logo.svg' %}" alt="" class="h-9 w-9 shrink-0">
+        <span class="truncate">Ӟеч-а бур-а!</span>
+      </a>
+      <a href="{% url 'play:profile' %}" class="flex shrink-0 items-center gap-3 font-bold" x-cloak x-show="$store.app.profile">
+        <span title="Дней подряд">🔥 <span x-text="$store.app.stats.streak"></span></span>
+        <span title="Опыт">⭐ <span x-text="$store.app.stats.xp"></span></span>
+        <span class="text-2xl" x-text="$store.app.profile && $store.app.profile.avatar"></span>
+      </a>
+    </div>
+    <div class="ornament h-3"></div>
+  </header>
+
+  <main class="mx-auto max-w-xl px-4 pb-28 pt-4">{% block content %}{% endblock %}</main>
+
+  {# Нижнее меню: четыре раздела из ТЗ + главная. #}
+  <nav class="fixed inset-x-0 bottom-0 z-20 border-t-2 border-line-soft bg-surface pb-[env(safe-area-inset-bottom)]">
+    <div class="mx-auto grid max-w-xl grid-cols-5 text-center text-xs font-bold">
+      {% url 'play:home' as u %}
+      {% include "_nav_item.html" with url=u icon="🏠" label="Главная" keys="home" %}
+      {% url 'vocab:topics' as u %}
+      {% include "_nav_item.html" with url=u icon="📖" label="Обучение" keys="topics topic" %}
+      {% url 'play:games' as u %}
+      {% include "_nav_item.html" with url=u icon="🎮" label="Игры" keys="games game" %}
+      {% url 'play:profile' as u %}
+      {% include "_nav_item.html" with url=u icon="🙂" label="Профиль" keys="profile report" %}
+      {% url 'play:settings' as u %}
+      {% include "_nav_item.html" with url=u icon="⚙️" label="Настройки" keys="settings" %}
+    </div>
+  </nav>
+
+  {# Заставка, пока при запуске сверяется сохранение с сервером (не дольше нескольких секунд). #}
+  <div x-cloak x-show="$store.app.phase === 'loading'"
+       class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-brand-paper">
+    <img src="{% static 'img/logo.svg' %}" alt="" class="h-24 w-24 animate-pulse">
+    <p class="text-lg font-extrabold">Загрузка…</p>
+  </div>
+  {% include "_auth.html" %}
+  <script>
+    // Свои русские подсказки HTML5-валидации вместо браузерных (на телефоне с английским
+    // языком было бы «Please fill out this field»).
+    document.addEventListener("invalid", (e) => {
+      const f = e.target;
+      if (!f.validity || f.validity.customError) return;
+      if (f.validity.valueMissing) {
+        f.setCustomValidity("Заполни это поле");
+      } else if (f.validity.tooShort) {
+        f.setCustomValidity("Слишком коротко: нужно не меньше " + f.minLength + " символов");
+      } else if (f.validity.tooLong) {
+        f.setCustomValidity("Слишком длинно: не больше " + f.maxLength + " символов");
+      } else if (f.validity.typeMismatch || f.validity.patternMismatch) {
+        f.setCustomValidity("Проверь, правильно ли заполнено поле");
+      }
+    }, true);
+    // Как только игрок начинает исправлять поле, сбрасываем подсказку — иначе форма не отправится.
+    const resetValidity = (e) => { if (e.target.setCustomValidity) e.target.setCustomValidity(""); };
+    document.addEventListener("input", resetValidity, true);
+    document.addEventListener("change", resetValidity, true);
+  </script>
+</body>
+{% endwith %}
+</html>

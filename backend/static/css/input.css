@@ -1,0 +1,88 @@
+/* Шрифт хранится локально: в нём есть все удмуртские буквы (Ӝ Ӟ Ӥ Ӧ Ӵ). */
+@font-face { font-family: "Noto Sans"; font-weight: 400; font-display: swap;
+  src: url("../fonts/noto-sans-cyrillic-ext-400.woff2") format("woff2"); unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F; }
+@font-face { font-family: "Noto Sans"; font-weight: 400; font-display: swap;
+  src: url("../fonts/noto-sans-cyrillic-400.woff2") format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: "Noto Sans"; font-weight: 400; font-display: swap;
+  src: url("../fonts/noto-sans-latin-400.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Noto Sans"; font-weight: 700; font-display: swap;
+  src: url("../fonts/noto-sans-cyrillic-ext-700.woff2") format("woff2"); unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F; }
+@font-face { font-family: "Noto Sans"; font-weight: 700; font-display: swap;
+  src: url("../fonts/noto-sans-cyrillic-700.woff2") format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: "Noto Sans"; font-weight: 700; font-display: swap;
+  src: url("../fonts/noto-sans-latin-700.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Noto Sans"; font-weight: 800; font-display: swap;
+  src: url("../fonts/noto-sans-cyrillic-ext-800.woff2") format("woff2"); unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F; }
+@font-face { font-family: "Noto Sans"; font-weight: 800; font-display: swap;
+  src: url("../fonts/noto-sans-cyrillic-800.woff2") format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: "Noto Sans"; font-weight: 800; font-display: swap;
+  src: url("../fonts/noto-sans-latin-800.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Палитра темы (каналы R G B). Тёмная включается автоматически по настройке системы. */
+@layer base {
+  :root {
+    color-scheme: light;
+    --c-paper: 251 247 240;
+    --c-ink: 27 27 27;
+    --c-surface: 255 255 255;
+    --c-surface-hover: 249 250 251;
+    --c-surface-sunk: 243 244 246;
+    --c-line-soft: 229 231 235;
+    --c-line: 209 213 219;
+    --c-line-strong: 156 163 175;
+    --c-muted-soft: 156 163 175;
+    --c-muted: 107 114 128;
+    --c-muted-strong: 75 85 99;
+    --c-red-soft: 254 242 242;
+    --c-sun-ink: 161 98 7;
+    --c-ok-faint: 240 253 244;
+    --c-ok-soft: 220 252 231;
+    --c-ok-light: 187 247 208;
+    --c-bad-soft: 254 226 226;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --c-paper: 23 21 19;
+      --c-ink: 240 236 228;
+      --c-surface: 36 33 30;
+      --c-surface-hover: 46 42 38;
+      --c-surface-sunk: 30 28 25;
+      --c-line-soft: 52 48 44;
+      --c-line: 70 65 60;
+      --c-line-strong: 96 90 83;
+      --c-muted-soft: 120 114 106;
+      --c-muted: 165 158 149;
+      --c-muted-strong: 195 188 179;
+      --c-red-soft: 72 20 28;
+      --c-sun-ink: 242 183 5;
+      --c-ok-faint: 22 46 21;
+      --c-ok-soft: 26 56 24;
+      --c-ok-light: 40 88 34;
+      --c-bad-soft: 74 22 30;
+    }
+  }
+}
+
+@layer components {
+  /* «Объёмная» кнопка в стиле Duolingo. */
+  .btn { @apply inline-flex items-center justify-center rounded-2xl px-6 py-3 font-extrabold uppercase tracking-wide
+    border-b-4 transition active:translate-y-0.5 active:border-b-2 disabled:opacity-40 disabled:pointer-events-none; }
+  .btn-primary { @apply btn bg-brand-red text-white border-brand-redDark; }
+  .btn-ok { @apply btn bg-ok text-white border-green-800; }
+  .btn-bad { @apply btn bg-bad text-white border-red-900; }
+  .btn-ghost { @apply btn bg-surface text-brand-ink border-line border-2 border-b-4; }
+  .tile { @apply rounded-2xl border-2 border-b-4 border-line bg-surface px-4 py-3 text-lg font-bold
+    cursor-pointer select-none transition hover:bg-surface-hover; }
+  .menu-tile { @apply flex flex-col items-center gap-1 rounded-3xl border-2 border-b-4 border-line-soft p-4
+    text-center text-lg font-extrabold transition active:translate-y-0.5 active:border-b-2; }
+  .card { @apply rounded-3xl border-2 border-b-4 border-line-soft bg-surface p-4; }
+  .chip { @apply shrink-0 rounded-full border-2 px-3 py-1 text-sm font-bold; }
+  .ornament { background: url("../img/ornament.svg") repeat-x center / auto 100%; }
+}
+
+[x-cloak] { display: none !important; }

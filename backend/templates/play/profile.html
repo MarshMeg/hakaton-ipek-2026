@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Профиль — Ӟеч-а бур-а удмурт кыл?{% endblock %}
+{% block content %}
+<div x-data="profilePage()">
+  {# --- профиль ребёнка --- #}
+  <template x-if="$store.app.profile">
+    <section class="card">
+      <div class="flex items-center gap-4" x-show="!editing">
+        <span class="text-6xl" x-text="$store.app.profile.avatar"></span>
+        <div class="min-w-0">
+          <h1 class="truncate text-2xl font-extrabold" x-text="$store.app.profile.name"></h1>
+        </div>
+        <button type="button" class="ml-auto text-2xl" title="Изменить" @click="startEdit()">✏️</button>
+      </div>
+      <form x-show="editing" @submit.prevent="saveEdit()">
+        <label class="font-bold">Имя
+          <input x-model="name" maxlength="60" required
+                 class="mt-1 w-full rounded-2xl border-2 border-line px-4 py-3 font-normal focus:border-brand-red focus:outline-none">
+        </label>
+        <div class="mt-3 grid grid-cols-5 gap-2">
+          <template x-for="a in ZB.AVATARS" :key="a">
+            <button type="button" class="rounded-2xl border-2 py-2 text-3xl" @click="avatar = a" x-text="a"
+                    :class="avatar === a ? 'border-brand-red bg-brand-redSoft' : 'border-line-soft'"></button>
+          </template>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <button type="button" class="btn-ghost" @click="editing = false">Отмена</button>
+          <button class="btn-primary">Сохранить</button>
+        </div>
+      </form>
+    </section>
+  </template>
+
+  {# --- прогресс --- #}
+  <section class="mt-5" x-show="$store.app.profile">
+    <h2 class="text-lg font-extrabold">📈 Мой прогресс</h2>
+    <div class="mt-2 grid grid-cols-2 gap-3 text-center">
+      <div class="card p-3"><p class="text-2xl font-extrabold">⭐ <span x-text="$store.app.stats.xp"></span></p><p class="text-xs font-bold text-muted">опыт</p></div>
+      <div class="card p-3"><p class="text-2xl font-extrabold">🔥 <span x-text="$store.app.stats.streak"></span></p><p class="text-xs font-bold text-muted">дней подряд</p></div>
+      <div class="card p-3"><p class="text-2xl font-extrabold">📚 <span x-text="$store.app.stats.learned"></span><span class="text-base text-muted-soft"> / <span x-text="$store.app.stats.totalWords"></span></span></p><p class="text-xs font-bold text-muted">слов выучено</p></div>
+      <div class="card p-3"><p class="text-2xl font-extrabold">🎯 <span x-text="$store.app.stats.accuracy"></span>%</p><p class="text-xs font-bold text-muted">верных ответов</p></div>
+    </div>
+
+    {% include "play/_daily_chart.html" %}
+
+    <template x-if="$store.app.stats.hard.length">
+      <div class="card mt-3">
+        <p class="font-extrabold">Слова, в которых чаще ошибаешься</p>
+        <ul class="mt-2 grid gap-1">
+          <template x-for="h in $store.app.stats.hard" :key="h.word.id">
+            <li class="flex justify-between gap-2">
+              <span><b x-text="h.word.udm"></b> — <span x-text="h.word.ru"></span></span>
+              <span class="shrink-0 text-sm font-bold text-bad" x-text="'ошибок: ' + h.bad"></span>
+            </li>
+          </template>
+        </ul>
+        <a href="{% url 'play:game' 'hard' %}" class="btn-primary mt-3 w-full">🔁 Повторить</a>
+      </div>
+    </template>
+    <a href="{% url 'play:report' %}" class="btn-ghost mt-3 w-full">📋 Отчёт для родителей и учителя</a>
+  </section>
+
+  {# --- аккаунт --- #}
+  <section class="mt-6" x-show="$store.app.account">
+    <h2 class="text-lg font-extrabold">☁️ Аккаунт</h2>
+    <div class="card mt-2">
+      <p>Вход выполнен: <b x-text="$store.app.account && $store.app.account.username"></b></p>
+      <p class="text-sm text-muted" x-text="syncedText()"></p>
+      <button type="button" class="btn-ghost mt-3 w-full" @click="logout()" :disabled="busy">Выйти</button>
+    </div>
+  </section>
+
+  {# --- о языке --- #}
+  <section class="mt-6">
+    <h2 class="text-lg font-extrabold">🌲 Об удмуртском языке</h2>
+    <ul class="mt-2 grid gap-2">
+      {% for fact in facts %}
+      <li class="card flex gap-3 p-3"><span class="text-xl">💡</span><span>{{ fact.text }}</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+<script>
+  function profilePage() {
+    return {
+      editing: false, name: '', avatar: '', busy: false,
+      startEdit() {
+        const p = this.$store.app.profile;
+        this.name = p.name; this.avatar = p.avatar; this.editing = true;
+      },
+      saveEdit() {
+        const name = this.name.trim().slice(0, 60);
+        if (!name) return;
+        const avatar = this.avatar;
+        ZB.Save.commit((s) => { s.profile = { name, avatar }; });
+        this.editing = false;
+      },
+      logout() {
+        this.busy = true;
+        ZB.logout().finally(() => { this.busy = false; });
+      },
+      syncedText() {
+        const a = this.$store.app.account;
+        if (!a || !a.synced) return 'Прогресс ещё не отправлялся на сервер';
+        return 'Прогресс отправлен на сервер: ' + new Date(a.synced).toLocaleString('ru-RU');
+      },
+    };
+  }
+</script>
+{% endblock %}

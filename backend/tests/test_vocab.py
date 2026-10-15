@@ -1,0 +1,64 @@
+import pytest
+from django.core.management import CommandError, call_command
+from django.urls import reverse
+
+from vocab.models import Fact, SortingSet, Topic, Word
+
+
+def test_seed_is_idempotent_and_keeps_word_ids(vocab):
+    ids = dict(Word.objects.values_list("udm", "id"))
+    assert len(ids) > 50
+    call_command("seed")
+    call_command("seed", "--update")
+    assert dict(Word.objects.values_list("udm", "id")) == ids
+
+
+def test_seed_does_not_overwrite_admin_edits_without_update(vocab):
+    word = Word.objects.get(udm="гондыр")
+    word.ru = "мишка"
+    word.save()
+    call_command("seed")
+    word.refresh_from_db()
+    assert word.ru == "мишка"
+    call_command("seed", "--update")
+    word.refresh_from_db()
+    assert word.ru == "медведь"
+
+
+def test_sorting_sets_reference_existing_topics(vocab):
+    slugs = set(Topic.objects.values_list("slug", flat=True))
+    for s in SortingSet.objects.all():
+        for group in s.groups:
+            assert set(group["topics"]) <= slugs
+
+
+def test_udmurt_letters_are_cyrillic(vocab):
+    # В материалах кейса встречались латинские ö и ü вместо удмуртских ӧ и ӥ.
+    for udm in Word.objects.values_list("udm", flat=True):
+        assert not set(udm) & set("öüëïÖÜËÏ"), udm
+
+
+def test_facts_are_plain_strings(vocab):
+    # Факт с «: » без кавычек YAML превращает в словарь, и в профиле выводилось {'…': '…'}.
+    texts = list(Fact.objects.values_list("text", flat=True))
+    assert texts
+    for text in texts:
+        assert not text.startswith("{"), text
+
+
+def test_seed_rejects_non_string_facts(db, tmp_path):
+    vocab_file = tmp_path / "vocab.yaml"
+    vocab_file.write_text("topics: []\nfacts:\n  - В алфавите 38 букв: Ӝ, Ӟ.\n", encoding="utf-8")
+    with pytest.raises(CommandError, match="строкой"):
+        call_command("seed", "--file", str(vocab_file))
+    assert not Fact.objects.exists()
+
+
+def test_content_json(client, vocab):
+    data = client.get(reverse("vocab:content")).json()
+    assert {t["slug"] for t in data["topics"]} >= {"numbers", "colors", "family"}
+    word = next(w for w in data["words"] if w["udm"] == "кык")
+    assert word == {"id": word["id"], "topic": "numbers", "udm": "кык", "ru": "два", "number": 2}
+    assert data["sorting"] and data["facts"] and data["version"]
+    # Версия зависит только от содержимого.
+    assert client.get(reverse("vocab:content")).json()["version"] == data["version"]

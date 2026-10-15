@@ -1,0 +1,125 @@
+name: Android
+
+# APK собирается при изменениях в mobile/ и backend/: в APK кладётся офлайн-снимок
+# (страницы, словарь, картинки), который собирает бэкенд.
+# Пересобрать вручную, например после смены переменной SERVER_URL: Actions → Android → Run workflow.
+# push — только в main (сборка для релиза); ветки собираются через pull_request, без двойного прогона.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - "backend/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "mobile/**"
+      - "backend/**"
+      - ".github/workflows/android.yml"
+  workflow_dispatch:
+
+# Новый пуш в ту же ветку отменяет недоделанную сборку.
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      # Офлайн-снимок из seeds/vocab.yaml — так же, как его собирает сервер при старте
+      # (DEBUG=0 + collectstatic: те же адреса статики, та же версия снимка).
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.x"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Офлайн-снимок
+        working-directory: backend
+        env:
+          DJANGO_DEBUG: "0"
+          DJANGO_SECRET_KEY: bundle-build-only  # снимок не зависит от ключа, но без него DEBUG=0 не стартует
+        run: |
+          uv sync --locked --no-dev
+          uv run python manage.py migrate --noinput
+          uv run python manage.py seed
+          uv run python manage.py collectstatic --noinput
+          uv run python manage.py build_bundle --out ../mobile/assets/bundle
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # Кэш Gradle (~/.gradle): без него первая сборка APK тратит минуты на скачивание зависимостей.
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # Кэш NDK и CMake: иначе Gradle скачивает их при каждой сборке. Версию NDK берём из самого
+      # Flutter (flutter.ndkVersion), чтобы после обновления Flutter кэш не устаревал.
+      - name: Версия NDK
+        id: ndk
+        # ANDROID_SDK_ROOT — переменная окружения раннера, в контексте env её нет: отдаём выводом шага.
+        run: |
+          version=$(grep -oP 'val ndkVersion: String = "\K[^"]+' "$FLUTTER_ROOT/packages/flutter_tools/gradle/src/main/kotlin/FlutterExtension.kt")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sdk=$ANDROID_SDK_ROOT" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.ndk.outputs.sdk }}/ndk/${{ steps.ndk.outputs.version }}
+            ${{ steps.ndk.outputs.sdk }}/cmake/3.22.1
+          key: android-ndk-${{ steps.ndk.outputs.version }}-cmake-3.22.1
+      - run: flutter create --platforms=android --org ru.marshmeg --project-name hakaton .
+      - run: flutter pub get
+      # Иконка приложения поверх стандартной из flutter create (настройки — в pubspec.yaml).
+      - run: dart run flutter_launcher_icons
+      - run: flutter analyze
+      # Адрес сервера вшивается в APK. Можно переопределить переменной репозитория SERVER_URL
+      # (Settings → Secrets and variables → Actions → Variables).
+      # Только ARM (32 и 64 бит): x86_64 нужен лишь эмуляторам, а без него сборка быстрее и APK меньше.
+      - run: flutter build apk --release --target-platform android-arm,android-arm64 --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+      - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes.apk
+      - run: ls -lh build/votes.apk   # ТЗ: желательно не больше 100–150 МБ
+      # Вторая сборка — для проверки: при запуске спрашивает, какой адрес открыть.
+      # Нужна только для релиза из main и при ручном запуске; в PR не собирается.
+      - if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+        run: |
+          flutter build apk --release --target-platform android-arm,android-arm64 --dart-define=ASK_SERVER_URL=true --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+          mv build/app/outputs/flutter-apk/app-release.apk build/votes-ask.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: votes-apk
+          path: |
+            mobile/build/votes.apk
+            mobile/build/votes-ask.apk
+
+  # Сборка из main публикуется как GitHub Release с APK:
+  # https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes.apk
+  release:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: [android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: votes-apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-${{ github.run_number }}
+          name: Ӟеч-а бур-а удмурт кыл? — сборка ${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          files: |
+            votes.apk
+            votes-ask.apk
+          body: |
+            votes.apk — APK для Android, сервер: ${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+            votes-ask.apk — сборка для проверки: при запуске спрашивает адрес сервера
+            Коммит: ${{ github.sha }}

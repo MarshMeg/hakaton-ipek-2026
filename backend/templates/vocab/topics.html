@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Обучение — Ӟеч-а бур-а удмурт кыл?{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-extrabold">📖 Обучение</h1>
+<p class="text-muted-strong">Выбери тему и листай карточки со словами.</p>
+
+<div class="mt-5 grid grid-cols-2 gap-4">
+  {% for topic in topics %}
+  <a href="{% url 'vocab:topic' topic.slug %}" class="menu-tile bg-surface"
+     x-data="{ get t() { return $store.app.stats.topics.find(x => x.slug === '{{ topic.slug }}') } }">
+    <span class="text-5xl">{{ topic.icon|default:"📘" }}</span>
+    <span class="leading-tight">{{ topic.title }}</span>
+    {% if topic.title_udm %}<span class="text-sm font-bold text-brand-red">{{ topic.title_udm }}</span>{% endif %}
+    {% comment %} Светлая полоса — просмотренные слова, зелёная поверх — выученные в играх.
+       mt-auto прижимает прогресс к низу: плитки в ряду одной высоты, а названия разной длины. {% endcomment %}
+    <span class="mt-auto flex w-full flex-col items-center gap-1 pt-1">
+      <span class="relative h-2 w-full overflow-hidden rounded-full bg-line-soft">
+        <span class="absolute inset-y-0 left-0 bg-ok-light" :style="'width:' + (t ? t.seenPercent : 0) + '%'"></span>
+        <span class="absolute inset-y-0 left-0 bg-ok" :style="'width:' + (t ? t.percent : 0) + '%'"></span>
+      </span>
+      <span class="text-xs font-bold text-muted">
+        👀 <span x-text="t ? t.seen : 0"></span> из {{ topic.words.count }}
+        · ✅ <span x-text="t ? t.learned : 0"></span> выучено
+      </span>
+    </span>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

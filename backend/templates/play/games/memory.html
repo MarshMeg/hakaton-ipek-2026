@@ -1,0 +1,20 @@
+{# «Найди пару»: карточки рубашкой вверх, пара — удмуртское слово и картинка (или перевод). #}
+<div class="grid grid-cols-4 gap-2">
+  <template x-for="card in cards" :key="card.uid">
+    <button type="button" @click="flip(card)"
+            class="flex aspect-square items-center justify-center rounded-2xl border-2 border-b-4 p-1 text-center font-extrabold transition"
+            :class="card.matched ? 'border-ok bg-ok-faint opacity-70' : card.flipped ? 'border-brand-sun bg-surface' : 'border-brand-redDark bg-brand-red'">
+      <template x-if="!card.flipped && !card.matched">
+        <span class="ornament block h-6 w-full opacity-60"></span>
+      </template>
+      <template x-if="card.flipped || card.matched">
+        <span class="flex h-full w-full items-center justify-center">
+          <span x-show="card.side === 'udm'" class="break-all leading-tight" :class="card.word.udm.length > 7 ? 'text-sm' : 'text-base'" x-text="card.word.udm"></span>
+          <span x-show="card.side === 'ru'" class="break-words text-sm leading-tight text-muted-strong" x-text="card.word.ru"></span>
+          <span x-show="card.side === 'pic'" class="h-4/5 w-4/5 text-4xl" x-html="pic(card.word)"></span>
+        </span>
+      </template>
+    </button>
+  </template>
+</div>
+<p class="mt-4 text-center font-bold text-muted-strong">Пар найдено: <span x-text="score"></span> из <span x-text="pairs"></span> · ходов: <span x-text="moves"></span></p>

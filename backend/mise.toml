@@ -1,0 +1,48 @@
+# Бэкенд: uv (ставит Python и зависимости) + Tailwind CLI.
+[tools]
+uv = "0.13"
+"github:tailwindlabs/tailwindcss" = "3.4.17"      # standalone CLI, Node.js не нужен
+
+[tasks.setup]
+description = "Установить зависимости, применить миграции, загрузить словарь"
+run = [
+  "uv sync",
+  "uv run python manage.py migrate",
+  "uv run python manage.py seed",
+]
+
+[tasks.dev]
+description = "Сервер разработки на http://localhost:8000"
+run = "uv run python manage.py runserver 0.0.0.0:8000"
+
+[tasks.test]
+description = "Тесты (pytest); аргументы пробрасываются: mise run test -- -k sync"
+run = "uv run pytest"
+
+[tasks.lint]
+description = "Проверки как в CI: ruff, формат, миграции"
+run = [
+  "uv run ruff check .",
+  "uv run ruff format --check .",
+  "uv run python manage.py makemigrations --check --dry-run",
+]
+
+[tasks.fmt]
+description = "Автоформатирование и автоисправления ruff"
+run = ["uv run ruff format .", "uv run ruff check --fix ."]
+
+[tasks.css]
+description = "Пересобрать static/css/app.css после изменения классов Tailwind"
+run = "tailwindcss -i static/css/input.css -o static/css/app.css --minify"
+
+[tasks."css:watch"]
+description = "Пересобирать CSS при изменении шаблонов"
+run = "tailwindcss -i static/css/input.css -o static/css/app.css --watch"
+
+[tasks.seed]
+description = "Перезаписать словарь из seeds/vocab.yaml (id слов сохраняются)"
+run = "uv run python manage.py seed --update"
+
+[tasks.bundle]
+description = "Собрать офлайн-снимок в mobile/assets/bundle (его кладёт в APK flutter build)"
+run = "uv run python manage.py build_bundle --out ../mobile/assets/bundle"

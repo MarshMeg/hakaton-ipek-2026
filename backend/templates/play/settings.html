@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Настройки — Ӟеч-а бур-а удмурт кыл?{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-extrabold">⚙️ Настройки</h1>
+
+<div x-data="settingsPage()" class="mt-4 grid gap-3">
+  {% include "play/_toggle.html" with key="sound" icon="🔊" title="Звук" hint="Звуки верных и неверных ответов, произношение слов" %}
+  {% include "play/_toggle.html" with key="notifications" icon="🔔" title="Уведомления" hint="Раз в день напомним про «Слово дня»" %}
+  {% include "play/_toggle.html" with key="geo" icon="📍" title="Геолокация" hint="Покажем на главной, далеко ли до Ижевска" %}
+  <p class="text-sm font-bold text-bad" x-show="error" x-text="error"></p>
+
+  <section class="card mt-3 text-sm text-muted-strong">
+    <p class="font-extrabold text-brand-ink">О приложении</p>
+    <p class="mt-1">«Ӟеч-а бур-а удмурт кыл?» — «Здравствуй, удмуртский язык!». Приложение работает без
+      интернета: все слова и картинки уже внутри.</p>
+    <p class="mt-2">Версия словаря: <b x-text="contentVersion || '—'"></b></p>
+    <p x-show="info">Офлайн-пакет: <b x-text="info && info.bundle"></b>
+      <span x-show="info && info.pending">· новая версия скачана и включится при следующем запуске</span></p>
+  </section>
+</div>
+
+<script>
+  function settingsPage() {
+    return {
+      info: null, contentVersion: '', error: '',
+      init() {
+        ZB.Bridge.call('info').then((info) => { this.info = info || null; });
+        ZB.Content.load().then((c) => { this.contentVersion = c.version; });
+      },
+      async toggle(key) {
+        this.error = '';
+        const value = !this.$store.app.settings[key];
+        if (key === 'notifications' && ZB.Bridge.available()) {
+          const ok = await ZB.Bridge.call('setNotifications', value);
+          if (value && !ok) { this.error = 'Разреши уведомления в настройках телефона.'; return; }
+        }
+        if (key === 'geo' && value) {
+          const pos = await ZB.locate();
+          if (!pos) { this.error = 'Не удалось определить место: разреши доступ к геолокации.'; return; }
+        }
+        ZB.Settings.set(key, value);
+      },
+    };
+  }
+</script>
+{% endblock %}

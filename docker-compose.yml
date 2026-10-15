@@ -1,0 +1,88 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-votes}
+      POSTGRES_USER: ${POSTGRES_USER:-votes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-votes}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 3s
+      retries: 20
+
+  minio:
+    # Официальный образ minio/minio удалён из Docker Hub и quay.io; pgsty/minio — поддерживаемая
+    # сообществом сборка MinIO, совместимая по командам (в образе есть и mc).
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"   # S3 API (отсюда браузер получает медиа)
+      - "9001:9001"   # веб-консоль MinIO
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 3s
+      retries: 20
+
+  # Одноразовый контейнер (запускается при каждом `up`): создаёт бакет и разрешает анонимно
+  # только читать объекты по прямой ссылке (s3:GetObject). Список файлов (s3:ListBucket) закрыт —
+  # иначе /votes-media/ выдавал бы перечень всех аватарок. Стандартный `mc anonymous set download`
+  # открывает и ListBucket, поэтому политика задаётся явно.
+  minio-init:
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb --ignore-existing "local/$$S3_BUCKET"
+        cat > /tmp/policy.json <<POLICY
+        {"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"AWS": ["*"]},
+          "Action": ["s3:GetObject"], "Resource": ["arn:aws:s3:::$$S3_BUCKET/*"]}]}
+        POLICY
+        mc anonymous set-json /tmp/policy.json "local/$$S3_BUCKET"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-votes-media}
+
+  web:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-votes}:${POSTGRES_PASSWORD:-votes}@db:5432/${POSTGRES_DB:-votes}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-0}
+      # Ключ для локального запуска без .env; на сервере его обязательно задают в .env
+      # (docker-compose.prod.yml без него не стартует).
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-local-compose-insecure-key}
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_USERNAME:-admin}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:-admin12345}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:-admin@example.com}
+      USE_S3: "1"
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET: ${S3_BUCKET:-votes-media}
+      S3_PUBLIC_DOMAIN: ${S3_PUBLIC_DOMAIN:-localhost:9000/votes-media}
+      S3_PUBLIC_PROTOCOL: ${S3_PUBLIC_PROTOCOL:-http:}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  miniodata:

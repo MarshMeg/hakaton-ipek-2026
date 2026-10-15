@@ -1,0 +1,24 @@
+.env
+__pycache__/
+*.pyc
+backend/db.sqlite3
+backend/media/
+backend/staticfiles/
+.pytest_cache/
+.ruff_cache/
+.venv/
+# Flutter
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+mobile/pubspec.lock
+# Генерируются flutter create / pub get
+mobile/android/local.properties
+mobile/android/app/src/main/java/
+
+# Офлайн-снимок приложения (manage.py build_bundle): на сервере и в assets APK
+backend/bundle/
+mobile/assets/bundle/*
+!mobile/assets/bundle/blobs/
+mobile/assets/bundle/blobs/*
+!mobile/assets/bundle/**/.gitkeep
