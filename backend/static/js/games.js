@@ -72,15 +72,22 @@
         return word;
       },
 
-      /* Слова-«отвлекалки»: другие слова, с текстом не таким, как у правильного. */
+      /* Слова-«отвлекалки»: другие слова, с текстом не таким, как у правильного. Синонимы
+       * («чырткем» и «салам» — оба «привет») отсеиваются по обоим полям, иначе среди вариантов
+       * оказалось бы второе верное слово. */
       distractors: function (target, n, field) {
         var self = this;
+        var norm = function (s) { return String(s || '').trim().toLowerCase(); };
         var used = {};
-        used[target[field]] = true;
+        used[norm(target[field])] = true;
         var pick = function (list) {
           var out = [];
           ZB.shuffle(list).forEach(function (w) {
-            if (out.length < n && !used[w[field]]) { used[w[field]] = true; out.push(w); }
+            var key = norm(w[field]);
+            if (out.length >= n || used[key]) return;
+            if (norm(w.ru) === norm(target.ru) || norm(w.udm) === norm(target.udm)) return;
+            used[key] = true;
+            out.push(w);
           });
           return out;
         };
@@ -163,7 +170,8 @@
       pick: function (opt) {
         if (this.feedback) return;
         this.chosen = opt.id;
-        var ok = opt.id === this.target.id;
+        // Вариант с тем же текстом, что у правильного, тоже верный (на случай синонимов).
+        var ok = opt.id === this.target.id || this.optionText(opt) === this.optionText(this.target);
         this.answer(this.target, ok);
         if (ok) this.autoNext();
         else this.message = this.target.udm + ' — ' + this.target.ru;
