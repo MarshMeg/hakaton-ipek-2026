@@ -41,3 +41,4 @@ flutter:
   assets:
     - assets/bundle/
     - assets/bundle/blobs/
+    - assets/icon/icon.png  # логотип на заставке при запуске
