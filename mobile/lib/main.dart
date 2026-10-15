@@ -1,16 +1,25 @@
-// Вотэс — Android-приложение. Вся игра работает на сервере (Django) и открывается во WebView;
-// приложение отвечает за запуск, экран «нет связи», кнопку «назад» и выбор адреса сервера.
+// «Ӟеч-а бур-а удмурт кыл?» — Android-приложение.
+//
+// Вся игра — веб-приложение (Django + Alpine.js), открытое во WebView. Чтобы оно работало без
+// интернета, WebView получает страницы, словарь и картинки не из сети, а из офлайн-снимка
+// (assets APK или скачанное обновление, см. bundle.dart). Адрес при этом остаётся настоящим
+// (https://hakaton.marshmeg.ru/…), поэтому прогресс в localStorage и вход в облачный аккаунт
+// работают одинаково онлайн и офлайн. В сеть уходят только /api/ (синхронизация) и /admin/.
+// Мост для JS (резервная копия прогресса, уведомления, геолокация, «поделиться») — bridge.dart.
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 
-/// Адрес по умолчанию задаётся при сборке: flutter build apk --dart-define=SERVER_URL=https://...
+import 'bridge.dart';
+import 'bundle.dart';
+
+/// Адрес сервера задаётся при сборке: flutter build apk --dart-define=SERVER_URL=https://...
 /// Для локального сервера в эмуляторе: --dart-define=SERVER_URL=http://10.0.2.2:8000
 const String defaultServerUrl =
     String.fromEnvironment('SERVER_URL', defaultValue: 'https://hakaton.marshmeg.ru');
 
-const String _prefsKey = 'server_url';
+/// Пути, которые всегда идут в сеть, даже если такой файл есть в снимке.
+const _networkOnly = ['/api/', '/admin/', '/bundle/'];
 
 // Цвета брендбука (совпадают с backend/tailwind.config.js).
 const Color brandRed = Color(0xFFC8102E);
@@ -28,7 +37,7 @@ class VotesApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Вотэс',
+      title: 'Ӟеч-а бур-а удмурт кыл?',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: brandRed, surface: brandPaper),
@@ -48,107 +57,105 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  late final WebViewController _controller;
-  String _serverUrl = defaultServerUrl;
-  bool _loading = true;
-  bool _offline = false;
+  final Uri _server = Uri.parse(defaultServerUrl);
+  InAppWebViewController? _controller;
+  Bundle? _bundle;
+  Bridge? _bridge;
+  double _progress = 0;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(brandPaper)
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (_) => setState(() => _loading = true),
-          onPageFinished: (_) => setState(() => _loading = false),
-          onWebResourceError: (error) {
-            // Ошибки картинок/аудио не должны закрывать игру — реагируем только на саму страницу.
-            if (error.isForMainFrame ?? true) {
-              setState(() {
-                _offline = true;
-                _loading = false;
-              });
-            }
-          },
-        ),
-      );
-    _loadSavedUrl();
+    _init();
   }
 
-  Future<void> _loadSavedUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    _serverUrl = prefs.getString(_prefsKey) ?? defaultServerUrl;
-    _open();
-  }
-
-  void _open() {
+  Future<void> _init() async {
+    final bundle = await Bundle.load();
     setState(() {
-      _offline = false;
-      _loading = true;
+      _bundle = bundle;
+      _bridge = Bridge(bundle);
     });
-    _controller.loadRequest(Uri.parse(_serverUrl));
+    // Новая версия снимка качается в фоне и включится при следующем запуске.
+    bundle.update(_server);
   }
 
-  Future<void> _editServerUrl() async {
-    final input = TextEditingController(text: _serverUrl);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Адрес сервера'),
-        content: TextField(
-          controller: input,
-          keyboardType: TextInputType.url,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'http://192.168.0.10:8000'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, defaultServerUrl),
-            child: const Text('По умолчанию'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, input.text.trim()),
-            child: const Text('Сохранить'),
-          ),
-        ],
-      ),
+  /// Ответ на запрос WebView из снимка. null — пусть WebView идёт в сеть.
+  Future<WebResourceResponse?> _intercept(WebResourceRequest request) async {
+    final bundle = _bundle;
+    final url = request.url;
+    if (bundle == null || url.origin != _server.origin) return null;
+    if ((request.method ?? 'GET').toUpperCase() != 'GET') return null;
+    if (_networkOnly.any(url.path.startsWith)) return null;
+    final file = bundle.lookup(url.path);
+    if (file == null) return null;
+    final data = await bundle.read(file.sha);
+    if (data == null) return null;
+    final parts = file.type.split(';');
+    final charset = parts.length > 1 ? parts[1].split('=').last.trim() : null;
+    return WebResourceResponse(
+      contentType: parts.first.trim(),
+      contentEncoding: charset,
+      data: data,
+      statusCode: 200,
+      reasonPhrase: 'OK',
+      headers: {'Cache-Control': 'no-store'},
     );
-    if (result == null || result.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, result);
-    _serverUrl = result;
-    _open();
+  }
+
+  void _reload() {
+    setState(() => _error = null);
+    _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())));
   }
 
   @override
   Widget build(BuildContext context) {
+    final bundle = _bundle;
     // Системная кнопка «назад» сначала листает историю WebView и только потом закрывает приложение.
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         final navigator = Navigator.of(context);
-        if (await _controller.canGoBack()) {
-          await _controller.goBack();
+        final controller = _controller;
+        if (controller != null && await controller.canGoBack()) {
+          await controller.goBack();
         } else {
           navigator.maybePop();
         }
       },
       child: Scaffold(
         body: SafeArea(
-          child: _offline
-              ? _OfflineView(
-                  serverUrl: _serverUrl,
-                  onRetry: _open,
-                  onEditUrl: _editServerUrl,
-                )
+          child: bundle == null
+              ? const Center(child: CircularProgressIndicator(color: brandRed))
               : Stack(
                   children: [
-                    WebViewWidget(controller: _controller),
-                    if (_loading)
-                      const LinearProgressIndicator(color: brandRed, minHeight: 3),
+                    InAppWebView(
+                      initialUrlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())),
+                      initialSettings: InAppWebViewSettings(
+                        useShouldInterceptRequest: true,
+                        javaScriptEnabled: true,
+                        domStorageEnabled: true,
+                        mediaPlaybackRequiresUserGesture: false,
+                        transparentBackground: true,
+                        supportZoom: false,
+                      ),
+                      onWebViewCreated: (controller) {
+                        _controller = controller;
+                        _bridge!.attach(controller);
+                      },
+                      shouldInterceptRequest: (controller, request) => _intercept(request),
+                      onProgressChanged: (controller, progress) =>
+                          setState(() => _progress = progress / 100),
+                      onReceivedError: (controller, request, error) {
+                        // Ошибки картинок и /api/ не мешают игре — реагируем только на саму страницу.
+                        if (request.isForMainFrame ?? true) {
+                          setState(() => _error = error.description);
+                        }
+                      },
+                    ),
+                    if (_progress < 1) LinearProgressIndicator(value: _progress, color: brandRed, minHeight: 3),
+                    if (_error != null) _ErrorView(message: _error!, onRetry: _reload),
                   ],
                 ),
         ),
@@ -157,46 +164,40 @@ class _GameScreenState extends State<GameScreen> {
   }
 }
 
-class _OfflineView extends StatelessWidget {
-  const _OfflineView({
-    required this.serverUrl,
-    required this.onRetry,
-    required this.onEditUrl,
-  });
+/// Показывается, только если страницы нет в снимке и нет сети (например, сборка без снимка).
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
 
-  final String serverUrl;
+  final String message;
   final VoidCallback onRetry;
-  final VoidCallback onEditUrl;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.wifi_off_rounded, size: 72, color: brandRed),
-            const SizedBox(height: 16),
-            const Text(
-              'Нет связи с сервером',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: brandInk),
+    return Container(
+      color: brandPaper,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 72, color: brandRed),
+          const SizedBox(height: 16),
+          const Text(
+            'Страница не открылась',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: brandInk),
+          ),
+          const SizedBox(height: 8),
+          Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
+          const SizedBox(height: 24),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: brandRed,
+              minimumSize: const Size.fromHeight(52),
             ),
-            const SizedBox(height: 8),
-            Text(serverUrl, textAlign: TextAlign.center, style: const TextStyle(color: Colors.black54)),
-            const SizedBox(height: 24),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: brandRed,
-                minimumSize: const Size.fromHeight(52),
-              ),
-              onPressed: onRetry,
-              child: const Text('Повторить'),
-            ),
-            const SizedBox(height: 8),
-            TextButton(onPressed: onEditUrl, child: const Text('Изменить адрес сервера')),
-          ],
-        ),
+            onPressed: onRetry,
+            child: const Text('Повторить'),
+          ),
+        ],
       ),
     );
   }

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Обучение — Ӟеч-а бур-а удмурт кыл?{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-extrabold">📖 Обучение</h1>
+<p class="text-gray-600">Выбери тему и листай карточки со словами.</p>
+
+<div class="mt-5 grid grid-cols-2 gap-4">
+  {% for topic in topics %}
+  <a href="{% url 'vocab:topic' topic.slug %}" class="menu-tile bg-white"
+     x-data="{ get t() { return $store.app.stats.topics.find(x => x.slug === '{{ topic.slug }}') } }">
+    <span class="text-5xl">{{ topic.icon|default:"📘" }}</span>
+    <span class="leading-tight">{{ topic.title }}</span>
+    {% if topic.title_udm %}<span class="text-sm font-bold text-brand-red">{{ topic.title_udm }}</span>{% endif %}
+    <span class="mt-1 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+      <span class="block h-full bg-ok" :style="'width:' + (t ? t.percent : 0) + '%'"></span>
+    </span>
+    <span class="text-xs font-bold text-gray-500">
+      <span x-text="t ? t.learned : 0"></span> из {{ topic.words.count }} выучено
+    </span>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

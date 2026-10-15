@@ -4,30 +4,50 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#c8102e">
-  <title>{% block title %}Вотэс — учим удмуртский{% endblock %}</title>
+  <title>{% block title %}Ӟеч-а бур-а удмурт кыл?{% endblock %}</title>
   <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
-  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+  {# Порядок важен: app.js и games.js регистрируют компоненты до запуска Alpine. #}
+  <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/games.js' %}" defer></script>
   <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
 </head>
-<body class="min-h-screen bg-brand-paper font-sans text-brand-ink antialiased"
-      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  {% block header %}
-  <header class="sticky top-0 z-10 bg-white/90 backdrop-blur">
-    <div class="mx-auto flex max-w-xl items-center justify-between px-4 py-3">
-      <a href="{% url 'learning:home' %}" class="flex items-center gap-2 text-xl font-extrabold">
-        <img src="{% static 'img/logo.svg' %}" alt="" class="h-8 w-8"> Вотэс
+{% with section=request.resolver_match.url_name %}
+<body class="min-h-screen bg-brand-paper font-sans text-brand-ink antialiased" x-data>
+  <header class="sticky top-0 z-20 bg-white/95 backdrop-blur">
+    <div class="mx-auto flex max-w-xl items-center justify-between gap-2 px-4 py-2">
+      <a href="{% url 'play:home' %}" class="flex min-w-0 items-center gap-2 text-lg font-extrabold">
+        <img src="{% static 'img/logo.svg' %}" alt="" class="h-9 w-9 shrink-0">
+        <span class="truncate">Ӟеч-а бур-а!</span>
       </a>
-      {% if profile %}
-      <div class="flex items-center gap-4 font-bold">
-        <span title="Дней подряд">🔥 {{ profile.streak }}</span>
-        <span title="Опыт">⭐ {{ profile.xp }}</span>
-      </div>
-      {% endif %}
+      <a href="{% url 'play:profile' %}" class="flex shrink-0 items-center gap-3 font-bold" x-cloak x-show="$store.app.profile">
+        <span title="Дней подряд">🔥 <span x-text="$store.app.stats.streak"></span></span>
+        <span title="Опыт">⭐ <span x-text="$store.app.stats.xp"></span></span>
+        <span class="text-2xl" x-text="$store.app.profile && $store.app.profile.avatar"></span>
+      </a>
     </div>
     <div class="ornament h-3"></div>
   </header>
-  {% endblock %}
-  <main class="mx-auto max-w-xl px-4 pb-10">{% block content %}{% endblock %}</main>
+
+  <main class="mx-auto max-w-xl px-4 pb-28 pt-4">{% block content %}{% endblock %}</main>
+
+  {# Нижнее меню: четыре раздела из ТЗ + главная. #}
+  <nav class="fixed inset-x-0 bottom-0 z-20 border-t-2 border-gray-200 bg-white pb-[env(safe-area-inset-bottom)]">
+    <div class="mx-auto grid max-w-xl grid-cols-5 text-center text-xs font-bold">
+      {% url 'play:home' as u %}
+      {% include "_nav_item.html" with url=u icon="🏠" label="Главная" keys="home" %}
+      {% url 'vocab:topics' as u %}
+      {% include "_nav_item.html" with url=u icon="📖" label="Обучение" keys="topics topic" %}
+      {% url 'play:games' as u %}
+      {% include "_nav_item.html" with url=u icon="🎮" label="Игры" keys="games game" %}
+      {% url 'play:profile' as u %}
+      {% include "_nav_item.html" with url=u icon="🙂" label="Профиль" keys="profile report" %}
+      {% url 'play:settings' as u %}
+      {% include "_nav_item.html" with url=u icon="⚙️" label="Настройки" keys="settings" %}
+    </div>
+  </nav>
+
+  {% block onboarding %}{% include "_onboarding.html" %}{% endblock %}
 </body>
+{% endwith %}
 </html>

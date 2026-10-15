@@ -19,5 +19,5 @@ description = "Запустить в эмуляторе против локал�
 run = "flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000"
 
 [tasks.apk]
-description = "Собрать release APK (сервер https://hakaton.marshmeg.ru)"
+description = "Собрать release APK (сервер https://hakaton.marshmeg.ru; снимок — cd ../backend && mise run bundle)"
 run = "flutter build apk --release"

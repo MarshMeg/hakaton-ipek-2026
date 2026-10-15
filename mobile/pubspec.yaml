@@ -1,7 +1,7 @@
 name: votes
-description: "Вотэс — игра для изучения удмуртского языка (Android-обёртка над веб-приложением)."
+description: "Ӟеч-а бур-а удмурт кыл? — игра для изучения удмуртского языка (офлайн-обёртка над веб-приложением)."
 publish_to: "none"
-version: 0.1.0+1
+version: 0.2.0+2
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -9,8 +9,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  webview_flutter: ^4.10.0
-  shared_preferences: ^2.3.0
+  flutter_inappwebview: ^6.1.5
+  path_provider: ^2.1.6
+  crypto: ^3.0.7
+  http: ^1.6.0
+  flutter_local_notifications: ^22.3.2
+  geolocator: ^14.1.1
+  share_plus: ^13.3.1
 
 dev_dependencies:
   flutter_test:
@@ -19,3 +24,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Офлайн-снимок приложения (собирается из backend: mise run bundle). Каталоги должны
+  # существовать даже без снимка — в репозитории лежат .gitkeep.
+  assets:
+    - assets/bundle/
+    - assets/bundle/blobs/
