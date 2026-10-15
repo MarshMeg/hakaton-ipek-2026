@@ -27,6 +27,19 @@
 Первый вход — только с интернетом, дальше приложение работает и без сети. Прогресс хранится в
 аккаунте, поэтому его можно продолжить на другом телефоне.
 
+## Скриншоты
+Веб-версия на ширине телефона (412 px). Цвета и шрифты — по брендбуку, тёмная тема включается
+по настройке системы.
+
+| | | |
+|:-:|:-:|:-:|
+| <img src="docs/screenshots/home.png" width="200" alt="Главная"> | <img src="docs/screenshots/topic.png" width="200" alt="Карточки темы"> | <img src="docs/screenshots/games.png" width="200" alt="Список игр"> |
+| Главная | Карточки темы | Список игр |
+| <img src="docs/screenshots/choose.png" width="200" alt="Выбери перевод"> | <img src="docs/screenshots/sort.png" width="200" alt="Сортировка"> | <img src="docs/screenshots/truefalse.png" width="200" alt="Правда или ложь"> |
+| Выбери перевод | Сортировка | Правда или ложь |
+| <img src="docs/screenshots/profile.png" width="200" alt="Профиль и статистика"> | <img src="docs/screenshots/report.png" width="200" alt="Отчёт для родителя"> | <img src="docs/screenshots/home-dark.png" width="200" alt="Тёмная тема"> |
+| Профиль и статистика | Отчёт для родителя | Тёмная тема |
+
 ## Как устроен офлайн
 ```
 Android (Flutter)                                   Сервер (Django)
@@ -93,7 +106,8 @@ docker compose up --build
 `DEPLOY_SSH_KEY`, переменные `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_URL`.
 
 Секреты и адрес сайта хранятся в `/opt/votes/.env` на сервере (в git его нет, деплой его не трогает):
-пароль администратора — `DJANGO_SUPERUSER_PASSWORD`, адрес — `SITE_ADDRESS`, ссылки на медиа —
+ключ подписи токенов входа — `DJANGO_SECRET_KEY` (обязателен: без него `docker-compose.prod.yml`
+не запустится), пароль администратора — `DJANGO_SUPERUSER_PASSWORD`, адрес — `SITE_ADDRESS`, ссылки на медиа —
 `S3_PUBLIC_DOMAIN` и `S3_PUBLIC_PROTOCOL`. После правки `.env` — перезапуск той же командой `up -d`.
 
 ## Запуск без Docker

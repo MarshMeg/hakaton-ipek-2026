@@ -37,6 +37,10 @@ mise run fmt | css | seed | bundle                      # format / app.css / see
 ```
 
 Without `DATABASE_URL` the app uses SQLite; without `USE_S3=1` media goes to `backend/media/`.
+`DJANGO_SECRET_KEY` is required when `DJANGO_DEBUG=0` (settings raise `ImproperlyConfigured`); with DEBUG on
+(the default for `mise run dev`/tests) a dev key is used. `docker-compose.yml` passes a local default key,
+`docker-compose.prod.yml` refuses to start without one in `.env`; the Dockerfile and `android.yml` pass a
+dummy key just for `collectstatic`/`build_bundle`.
 
 Full stack: `mise run up` (= `docker compose up --build`) from the repo root (web on :8000, MinIO console on :9001,
 admin `admin`/`admin12345`). `backend/entrypoint.sh` runs `migrate`, `seed`, `build_bundle` and `createsuperuser` on every start.
@@ -81,9 +85,8 @@ git and is excluded from rsync. The prod overlay sets `DJANGO_HTTPS_ONLY=1` (Sec
 The MinIO image is `pgsty/minio` (the official `minio/minio` was removed from the registries).
 The production DB still holds tables of the removed `courses`/`learning` apps (and the
 `learning_player_xp` view); they are orphaned and unused. `accounts/0004` moves `User.first_name`
-into `Profile.display_name` and drops the old game fields. The stable download link is
-`releases/latest/download/votes.apk`. The server URL baked into the APK is
-`vars.SERVER_URL || https://hakaton.marshmeg.ru` (also the Dart default in `mobile/lib/main.dart`).
+into `Profile.display_name` and drops the old game fields. The server URL baked into the APK is also
+the Dart default in `mobile/lib/main.dart`.
 
 ## Backend architecture
 
@@ -95,11 +98,14 @@ Three Django apps under `backend/`:
   word id. Topic `kind` (words/numbers/colors/phrases) decides the fallback "picture" (emoji, digit,
   colour swatch); `family` keeps related topics apart in «Найди лишнее». `content.py` builds
   `/content.json`, the single document all games read.
+  It also serves the learning pages (`/learn/`, `/learn/<slug>/` — topic cards).
 - `play` — pages (`views.py`: home, games, game, profile, settings, report — all player-independent,
   no CSRF tokens/user data in HTML, tested in `test_pages.py`), `/media/` passthrough from storage,
   `/bundle/` (serves `BUNDLE_DIR`), the account JSON API (`api.py`, signed Bearer token, csrf-exempt:
   `POST /api/signup`, `POST /api/login` → `{token, username, save}`; `GET|PUT /api/save` — PUT stores
-  the save only if `save.updated >= stored.updated`, else `409 {save: server's}`; 256 KB limit → 413) and
+  the save only if `save.updated >= stored.updated`, else `409 {save: server's}`; 256 KB limit → 413;
+  login/signup are rate-limited via the Django cache (`rate_limit`: per IP from the last
+  `X-Forwarded-For` entry that Caddy adds, plus failed passwords per username) → `429`) and
   `management/commands/build_bundle.py` (renders every page via the test client + static + media into
   `manifest.json` + content-addressed `blobs/<sha256>`; version = hash of content only).
 - `accounts` — `Profile.save_data`: the account's **save** (one JSON document, format v2:
