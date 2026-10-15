@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ game.title }} — Ӟеч-а бур-а удмурт кыл?{% endblock %}
+{% block content %}
+<div x-data="{{ game.slug }}" class="pb-4">
+  <div class="flex items-center justify-between gap-2">
+    <a href="{% url 'play:games' %}" class="font-bold text-gray-500">← Игры</a>
+    <h1 class="truncate text-lg font-extrabold">{{ game.icon }} {{ game.title }}</h1>
+  </div>
+
+  {% if game.by_topic %}
+  <div class="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1" x-show="!done">
+    <button type="button" class="chip" @click="setTopic('')"
+            :class="topic === '' ? 'border-brand-red bg-brand-red text-white' : 'border-gray-300 bg-white'">Все темы</button>
+    {% for t in topics %}
+    <button type="button" class="chip" @click="setTopic('{{ t.slug }}')"
+            :class="topic === '{{ t.slug }}' ? 'border-brand-red bg-brand-red text-white' : 'border-gray-300 bg-white'">{{ t.icon }} {{ t.title }}</button>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <p class="mt-2 text-sm text-gray-600" x-show="!done">{{ game.rules }}</p>
+
+  <div class="mt-3 h-4 overflow-hidden rounded-full bg-gray-200" x-show="!done">
+    <div class="h-full rounded-full bg-ok transition-all" :style="'width:' + progress() + '%'"></div>
+  </div>
+
+  <p x-show="loading" class="mt-10 text-center text-gray-500">Загружаю слова…</p>
+
+  <template x-if="!loading && !done">
+    <div class="mt-5">{% include template %}</div>
+  </template>
+
+  {# Обратная связь после ответа (общая для всех игр, кроме «Сортировки» и «Найди пару»). #}
+  <div x-cloak x-show="feedback && !done"
+       class="fixed inset-x-0 bottom-16 z-30 mx-auto max-w-xl rounded-t-3xl p-4 pb-6"
+       :class="feedback === 'ok' ? 'bg-green-100' : 'bg-red-100'">
+    <p class="text-xl font-extrabold" :class="feedback === 'ok' ? 'text-ok' : 'text-bad'"
+       x-text="feedback === 'ok' ? '🎉 Верно! Молодец!' : '🙈 Не совсем так'"></p>
+    <p class="mt-1 font-bold" x-show="message" x-text="message"></p>
+    <button type="button" class="mt-3 w-full" :class="feedback === 'ok' ? 'btn-ok' : 'btn-bad'" @click="next()">Дальше</button>
+  </div>
+
+  {# Итоги игры. #}
+  <template x-if="done">
+    <div class="mt-8 text-center">
+      <div class="text-6xl tracking-widest">
+        <span x-text="'⭐'.repeat(stars())"></span><span class="opacity-20" x-text="'⭐'.repeat(3 - stars())"></span>
+      </div>
+      <h2 class="mt-4 text-3xl font-extrabold" x-text="stars() === 3 ? 'Отлично!' : stars() === 2 ? 'Хорошо!' : 'Попробуй ещё!'"></h2>
+      <p class="mt-2 text-lg font-bold">
+        Верных ответов: <span x-text="score"></span> из <span x-text="maxScore"></span>
+        <template x-if="slug === 'memory'"><span>· ходов: <span x-text="moves"></span></span></template>
+      </p>
+      <p class="mt-1 font-bold text-yellow-700">+<span x-text="score * 10"></span> ⭐</p>
+      <div class="mt-8 grid gap-3">
+        <button type="button" class="btn-primary" @click="start()">Ещё раз</button>
+        <a href="{% url 'play:games' %}" class="btn-ghost">Другие игры</a>
+      </div>
+    </div>
+  </template>
+</div>
+{% endblock %}

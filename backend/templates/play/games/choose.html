@@ -1,0 +1,17 @@
+{# «Выбери перевод»: чётные раунды — удмуртское слово → перевод, нечётные — наоборот. #}
+<div class="text-center">
+  <div class="mx-auto h-32 w-32 text-8xl" x-show="hasPic(target)" x-html="pic(target)"></div>
+  <p class="mt-3 text-3xl font-extrabold" x-show="!reverse" x-text="target.udm"></p>
+  <p class="mt-3 text-2xl font-extrabold" x-show="reverse" x-text="target.ru"></p>
+  <button type="button" class="mt-1 text-2xl" x-show="target.audio" @click="speak(target)" title="Послушать">🔊</button>
+  <p class="mt-1 text-sm font-bold text-gray-500" x-text="reverse ? 'Как это по-удмуртски?' : 'Что это значит?'"></p>
+</div>
+<div class="mt-6 grid gap-3">
+  <template x-for="opt in options" :key="opt.id">
+    <button type="button" class="tile text-left" @click="pick(opt)" :disabled="!!feedback"
+            :class="{
+              '!border-ok bg-green-50': feedback && opt.id === target.id,
+              '!border-bad bg-red-50': feedback === 'bad' && opt.id === chosen,
+            }" x-text="optionText(opt)"></button>
+  </template>
+</div>

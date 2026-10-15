@@ -1,0 +1,22 @@
+{% comment %} «Собери слово»: перемешанные буквы удмуртского слова. Нажми букву — она встанет в слово,
+   нажми букву в слове — она вернётся обратно. {% endcomment %}
+<div class="text-center">
+  <div class="mx-auto h-28 w-28 text-8xl" x-show="hasPic(target)" x-html="pic(target)"></div>
+  <p class="mt-2 text-2xl font-extrabold" x-text="target.ru"></p>
+  <p class="text-sm font-bold text-gray-500">Собери это слово по-удмуртски</p>
+</div>
+<div class="mt-5 flex flex-wrap justify-center gap-2">
+  <template x-for="(ch, i) in slots()" :key="'s' + i">
+    <button type="button" @click="giveBack(i)"
+            class="flex h-12 w-11 items-center justify-center rounded-xl border-b-4 text-2xl font-extrabold"
+            :class="ch ? (feedback === 'ok' ? 'border-green-800 bg-ok text-white' : feedback === 'bad' ? 'border-red-900 bg-bad text-white' : 'border-gray-400 bg-white') : 'border-gray-300 bg-gray-100'"
+            x-text="ch"></button>
+  </template>
+</div>
+<div class="mt-6 flex flex-wrap justify-center gap-2">
+  <template x-for="tile in letters" :key="'l' + tile.idx">
+    <button type="button" @click="take(tile)" :disabled="tile.used || !!feedback"
+            class="h-14 w-12 rounded-xl border-2 border-b-4 border-gray-300 bg-white text-2xl font-extrabold transition"
+            :class="tile.used ? 'opacity-20' : ''" x-text="tile.ch"></button>
+  </template>
+</div>

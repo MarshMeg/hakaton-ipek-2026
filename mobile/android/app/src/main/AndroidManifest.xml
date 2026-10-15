@@ -1,10 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Остальные файлы платформы генерирует `flutter create`; этот манифест хранится в репозитории,
-         потому что приложению нужен интернет и HTTP без TLS для локального сервера. -->
+    <!-- Остальные файлы платформы генерирует `flutter create`; в репозитории хранятся этот манифест
+         и app/build.gradle.kts (minSdk 26 = Android 8.0, desugaring для уведомлений). -->
+    <!-- Интернет нужен только для синхронизации и обновления словаря: игра работает офлайн. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Ежедневное напоминание «Слово дня» (переключатель в настройках). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Примерное место — только чтобы показать расстояние до Ижевска (переключатель в настройках). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
-        android:label="Вотэс"
+        android:label="Ӟеч-а бур-а!"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="true">
@@ -25,6 +31,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Приёмники flutter_local_notifications для повторяющихся уведомлений. -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />

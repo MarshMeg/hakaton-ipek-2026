@@ -23,10 +23,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_htmx",
     "accounts",
-    "courses",
-    "learning",
+    "vocab",
+    "play",
 ]
 
 MIDDLEWARE = [
@@ -38,7 +37,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django_htmx.middleware.HtmxMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -53,7 +51,6 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "accounts.context_processors.player",
             ],
         },
     },
@@ -109,13 +106,5 @@ if USE_S3:
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_URL = "accounts:login"
-LOGIN_REDIRECT_URL = "learning:home"
-LOGOUT_REDIRECT_URL = "learning:home"
-
-# Игровой баланс — вынесен в настройки, чтобы быстро крутить под ТЗ заказчика.
-GAME = {
-    "MAX_HEARTS": 5,
-    "XP_PER_CORRECT": 10,
-    "XP_LESSON_BONUS": 20,
-}
+# Офлайн-снимок приложения (manage.py build_bundle): отсюда телефон скачивает обновления.
+BUNDLE_DIR = Path(env("BUNDLE_DIR", default=str(BASE_DIR / "bundle")))

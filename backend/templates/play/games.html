@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Игры — Ӟеч-а бур-а удмурт кыл?{% endblock %}
+{% block content %}
+<h1 class="text-2xl font-extrabold">🎮 Игры</h1>
+<p class="text-gray-600">Играй и закрепляй слова. За каждый верный ответ — ⭐ 10.</p>
+<div class="mt-5 grid gap-3">
+  {% for game in games %}
+  <a href="{% url 'play:game' game.slug %}" class="card flex items-center gap-4 transition active:translate-y-0.5">
+    <span class="text-5xl">{{ game.icon }}</span>
+    <span>
+      <span class="block text-lg font-extrabold">{{ game.title }}</span>
+      <span class="block text-sm text-gray-600">{{ game.rules }}</span>
+    </span>
+  </a>
+  {% endfor %}
+</div>
+{% endblock %}

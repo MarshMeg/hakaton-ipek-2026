@@ -1,8 +1,9 @@
 #!/bin/sh
-# При старте контейнера: применяем миграции и загружаем стартовый контент (если его ещё нет).
+# При старте контейнера: миграции, словарь (если его ещё нет) и офлайн-снимок для телефонов.
 set -e
 python manage.py migrate --noinput
 python manage.py seed
+python manage.py build_bundle
 if [ -n "$DJANGO_SUPERUSER_USERNAME" ]; then
   python manage.py createsuperuser --noinput 2>/dev/null || true
 fi
