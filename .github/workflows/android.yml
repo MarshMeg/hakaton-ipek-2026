@@ -56,6 +56,21 @@ jobs:
         with:
           channel: stable
           cache: true
+      # Кэш NDK и CMake: иначе Gradle скачивает их при каждой сборке. Версию NDK берём из самого
+      # Flutter (flutter.ndkVersion), чтобы после обновления Flutter кэш не устаревал.
+      - name: Версия NDK
+        id: ndk
+        # ANDROID_SDK_ROOT — переменная окружения раннера, в контексте env её нет: отдаём выводом шага.
+        run: |
+          version=$(grep -oP 'val ndkVersion: String = "\K[^"]+' "$FLUTTER_ROOT/packages/flutter_tools/gradle/src/main/kotlin/FlutterExtension.kt")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sdk=$ANDROID_SDK_ROOT" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ steps.ndk.outputs.sdk }}/ndk/${{ steps.ndk.outputs.version }}
+            ${{ steps.ndk.outputs.sdk }}/cmake/3.22.1
+          key: android-ndk-${{ steps.ndk.outputs.version }}-cmake-3.22.1
       - run: flutter create --platforms=android --org ru.marshmeg --project-name hakaton .
       - run: flutter pub get
       # Иконка приложения поверх стандартной из flutter create (настройки — в pubspec.yaml).
