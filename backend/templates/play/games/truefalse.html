@@ -1,7 +1,7 @@
 {# «Правда или ложь»: подходит ли удмуртское слово к картинке. #}
 <div class="text-center">
   <div class="mx-auto h-36 w-36 text-9xl" x-show="hasPic(target)" x-html="pic(target)"></div>
-  <p class="mt-2 text-xl font-bold text-gray-600" x-show="!hasPic(target)" x-text="target.ru"></p>
+  <p class="mt-2 text-xl font-bold text-muted-strong" x-show="!hasPic(target)" x-text="target.ru"></p>
   <p class="mt-4 text-4xl font-extrabold" x-text="shown.udm"></p>
   <button type="button" class="mt-1 text-2xl" x-show="shown.audio" @click="speak(shown)" title="Послушать">🔊</button>
 </div>
