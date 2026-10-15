@@ -63,7 +63,7 @@ referencing `MyApp` and `flutter analyze` fails.
 
 ## CI/CD (`.github/workflows/`)
 
-`ci.yml` runs on every push and PR: ruff, migrations check, pytest. `android.yml` runs when
+`ci.yml` runs on every push and PR: ruff, migrations check, pytest. `android.yml` runs (push only to `main`, branches via `pull_request`) when
 `mobile/**`, `backend/**` or the workflow changes (plus manual `workflow_dispatch`): builds the offline
 bundle (`DJANGO_DEBUG=0`, seed, collectstatic, `build_bundle --out ../mobile/assets/bundle` — same as the
 server, so bundle versions match), then `flutter analyze`, `flutter build apk`; on `main` its `release`

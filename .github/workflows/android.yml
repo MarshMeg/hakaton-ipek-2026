@@ -3,8 +3,10 @@ name: Android
 # APK собирается при изменениях в mobile/ и backend/: в APK кладётся офлайн-снимок
 # (страницы, словарь, картинки), который собирает бэкенд.
 # Пересобрать вручную, например после смены переменной SERVER_URL: Actions → Android → Run workflow.
+# push — только в main (сборка для релиза); ветки собираются через pull_request, без двойного прогона.
 on:
   push:
+    branches: [main]
     paths:
       - "mobile/**"
       - "backend/**"
@@ -83,8 +85,8 @@ jobs:
       - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes.apk
       - run: ls -lh build/votes.apk   # ТЗ: желательно не больше 100–150 МБ
       # Вторая сборка — для проверки: при запуске спрашивает, какой адрес открыть.
-      # В PR не нужна (в релиз попадает только сборка из main), поэтому пропускается.
-      - if: github.event_name != 'pull_request'
+      # Нужна только для релиза из main и при ручном запуске; в PR не собирается.
+      - if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
         run: |
           flutter build apk --release --target-platform android-arm,android-arm64 --dart-define=ASK_SERVER_URL=true --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
           mv build/app/outputs/flutter-apk/app-release.apk build/votes-ask.apk
