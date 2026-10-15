@@ -4,7 +4,7 @@ uv = "0.13"
 "github:tailwindlabs/tailwindcss" = "3.4.17"      # standalone CLI, Node.js не нужен
 
 [tasks.setup]
-description = "Установить зависимости, применить миграции, загрузить стартовый курс"
+description = "Установить зависимости, применить миграции, загрузить словарь"
 run = [
   "uv sync",
   "uv run python manage.py migrate",
@@ -16,7 +16,7 @@ description = "Сервер разработки на http://localhost:8000"
 run = "uv run python manage.py runserver 0.0.0.0:8000"
 
 [tasks.test]
-description = "Тесты (pytest); аргументы пробрасываются: mise run test -- -k lesson"
+description = "Тесты (pytest); аргументы пробрасываются: mise run test -- -k sync"
 run = "uv run pytest"
 
 [tasks.lint]
@@ -40,5 +40,9 @@ description = "Пересобирать CSS при изменении шабло
 run = "tailwindcss -i static/css/input.css -o static/css/app.css --watch"
 
 [tasks.seed]
-description = "Перезагрузить курс из seeds/content.yaml"
-run = "uv run python manage.py seed --reset"
+description = "Перезаписать словарь из seeds/vocab.yaml (id слов сохраняются)"
+run = "uv run python manage.py seed --update"
+
+[tasks.bundle]
+description = "Собрать офлайн-снимок в mobile/assets/bundle (его кладёт в APK flutter build)"
+run = "uv run python manage.py build_bundle --out ../mobile/assets/bundle"

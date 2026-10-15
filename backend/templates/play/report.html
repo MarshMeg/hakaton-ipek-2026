@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Отчёт — Ӟеч-а бур-а удмурт кыл?{% endblock %}
+{% block content %}
+{# Сводка для родителя или учителя. Строится из журнала на телефоне, поэтому работает без сети. #}
+<div x-data="reportPage()">
+  <a href="{% url 'play:profile' %}" class="font-bold text-gray-500 print:hidden">← Профиль</a>
+  <h1 class="mt-2 text-2xl font-extrabold">📋 Отчёт об успехах</h1>
+  <template x-if="$store.app.profile">
+    <div>
+      <p class="text-lg font-bold"><span x-text="$store.app.profile.avatar"></span> <span x-text="$store.app.profile.name"></span></p>
+      <p class="text-sm text-gray-500" x-text="'Составлен ' + new Date().toLocaleDateString('ru-RU')"></p>
+
+      <div class="mt-4 grid grid-cols-2 gap-3 text-center">
+        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.activeDays"></p><p class="text-xs font-bold text-gray-500">дней занятий</p></div>
+        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.streak"></p><p class="text-xs font-bold text-gray-500">дней подряд сейчас</p></div>
+        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.answers"></p><p class="text-xs font-bold text-gray-500">ответов в играх</p></div>
+        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.accuracy + '%'"></p><p class="text-xs font-bold text-gray-500">верных ответов</p></div>
+      </div>
+
+      {% include "play/_daily_chart.html" %}
+
+      <div class="card mt-3">
+        <p class="font-extrabold">Темы</p>
+        <template x-for="t in $store.app.stats.topics" :key="t.slug">
+          <div class="mt-2">
+            <div class="flex justify-between text-sm font-bold">
+              <span x-text="t.icon + ' ' + t.title"></span><span x-text="t.learned + ' / ' + t.total"></span>
+            </div>
+            <div class="mt-1 h-2 overflow-hidden rounded-full bg-gray-200"><div class="h-full bg-ok" :style="'width:' + t.percent + '%'"></div></div>
+          </div>
+        </template>
+      </div>
+
+      <div class="card mt-3">
+        <p class="font-extrabold">Выученные слова (<span x-text="$store.app.stats.learned"></span>)</p>
+        <p class="mt-1 text-sm text-gray-600" x-show="!$store.app.stats.learned">Слово считается выученным после двух верных ответов, если верных больше, чем ошибок.</p>
+        <p class="mt-1" x-text="$store.app.stats.learnedWords.map(w => w.udm + ' — ' + w.ru).join('; ')"></p>
+      </div>
+
+      <div class="card mt-3" x-show="$store.app.stats.hard.length">
+        <p class="font-extrabold">Стоит повторить</p>
+        <p class="mt-1" x-text="$store.app.stats.hard.map(h => h.word.udm + ' — ' + h.word.ru + ' (ошибок: ' + h.bad + ')').join('; ')"></p>
+      </div>
+
+      <div class="mt-5 grid grid-cols-2 gap-3 print:hidden">
+        <button type="button" class="btn-primary" @click="share()">Поделиться</button>
+        <button type="button" class="btn-ghost" @click="window.print()">Печать</button>
+      </div>
+      <p class="mt-2 text-sm font-bold text-ok" x-show="notice" x-text="notice"></p>
+    </div>
+  </template>
+</div>
+
+<script>
+  function reportPage() {
+    return {
+      notice: '',
+      text() {
+        const s = this.$store.app.stats;
+        const p = this.$store.app.profile;
+        const lines = [
+          'Ӟеч-а бур-а удмурт кыл? — отчёт об успехах',
+          p.name + ', ' + new Date().toLocaleDateString('ru-RU'),
+          'Дней занятий: ' + s.activeDays + ', подряд сейчас: ' + s.streak,
+          'Ответов в играх: ' + s.answers + ', верных: ' + s.accuracy + '%',
+          'Выучено слов: ' + s.learned + ' из ' + s.totalWords,
+        ];
+        if (s.learnedWords.length) lines.push('Выучены: ' + s.learnedWords.map(w => w.udm + ' — ' + w.ru).join(', '));
+        if (s.hard.length) lines.push('Повторить: ' + s.hard.map(h => h.word.udm + ' — ' + h.word.ru).join(', '));
+        return lines.join('\n');
+      },
+      async share() {
+        const text = this.text();
+        if (ZB.Bridge.available()) { await ZB.Bridge.call('share', text); return; }
+        if (navigator.share) { navigator.share({ text }).catch(() => {}); return; }
+        try { await navigator.clipboard.writeText(text); this.notice = 'Отчёт скопирован — вставь его в сообщение.'; }
+        catch (e) { this.notice = text; }
+      },
+    };
+  }
+</script>
+{% endblock %}

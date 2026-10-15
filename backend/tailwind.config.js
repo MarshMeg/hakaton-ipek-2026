@@ -3,7 +3,8 @@
  * достаточно поменять цвета и шрифт здесь и пересобрать CSS (см. README).
  */
 module.exports = {
-  content: ["./templates/**/*.html"],
+  // JS тоже сканируется: в static/js есть строки с классами (картинки слов).
+  content: ["./templates/**/*.html", "./static/js/**/*.js"],
   theme: {
     extend: {
       colors: {
