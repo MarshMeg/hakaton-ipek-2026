@@ -319,7 +319,10 @@
 
       dragStyle: function (item) {
         if (!this.drag || this.drag.item !== item) return '';
-        return 'transform: translate(' + this.drag.dx + 'px,' + this.drag.dy + 'px) scale(1.08); z-index: 30; position: relative;';
+        // Без transition: у .tile он анимирует transform, и плитка отстаёт от пальца.
+        // После броска стиль снимается, и плитка плавно возвращается на место.
+        return 'transform: translate(' + this.drag.dx + 'px,' + this.drag.dy + 'px) scale(1.08);' +
+          ' transition: none; will-change: transform; z-index: 30; position: relative;';
       },
 
       tapBucket: function (gi) { if (this.selected) this.drop(this.selected, gi); },
