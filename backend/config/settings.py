@@ -30,10 +30,9 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_htmx",
     "accounts",
-    "courses",
-    "learning",
+    "vocab",
+    "play",
 ]
 
 MIDDLEWARE = [
@@ -45,7 +44,6 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django_htmx.middleware.HtmxMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -60,7 +58,6 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "accounts.context_processors.player",
             ],
         },
     },
@@ -72,7 +69,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {"default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")}
 
 AUTH_PASSWORD_VALIDATORS = [
-    # Та же минимальная длина, что и в форме регистрации (accounts.forms.SignupForm).
+    # Та же минимальная длина, что и при регистрации через API (play.api.signup).
     {
         "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
         "OPTIONS": {"min_length": 6},
@@ -120,15 +117,5 @@ if USE_S3:
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LOGIN_URL = "accounts:login"
-LOGIN_REDIRECT_URL = "learning:home"
-LOGOUT_REDIRECT_URL = "accounts:login"
-
-# Игровой баланс — вынесен в настройки, чтобы быстро крутить под ТЗ заказчика.
-GAME = {
-    "MAX_HEARTS": 5,
-    # Очки за ответ: верно / почти (без удмуртской буквы) / верно на повторе; ошибка — 0.
-    "HIT_VALUES": {"correct": 100, "almost": 50, "retry": 10},
-    "COMBO_STEP": 0.1,  # каждый ответ в серии без ошибок добавляет +10 % к очкам
-    "XP_PER_CORRECT": 10,  # опыт за упражнение при идеальном прохождении урока
-}
+# Офлайн-снимок приложения (manage.py build_bundle): отсюда телефон скачивает обновления.
+BUNDLE_DIR = Path(env("BUNDLE_DIR", default=str(BASE_DIR / "bundle")))

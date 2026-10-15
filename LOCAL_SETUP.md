@@ -1,7 +1,7 @@
 # Локальная настройка окружения (инструкция для Claude Code)
 
 Этот файл — задание для Claude Code на компьютере разработчика: настроить окружение проекта
-«Вотэс» и проверить, что всё работает. Общее описание проекта — в `CLAUDE.md` и `README.md`.
+«Ӟеч-а бур-а удмурт кыл?» (команда «Вотэс») и проверить, что всё работает. Общее описание проекта — в `CLAUDE.md` и `README.md`.
 
 ## Главное правило: всё через mise
 
@@ -17,7 +17,7 @@
 | Файл | Инструменты | Задачи |
 |---|---|---|
 | `mise.toml` (корень) | — | `up`, `down` (Docker) |
-| `backend/mise.toml` | uv 0.13 (Python 3.12 ставит он), Tailwind CLI 3.4.17 | `setup`, `dev`, `test`, `lint`, `fmt`, `css`, `css:watch`, `seed` |
+| `backend/mise.toml` | uv 0.13 (Python 3.12 ставит он), Tailwind CLI 3.4.17 | `setup`, `dev`, `test`, `lint`, `fmt`, `css`, `css:watch`, `seed`, `bundle` |
 | `mobile/mise.toml` | Flutter 3.47, Java temurin-17 | `setup`, `check`, `dev`, `apk`, `apk:ask` |
 
 `backend/Dockerfile` ставит зависимости тем же uv по тому же `uv.lock` (`uv sync --locked --no-dev`),
@@ -47,25 +47,25 @@ Windows: использовать **WSL2** (Ubuntu) и дальше действ
 cd backend
 mise trust            # разрешить конфиг проекта (один раз)
 mise install          # uv + Tailwind CLI
-mise run setup        # uv sync (Python 3.12, .venv, зависимости), миграции, стартовый курс
+mise run setup        # uv sync (Python 3.12, .venv, зависимости), миграции, словарь
 mise run test         # должно быть: 14 passed (или больше)
 mise run lint         # ruff + проверка миграций, как в CI
 mise run dev          # http://localhost:8000
 ```
 
-Проверка: http://localhost:8000 открывает карту курса «Удмуртский для начинающих»,
-урок проходится. Админка: http://localhost:8000/admin — суперпользователя создать командой
+Проверка: http://localhost:8000 спрашивает имя, после этого открываются «Обучение» и «Игры». Админка: http://localhost:8000/admin — суперпользователя создать командой
 `mise exec -- uv run python manage.py createsuperuser`.
 
 Повседневные задачи (запускать из `backend/`):
 
 | Задача | Что делает |
 |---|---|
-| `mise run test -- -k lesson` | один тест или группа (аргументы уходят в pytest) |
+| `mise run test -- -k sync` | один тест или группа (аргументы уходят в pytest) |
 | `mise run fmt` | автоформатирование ruff |
-| `mise run css` | пересобрать `static/css/app.css` после правки классов Tailwind в шаблонах |
+| `mise run css` | пересобрать `static/css/app.css` после правки классов Tailwind в шаблонах или `static/js/` |
 | `mise run css:watch` | то же, в режиме наблюдения |
-| `mise run seed` | перезагрузить курс из `seeds/content.yaml` (удаляет курс и результаты игроков) |
+| `mise run seed` | перезаписать словарь из `seeds/vocab.yaml` (id слов сохраняются) |
+| `mise run bundle` | собрать офлайн-снимок в `mobile/assets/bundle` (нужен для запуска APK без сети) |
 
 `app.css` лежит в репозитории: после изменения классов в шаблонах обязательно `mise run css`
 и закоммитить результат, иначе новые классы не будут работать.
@@ -94,15 +94,18 @@ mise exec -- flutter doctor --android-licenses
 mise run setup                        # flutter create (платформенные файлы) + pub get
 mise run check                        # flutter analyze + flutter test, как в CI
 ```
-3. Запуск в эмуляторе против локального сервера (в другом терминале `cd backend && mise run dev`):
+3. Запуск в эмуляторе против локального сервера (в другом терминале `cd backend && mise run dev`).
+   Перед этим соберите офлайн-снимок `cd backend && mise run bundle`, иначе без сети приложение
+   ничего не покажет:
 ```bash
 mise run dev
 ```
 4. Release APK (сервер `https://hakaton.marshmeg.ru`): `mise run apk`. Сборка, которая при запуске
    спрашивает адрес сервера (для проверки на своём сервере): `mise run apk:ask`.
 
-Важно: в `mobile/android/` в git хранится только `app/src/main/AndroidManifest.xml`,
-остальное генерирует `mise run setup` — не коммить сгенерированные файлы.
+Важно: в `mobile/android/` в git хранятся только `app/src/main/AndroidManifest.xml` и
+`app/build.gradle.kts` (minSdk 26, desugaring), остальное генерирует `mise run setup` — не коммить
+сгенерированные файлы. Снимок `mobile/assets/bundle/` тоже генерируется и в git не попадает.
 Готовый APK также собирает CI: релизы на GitHub, ссылка в README.
 
 ## Если что-то не так
@@ -118,5 +121,5 @@ mise run dev
 
 ## Готово, когда
 - [ ] `cd backend && mise run test && mise run lint` — зелёные;
-- [ ] http://localhost:8000 открывается, урок проходится до экрана итогов;
+- [ ] http://localhost:8000 открывается, после ввода имени работают карточки и игры;
 - [ ] (для мобильщиков) `cd mobile && mise run check` — без ошибок, приложение запускается в эмуляторе.

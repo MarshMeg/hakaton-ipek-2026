@@ -1,15 +1,18 @@
 name: Android
 
-# APK собирается только при изменениях в mobile/ (или в этом файле).
+# APK собирается при изменениях в mobile/ и backend/: в APK кладётся офлайн-снимок
+# (страницы, словарь, картинки), который собирает бэкенд.
 # Пересобрать вручную, например после смены переменной SERVER_URL: Actions → Android → Run workflow.
 on:
   push:
     paths:
       - "mobile/**"
+      - "backend/**"
       - ".github/workflows/android.yml"
   pull_request:
     paths:
       - "mobile/**"
+      - "backend/**"
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
@@ -21,6 +24,23 @@ jobs:
         working-directory: mobile
     steps:
       - uses: actions/checkout@v4
+      # Офлайн-снимок из seeds/vocab.yaml — так же, как его собирает сервер при старте
+      # (DEBUG=0 + collectstatic: те же адреса статики, та же версия снимка).
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.13.x"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Офлайн-снимок
+        working-directory: backend
+        env:
+          DJANGO_DEBUG: "0"
+        run: |
+          uv sync --locked --no-dev
+          uv run python manage.py migrate --noinput
+          uv run python manage.py seed
+          uv run python manage.py collectstatic --noinput
+          uv run python manage.py build_bundle --out ../mobile/assets/bundle
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -38,6 +58,7 @@ jobs:
       # (Settings → Secrets and variables → Actions → Variables).
       - run: flutter build apk --release --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
       - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes.apk
+      - run: ls -lh build/votes.apk   # ТЗ: желательно не больше 100–150 МБ
       # Вторая сборка — для проверки: при запуске спрашивает, какой адрес открыть.
       - run: flutter build apk --release --dart-define=ASK_SERVER_URL=true --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
       - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes-ask.apk
@@ -63,7 +84,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_number }}
-          name: Вотэс — сборка ${{ github.run_number }}
+          name: Ӟеч-а бур-а удмурт кыл? — сборка ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           make_latest: true
           files: |

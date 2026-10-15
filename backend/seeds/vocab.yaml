@@ -1,0 +1,190 @@
+# Словарь для раздела «Обучение» и игр. Загружается командой: python manage.py seed
+#
+# Источник слов — «Материалы к кейсу» (docx от организаторов). Порядок в docx местами
+# перепутан (рус. — удм.), здесь везде udm — по-удмуртски, ru — перевод.
+# needs_check — что нужно сверить с носителем языка перед сдачей.
+#
+# Поля слова: udm, ru, [alt, transcription, emoji, color, number, image, audio, needs_check].
+# image/audio — пути относительно seeds/media/. Если картинки нет, показывается emoji
+# (для чисел — цифра, для цветов — цветной круг).
+# Тип темы (kind): words | numbers | colors | phrases. Фразы не участвуют в «Собери слово».
+# family — близкие темы, которые «Найди лишнее» не смешивает (овощи и еда, дикие и домашние звери).
+
+topics:
+  - slug: greetings
+    title: Вежливые слова
+    icon: "👋"
+    words:
+      - {udm: ӟечбуресь, ru: здравствуйте, emoji: "🤝"}
+      - {udm: умоесь, ru: здравствуйте, emoji: "🙂"}
+      - {udm: чырткем, ru: привет, emoji: "👋"}
+      - {udm: салам, ru: привет, emoji: "🖐️"}
+      - {udm: бур ӵукна, ru: доброе утро, emoji: "🌅"}
+      - {udm: тау, ru: спасибо, emoji: "🙏"}
+      - {udm: ӟеч лу, ru: до свидания, emoji: "🚪"}
+
+  - slug: numbers
+    title: Числа 1–10
+    icon: "🔢"
+    kind: numbers
+    words:
+      - {udm: одӥг, ru: один, number: 1}
+      - {udm: кык, ru: два, number: 2}
+      - {udm: куинь, ru: три, number: 3}
+      - {udm: ньыль, ru: четыре, number: 4}
+      - {udm: вить, ru: пять, number: 5}
+      - {udm: куать, ru: шесть, number: 6}
+      - {udm: сизьым, ru: семь, number: 7}
+      - {udm: тямыс, ru: восемь, number: 8}
+      - {udm: укмыс, ru: девять, number: 9}
+      - {udm: дас, ru: десять, number: 10}
+
+  - slug: wild-animals
+    family: animals
+    title: Дикие животные
+    icon: "🐻"
+    words:
+      - {udm: гондыр, ru: медведь, emoji: "🐻"}
+      - {udm: кион, ru: волк, emoji: "🐺"}
+      - {udm: койык, ru: лось, emoji: "🦌"}
+      - {udm: ӟичы, ru: лисица, emoji: "🦊"}
+      - {udm: лудкеч, ru: заяц, emoji: "🐇"}
+      - {udm: коньы, ru: белка, emoji: "🐿️"}
+      - {udm: ӵушъял, ru: ёж, emoji: "🦔"}
+      - {udm: кырпарсь, ru: кабан, emoji: "🐗"}
+
+  - slug: farm-animals
+    family: animals
+    title: Домашние животные
+    icon: "🐄"
+    words:
+      - {udm: скал, ru: корова, emoji: "🐄"}
+      - {udm: вал, ru: лошадь, emoji: "🐴"}
+      - {udm: ыж, ru: овца, emoji: "🐑"}
+      - {udm: така, ru: баран, emoji: "🐏"}
+      - {udm: ош, ru: бык, emoji: "🐂"}
+      - {udm: кеч, ru: коза, emoji: "🐐"}
+      - {udm: парсь, ru: свинья, emoji: "🐖"}
+      - {udm: пуны, ru: собака, emoji: "🐕"}
+      - {udm: курег, ru: курица, emoji: "🐔"}
+      - {udm: атас, ru: петух, emoji: "🐓"}
+      - {udm: курка, ru: индейка, emoji: "🦃"}
+
+  - slug: food
+    family: food
+    title: Продукты, еда
+    icon: "🍞"
+    words:
+      - {udm: сиён, ru: еда, emoji: "🍽️"}
+      - {udm: нянь, ru: хлеб, emoji: "🍞"}
+      - {udm: йӧл, ru: молоко, emoji: "🥛"}
+      - {udm: ӝук, ru: каша, emoji: "🥣"}
+      - {udm: пельнянь, ru: пельмени, emoji: "🥟"}
+      - {udm: шыд, ru: суп, emoji: "🍲"}
+      - {udm: кукей, ru: яйцо, alt: курегпуз, emoji: "🥚"}
+      - {udm: сӥль, ru: мясо, emoji: "🥩", needs_check: "в docx написано «сüль» с латинской ü"}
+      - {udm: вӧй, ru: масло, emoji: "🧈", needs_check: "в docx написано «вöй» с латинской ö"}
+      - {udm: табань, ru: блин, emoji: "🥞"}
+
+  - slug: clothes
+    title: Одежда
+    icon: "👗"
+    words:
+      - {udm: дэрем, ru: рубаха, alt: "сорочка, платье", emoji: "👗"}
+      - {udm: азькышет, ru: передник, alt: фартук}
+      - {udm: кышет, ru: платок, emoji: "🧣"}
+
+  - slug: family
+    title: Моя семья
+    icon: "👪"
+    words:
+      - {udm: анай, ru: мама, emoji: "👩"}
+      - {udm: атай, ru: папа, emoji: "👨"}
+      - {udm: атай-анай, ru: родители, emoji: "👫"}
+      - {udm: агай, ru: брат, alt: дядя, emoji: "🧔",
+         needs_check: "в docx «агай» дан и как «брат», и как «дядя»"}
+      - {udm: апай, ru: сестра, emoji: "👧"}
+      - {udm: песянай, ru: бабушка, alt: песяй, emoji: "👵"}
+      - {udm: песятай, ru: дедушка, emoji: "👴"}
+      - {udm: кузпал, ru: супруг, alt: супруга, emoji: "💑"}
+      - {udm: кышно, ru: жена, emoji: "👰"}
+      - {udm: нылы, ru: дочь, emoji: "👩‍👧"}
+      - {udm: пие, ru: сын, emoji: "👦"}
+
+  - slug: vegetables
+    family: food
+    title: Овощи
+    icon: "🥕"
+    words:
+      - {udm: сугон, ru: лук, emoji: "🧅"}
+      - {udm: кубиста, ru: капуста, emoji: "🥬"}
+      - {udm: гордкушман, ru: свёкла}
+      - {udm: кешыр, ru: морковь, emoji: "🥕"}
+      - {udm: кияр, ru: огурец, alt: огреч, emoji: "🥒"}
+
+  - slug: colors
+    title: Цвета
+    icon: "🎨"
+    kind: colors
+    words:
+      - {udm: тӧдьы, ru: белый, color: "#ffffff"}
+      - {udm: сьӧд, ru: чёрный, color: "#1b1b1b"}
+      - {udm: лыз, ru: синий, color: "#1e5bd8"}
+      - {udm: ӵуж, ru: жёлтый, color: "#f2c200"}
+      - {udm: вож, ru: зелёный, color: "#2e9d3a"}
+      - {udm: льӧль, ru: розовый, color: "#f4a6c4"}
+      - {udm: горд, ru: красный, color: "#d7263d"}
+
+  - slug: berries
+    family: food
+    title: Ягоды
+    icon: "🍓"
+    words:
+      - {udm: шупу, ru: калина}
+      - {udm: ягмульыпу, ru: брусника}
+      - {udm: узы, ru: земляника, emoji: "🍓"}
+      - {udm: боры, ru: клубника}
+      - {udm: нюрмульы, ru: клюква}
+      - {udm: лызмульы, ru: голубика, emoji: "🫐"}
+
+  - slug: phrases
+    title: Полезные фразы
+    icon: "💬"
+    kind: phrases
+    words:
+      - {udm: Ойдолэ тодматском!, ru: Давайте познакомимся!, emoji: "🤝"}
+      - {udm: Мынам нимы…, ru: Меня зовут…, emoji: "🙋"}
+      - {udm: Мон уг валаськы, ru: Я не понимаю, emoji: "🤷"}
+      - {udm: Мон шумпотӥсько, ru: Я рада, emoji: "😊"}
+      - {udm: Мынам воже потэ, ru: Я злюсь, emoji: "😠"}
+      - {udm: Мон кышкасько, ru: Мне страшно, emoji: "😨"}
+      - {udm: Мон тонэ яратӥсько, ru: Я тебя люблю, emoji: "❤️"}
+
+# Игра «Сортировка»: слова из тем каждой группы нужно разложить по корзинам.
+sorting:
+  - title: Где живёт?
+    groups:
+      - {label: "В лесу", icon: "🌲", topics: [wild-animals]}
+      - {label: "Дома", icon: "🏡", topics: [farm-animals]}
+  - title: Огород или лес?
+    groups:
+      - {label: "Овощи", icon: "🥕", topics: [vegetables]}
+      - {label: "Ягоды", icon: "🍓", topics: [berries]}
+  - title: Съедим или наденем?
+    groups:
+      - {label: "Съедобное", icon: "😋", topics: [food, vegetables]}
+      - {label: "Несъедобное", icon: "👗", topics: [clothes]}
+  - title: Кто это?
+    groups:
+      - {label: "Люди", icon: "👪", topics: [family]}
+      - {label: "Животные", icon: "🐾", topics: [wild-animals, farm-animals]}
+
+# Факты для экрана «Профиль». Перед сдачей сверить с источниками (и цифры переписи).
+facts:
+  - Удмуртский язык — государственный язык Удмуртской Республики наравне с русским.
+  - Удмуртский язык — финно-угорский. Самый близкий родственник — коми язык, а дальние — финский, эстонский и венгерский.
+  - В удмуртском алфавите 38 букв — все русские и ещё пять своих: Ӝ, Ӟ, Ӥ, Ӧ, Ӵ.
+  - По переписи 2010 года удмуртским языком владели около 324 тысяч человек.
+  - В удмуртских словах ударение обычно падает на последний слог.
+  - В удмуртском нет мужского и женского рода — «он» и «она» обозначаются одним словом «со».
+  - Первая грамматика удмуртского языка была напечатана в 1775 году.

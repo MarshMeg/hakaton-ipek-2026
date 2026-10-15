@@ -4,48 +4,58 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#c8102e">
-  <title>{% block title %}Вотэс — учим удмуртский{% endblock %}</title>
+  <title>{% block title %}Ӟеч-а бур-а удмурт кыл?{% endblock %}</title>
   <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
-  <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+  {# Порядок важен: app.js и games.js регистрируют компоненты до запуска Alpine. #}
+  <script src="{% static 'js/app.js' %}" defer></script>
+  <script src="{% static 'js/games.js' %}" defer></script>
   <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
 </head>
-<body class="min-h-screen bg-brand-paper font-sans text-brand-ink antialiased"
-      hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-  {% block header %}
-  <header class="sticky top-0 z-10 bg-white/90 backdrop-blur">
-    <div class="mx-auto flex max-w-xl items-center justify-between gap-3 px-4 py-3">
-      <a href="{% url 'learning:home' %}" class="flex shrink-0 items-center gap-2 text-xl font-extrabold">
-        <img src="{% static 'img/logo.svg' %}" alt="" class="h-8 w-8"> Вотэс
+{% with section=request.resolver_match.url_name %}
+<body class="min-h-screen bg-brand-paper font-sans text-brand-ink antialiased" x-data>
+  <header class="sticky top-0 z-20 bg-white/95 backdrop-blur">
+    <div class="mx-auto flex max-w-xl items-center justify-between gap-2 px-4 py-2">
+      <a href="{% url 'play:home' %}" class="flex min-w-0 items-center gap-2 text-lg font-extrabold">
+        <img src="{% static 'img/logo.svg' %}" alt="" class="h-9 w-9 shrink-0">
+        <span class="truncate">Ӟеч-а бур-а!</span>
       </a>
-      {% if profile %}
-      <div class="flex min-w-0 items-center gap-3 font-bold">
-        <span class="whitespace-nowrap" title="Дней подряд">🔥 {{ profile.streak }}</span>
-        <span class="whitespace-nowrap" title="Опыт">⭐ {{ profile.xp }}</span>
-        <a href="{% url 'learning:leaderboard' %}" title="Таблица лидеров" aria-label="Таблица лидеров">🏆</a>
-        <a href="{% url 'accounts:profile' %}" title="Профиль" aria-label="Профиль: {{ profile.display_name }}"
-           class="flex min-w-0 items-center gap-2">
-          {% include "accounts/_avatar.html" with size="h-9 w-9" %}
-          {# На узком экране имя не помещается («Ива…») — там остаётся только аватарка. #}
-          <span class="hidden truncate text-sm sm:inline" aria-hidden="true">{{ profile.display_name }}</span>
-        </a>
-      </div>
-      {% endif %}
+      <a href="{% url 'play:profile' %}" class="flex shrink-0 items-center gap-3 font-bold" x-cloak x-show="$store.app.profile">
+        <span title="Дней подряд">🔥 <span x-text="$store.app.stats.streak"></span></span>
+        <span title="Опыт">⭐ <span x-text="$store.app.stats.xp"></span></span>
+        <span class="text-2xl" x-text="$store.app.profile && $store.app.profile.avatar"></span>
+      </a>
     </div>
     <div class="ornament h-3"></div>
-    {# Строка под шапкой, которая остаётся на экране при прокрутке (название курса на карте). #}
-    {% block subheader %}{% endblock %}
   </header>
-  {% endblock %}
-  <main class="mx-auto max-w-xl px-4 pb-10">{% block content %}{% endblock %}</main>
+
+  <main class="mx-auto max-w-xl px-4 pb-28 pt-4">{% block content %}{% endblock %}</main>
+
+  {# Нижнее меню: четыре раздела из ТЗ + главная. #}
+  <nav class="fixed inset-x-0 bottom-0 z-20 border-t-2 border-gray-200 bg-white pb-[env(safe-area-inset-bottom)]">
+    <div class="mx-auto grid max-w-xl grid-cols-5 text-center text-xs font-bold">
+      {% url 'play:home' as u %}
+      {% include "_nav_item.html" with url=u icon="🏠" label="Главная" keys="home" %}
+      {% url 'vocab:topics' as u %}
+      {% include "_nav_item.html" with url=u icon="📖" label="Обучение" keys="topics topic" %}
+      {% url 'play:games' as u %}
+      {% include "_nav_item.html" with url=u icon="🎮" label="Игры" keys="games game" %}
+      {% url 'play:profile' as u %}
+      {% include "_nav_item.html" with url=u icon="🙂" label="Профиль" keys="profile report" %}
+      {% url 'play:settings' as u %}
+      {% include "_nav_item.html" with url=u icon="⚙️" label="Настройки" keys="settings" %}
+    </div>
+  </nav>
+
+  {% block onboarding %}{% include "_onboarding.html" %}{% endblock %}
   <script>
     // Свои русские подсказки HTML5-валидации вместо браузерных (на телефоне с английским
-    // языком было бы «Please fill out this field»). Серверная валидация Django не меняется.
+    // языком было бы «Please fill out this field»).
     document.addEventListener("invalid", (e) => {
       const f = e.target;
       if (!f.validity || f.validity.customError) return;
       if (f.validity.valueMissing) {
-        f.setCustomValidity(f.type === "file" ? "Выбери файл" : "Заполни это поле");
+        f.setCustomValidity("Заполни это поле");
       } else if (f.validity.tooShort) {
         f.setCustomValidity("Слишком коротко: нужно не меньше " + f.minLength + " символов");
       } else if (f.validity.tooLong) {
@@ -54,11 +64,11 @@
         f.setCustomValidity("Проверь, правильно ли заполнено поле");
       }
     }, true);
-    // Как только игрок начинает исправлять поле, сбрасываем подсказку — иначе поле так и
-    // осталось бы «неверным» и форма не отправилась бы.
+    // Как только игрок начинает исправлять поле, сбрасываем подсказку — иначе форма не отправится.
     const resetValidity = (e) => { if (e.target.setCustomValidity) e.target.setCustomValidity(""); };
     document.addEventListener("input", resetValidity, true);
     document.addEventListener("change", resetValidity, true);
   </script>
 </body>
+{% endwith %}
 </html>
