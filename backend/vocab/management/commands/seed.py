@@ -72,6 +72,10 @@ class Command(BaseCommand):
             )
 
         # Факты — простой список, его проще перезаливать целиком.
+        for fact in data.get("facts", []):
+            # Факт с «: » без кавычек YAML читает как словарь — лучше упасть, чем показать {…}.
+            if not isinstance(fact, str):
+                raise CommandError(f"Факт должен быть строкой (возьми в кавычки): {fact!r}")
         if data.get("facts") and (update or not Fact.objects.exists()):
             Fact.objects.all().delete()
             Fact.objects.bulk_create(

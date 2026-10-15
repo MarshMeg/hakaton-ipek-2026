@@ -1,7 +1,8 @@
-from django.core.management import call_command
+import pytest
+from django.core.management import CommandError, call_command
 from django.urls import reverse
 
-from vocab.models import SortingSet, Topic, Word
+from vocab.models import Fact, SortingSet, Topic, Word
 
 
 def test_seed_is_idempotent_and_keeps_word_ids(vocab):
@@ -35,6 +36,22 @@ def test_udmurt_letters_are_cyrillic(vocab):
     # В материалах кейса встречались латинские ö и ü вместо удмуртских ӧ и ӥ.
     for udm in Word.objects.values_list("udm", flat=True):
         assert not set(udm) & set("öüëïÖÜËÏ"), udm
+
+
+def test_facts_are_plain_strings(vocab):
+    # Факт с «: » без кавычек YAML превращает в словарь, и в профиле выводилось {'…': '…'}.
+    texts = list(Fact.objects.values_list("text", flat=True))
+    assert texts
+    for text in texts:
+        assert not text.startswith("{"), text
+
+
+def test_seed_rejects_non_string_facts(db, tmp_path):
+    vocab_file = tmp_path / "vocab.yaml"
+    vocab_file.write_text("topics: []\nfacts:\n  - В алфавите 38 букв: Ӝ, Ӟ.\n", encoding="utf-8")
+    with pytest.raises(CommandError, match="строкой"):
+        call_command("seed", "--file", str(vocab_file))
+    assert not Fact.objects.exists()
 
 
 def test_content_json(client, vocab):
