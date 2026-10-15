@@ -10,6 +10,10 @@
     <span>
       <span class="block text-lg font-extrabold">{{ game.title }}</span>
       <span class="block text-sm text-muted-strong">{{ game.rules }}</span>
+      {% if game.slug == "hard" %}
+      <span class="mt-1 block text-sm font-bold text-bad" x-cloak x-show="$store.app.stats.hardCount"
+            x-text="'Трудных слов: ' + $store.app.stats.hardCount"></span>
+      {% endif %}
     </span>
   </a>
   {% endfor %}

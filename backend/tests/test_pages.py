@@ -32,3 +32,19 @@ def test_topic_cards(client, vocab):
 
 def test_unknown_game_404(client, vocab):
     assert client.get(reverse("play:game", args=["chess"])).status_code == 404
+
+
+def test_hard_words_mode(client, vocab):
+    """«Трудные слова» — та же механика, что «Выбери перевод», слова выбирает JS."""
+    html = client.get(reverse("play:game", args=["hard"])).content.decode()
+    assert 'x-data="hard"' in html
+    assert "optionText(opt)" in html  # разметка «Выбери перевод»
+    assert "Трудных слов нет!" in html and "Трудных слов пока мало" in html
+    assert reverse("play:game", args=["choose"]) in html  # обычная игра вместо пустого режима
+    assert "Все темы" not in html  # слова не по темам
+
+
+def test_hard_words_mode_is_linked(client, vocab):
+    url = reverse("play:game", args=["hard"])
+    assert url in client.get(reverse("play:games")).content.decode()
+    assert url in client.get(reverse("play:profile")).content.decode()
