@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "ru.votes.votes"
+    namespace = "ru.marshmeg.hakaton"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -18,7 +18,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "ru.votes.votes"
+        applicationId = "ru.marshmeg.hakaton"
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
