@@ -592,10 +592,18 @@
     if (content) {
       topics = content.topics.map(function (topic) {
         var learned = topic.words.filter(function (w) { return learnedIds.indexOf(String(w.id)) >= 0; });
+        // Просмотренные карточки или слова, уже встречавшиеся в играх.
+        var seen = topic.words.filter(function (w) {
+          var s = byWord[w.id];
+          return s && (s.seen || s.ok || s.bad);
+        });
+        var total = topic.words.length;
         return {
-          slug: topic.slug, title: topic.title, icon: topic.icon, total: topic.words.length,
+          slug: topic.slug, title: topic.title, icon: topic.icon, total: total,
           learned: learned.length,
-          percent: topic.words.length ? Math.round(100 * learned.length / topic.words.length) : 0,
+          percent: total ? Math.round(100 * learned.length / total) : 0,
+          seen: seen.length,
+          seenPercent: total ? Math.round(100 * seen.length / total) : 0,
         };
       });
     }
