@@ -1,0 +1,105 @@
+{% comment %} Окно входа. Без аккаунта играть нельзя: окно не закрывается, пока не выполнен вход
+   или регистрация. Первый вход — только с интернетом, дальше всё работает офлайн. {% endcomment %}
+<div x-cloak x-show="$store.app.phase === 'auth'"
+     class="fixed inset-0 z-40 flex items-end justify-center overflow-y-auto bg-black/50 sm:items-center"
+     x-data="authWindow()">
+  <div class="max-h-full w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-6 sm:rounded-3xl">
+    <template x-if="step === 0">
+      <div class="text-center">
+        <div class="text-6xl">👋</div>
+        <h2 class="mt-3 text-2xl font-extrabold">Ӟечбуресь! Здравствуй!</h2>
+        <p class="mt-2 text-gray-600">
+          Здесь ты выучишь первые удмуртские слова и сыграешь в игры. За верные ответы получаешь ⭐,
+          а за каждый день занятий подряд — 🔥.
+        </p>
+        <button type="button" class="btn-primary mt-6 w-full" @click="step = 1">Начать</button>
+      </div>
+    </template>
+
+    <template x-if="step === 1">
+      <div>
+        <h2 class="text-2xl font-extrabold">Ты здесь впервые?</h2>
+        <p class="mt-2 text-gray-600">Прогресс хранится в аккаунте, поэтому его можно продолжить на другом телефоне.</p>
+        <button type="button" class="btn-primary mt-6 w-full" @click="open('signup')">Я здесь впервые — регистрация</button>
+        <button type="button" class="btn-ghost mt-3 w-full" @click="open('login')">У меня есть аккаунт — вход</button>
+      </div>
+    </template>
+
+    <template x-if="step === 2">
+      <form @submit.prevent="submit()">
+        <button type="button" class="font-bold text-gray-500" @click="step = 1; error = ''; offline = false">← Назад</button>
+        <h2 class="mt-2 text-2xl font-extrabold" x-text="mode === 'signup' ? 'Регистрация' : 'Вход'"></h2>
+
+        <template x-if="mode === 'signup'">
+          <div>
+            <label class="mt-4 block font-bold">Как тебя зовут?
+              <input x-model="name" maxlength="60" required placeholder="Имя"
+                     class="mt-1 w-full rounded-2xl border-2 border-gray-300 px-4 py-3 text-lg font-normal focus:border-brand-red focus:outline-none">
+            </label>
+            <p class="mt-4 font-bold">Выбери зверька</p>
+            <div class="mt-2 grid grid-cols-5 gap-2">
+              <template x-for="a in ZB.AVATARS" :key="a">
+                <button type="button" class="rounded-2xl border-2 py-2 text-3xl"
+                        :class="avatar === a ? 'border-brand-red bg-red-50' : 'border-gray-200'"
+                        @click="avatar = a" x-text="a"></button>
+              </template>
+            </div>
+          </div>
+        </template>
+
+        <label class="mt-4 block font-bold">Имя для входа
+          <input x-model="username" required maxlength="150" autocomplete="username" autocapitalize="none"
+                 class="mt-1 w-full rounded-2xl border-2 border-gray-300 px-4 py-3 font-normal focus:border-brand-red focus:outline-none">
+        </label>
+        <label class="mt-3 block font-bold">Пароль
+          <input x-model="password" type="password" required minlength="6"
+                 :autocomplete="mode === 'signup' ? 'new-password' : 'current-password'"
+                 class="mt-1 w-full rounded-2xl border-2 border-gray-300 px-4 py-3 font-normal focus:border-brand-red focus:outline-none">
+        </label>
+
+        <div x-show="offline" class="mt-4 rounded-2xl bg-red-50 p-4 text-center">
+          <p class="text-3xl">📶</p>
+          <p class="mt-1 font-extrabold text-bad">Для первого входа нужен интернет</p>
+          <p class="mt-1 text-sm text-gray-600">Подключись к сети и нажми «Повторить». Потом можно будет играть и без интернета.</p>
+        </div>
+        <p class="mt-3 text-sm font-bold text-bad" x-show="error" x-text="error"></p>
+
+        <button class="btn-primary mt-5 w-full" :disabled="busy"
+                x-text="busy ? 'Подождите…' : offline ? 'Повторить' : mode === 'signup' ? 'Создать аккаунт' : 'Войти'"></button>
+        <p class="mt-2 text-xs text-gray-500" x-show="mode === 'signup'">Аккаунт лучше создавать вместе со взрослым.</p>
+      </form>
+    </template>
+  </div>
+</div>
+
+<script>
+  function authWindow() {
+    return {
+      step: 0, mode: 'signup', name: '', avatar: ZB.AVATARS[0], username: '', password: '',
+      error: '', offline: false, busy: false,
+      open(mode) {
+        this.mode = mode;
+        this.error = '';
+        this.offline = false;
+        // Прогресс со старой версии без аккаунта уйдёт в новый аккаунт — подставим имя и зверька.
+        const save = ZB.Save.get();
+        if (mode === 'signup' && save && save.profile.name && !this.name) {
+          this.name = save.profile.name;
+          this.avatar = save.profile.avatar || this.avatar;
+        }
+        this.step = 2;
+      },
+      submit() {
+        this.error = ''; this.offline = false; this.busy = true;
+        const username = this.username.trim();
+        const done = this.mode === 'signup'
+          ? ZB.signup({ username, password: this.password, name: this.name.trim().slice(0, 60), avatar: this.avatar })
+          : ZB.login(username, this.password);
+        done
+          .then(() => { this.password = ''; this.step = 0; })
+          .catch((e) => { if (e.network) this.offline = true; else this.error = e.message; })
+          .finally(() => { this.busy = false; });
+      },
+    };
+  }
+</script>

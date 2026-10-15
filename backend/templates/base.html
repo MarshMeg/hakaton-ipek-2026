@@ -47,7 +47,13 @@
     </div>
   </nav>
 
-  {% block onboarding %}{% include "_onboarding.html" %}{% endblock %}
+  {# Заставка, пока при запуске сверяется сохранение с сервером (не дольше нескольких секунд). #}
+  <div x-cloak x-show="$store.app.phase === 'loading'"
+       class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-4 bg-brand-paper">
+    <img src="{% static 'img/logo.svg' %}" alt="" class="h-24 w-24 animate-pulse">
+    <p class="text-lg font-extrabold">Загрузка…</p>
+  </div>
+  {% include "_auth.html" %}
   <script>
     // Свои русские подсказки HTML5-валидации вместо браузерных (на телефоне с английским
     // языком было бы «Please fill out this field»).

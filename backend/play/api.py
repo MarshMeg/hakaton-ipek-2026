@@ -1,16 +1,23 @@
-"""JSON API облачного аккаунта: регистрация, вход и синхронизация прогресса.
+"""JSON API аккаунта: регистрация, вход и «сохранение» прогресса.
 
-Прогресс живёт на телефоне и пишется без сети. Когда сеть есть, телефон отправляет
-неотправленные события и получает все события аккаунта (в том числе с других устройств).
-События идентифицируются uuid, поэтому синхронизация — это объединение множеств:
-ничего не теряется и не дублируется.
+Сохранение — один JSON-документ на аккаунт (профиль и агрегированный прогресс) с полем
+`updated` (мс, по часам телефона):
+
+    {"v": 2, "updated": 1760500000000,
+     "profile": {"name": "Аня", "avatar": "🦊"},
+     "words": {"17": {"ok": 3, "bad": 1, "seen": 2, "last": 1760500000000}},
+     "days": {"2026-10-15": {"ok": 12, "bad": 3, "seen": 5}},
+     "games": {"choose": {"ok": 20, "bad": 4, "played": 3, "best": 3}}}
+
+При синхронизации более новое сохранение заменяет старое целиком, без слияния. Сервер
+принимает PUT, только если присланное не старее хранимого, иначе отвечает 409 и своим
+сохранением — так два устройства не затирают друг друга в гонке.
 
 Авторизация — токен в заголовке `Authorization: Bearer …` (подписанный id пользователя),
 без cookies, поэтому CSRF здесь не нужен.
 """
 
 import json
-import uuid
 from functools import wraps
 
 from django.contrib.auth import authenticate, get_user_model
@@ -18,14 +25,14 @@ from django.core import signing
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 
 from accounts.models import Profile
 
-from .models import Attempt
-
 TOKEN_SALT = "votes.api"
-MAX_EVENTS_PER_SYNC = 5000
+SAVE_VERSION = 2
+MAX_SAVE_BYTES = 256 * 1024
+SAVE_SECTIONS = ("words", "days", "games")
 
 
 def make_token(user) -> str:
@@ -57,16 +64,113 @@ def json_post(view):
     return wrapper
 
 
-def _account(user) -> dict:
+def _user_from_token(request):
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return None
+    try:
+        user_id = signing.loads(header[7:], salt=TOKEN_SALT)
+    except signing.BadSignature:
+        return None
+    return get_user_model().objects.filter(pk=user_id, is_active=True).first()
+
+
+def with_token(view):
+    """GET/PUT с авторизацией по токену. Для PUT тело ограничено MAX_SAVE_BYTES."""
+
+    @csrf_exempt
+    @require_http_methods(["GET", "PUT"])
+    @wraps(view)
+    def wrapper(request, *args, **kwargs):
+        user = _user_from_token(request)
+        if user is None:
+            return _error("Нужно войти заново", status=401)
+        data = None
+        if request.method == "PUT":
+            if len(request.body) > MAX_SAVE_BYTES:
+                return _error("Сохранение слишком большое", status=413)
+            data = _json_body(request)
+            if data is None:
+                return _error("Некорректный JSON")
+        return view(request, user, data, *args, **kwargs)
+
+    return wrapper
+
+
+def _int(value, default=0):
+    if isinstance(value, bool):
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def empty_save(name="", avatar="", updated=0) -> dict:
+    return {
+        "v": SAVE_VERSION,
+        "updated": updated,
+        "profile": {"name": name, "avatar": avatar},
+        "words": {},
+        "days": {},
+        "games": {},
+    }
+
+
+def clean_save(raw):
+    """Проверяет структуру сохранения с телефона. Возвращает очищенную копию или None."""
+    if not isinstance(raw, dict) or raw.get("v") != SAVE_VERSION:
+        return None
+    updated = raw.get("updated")
+    if not isinstance(updated, int) or isinstance(updated, bool) or updated < 0:
+        return None
+    profile = raw.get("profile", {})
+    if not isinstance(profile, dict):
+        return None
+    save = {
+        "v": SAVE_VERSION,
+        "updated": updated,
+        "profile": {
+            "name": str(profile.get("name", ""))[:60],
+            "avatar": str(profile.get("avatar", ""))[:16],
+        },
+    }
+    for section in SAVE_SECTIONS:
+        value = raw.get(section, {})
+        if not isinstance(value, dict) or not all(isinstance(v, dict) for v in value.values()):
+            return None
+        save[section] = value
+    return save
+
+
+def _profile(user) -> Profile:
     profile, _ = Profile.objects.get_or_create(user=user)
+    return profile
+
+
+def _stored_save(profile) -> dict:
+    """Хранимое сохранение; у аккаунтов, созданных в админке, его ещё нет."""
+    if profile.save_data:
+        return profile.save_data
+    return empty_save(profile.display_name, profile.avatar, profile.updated)
+
+
+def _store(profile, save):
+    profile.save_data = save
+    profile.updated = save["updated"]
+    profile.display_name = save["profile"]["name"]
+    profile.avatar = save["profile"]["avatar"]
+    if profile.pk is None:
+        profile.save()
+    else:
+        profile.save(update_fields=["save_data", "updated", "display_name", "avatar"])
+
+
+def _account(user, profile) -> dict:
     return {
         "token": make_token(user),
         "username": user.get_username(),
-        "profile": {
-            "name": profile.display_name,
-            "avatar": profile.avatar,
-            "updated": profile.updated,
-        },
+        "save": _stored_save(profile),
     }
 
 
@@ -81,15 +185,16 @@ def signup(request, data):
     users = get_user_model().objects
     if users.filter(username__iexact=username).exists():
         return _error("Такое имя уже занято")
+    save = empty_save(
+        str(data.get("name", ""))[:60],
+        str(data.get("avatar", ""))[:16],
+        max(_int(data.get("updated")), 0),
+    )
     with transaction.atomic():
         user = users.create_user(username=username, password=password)
-        Profile.objects.create(
-            user=user,
-            display_name=str(data.get("name", ""))[:60],
-            avatar=str(data.get("avatar", ""))[:16],
-            updated=_int(data.get("updated")),
-        )
-    return JsonResponse(_account(user), status=201)
+        profile = Profile(user=user)
+        _store(profile, save)
+    return JsonResponse(_account(user, profile), status=201)
 
 
 @json_post
@@ -101,77 +206,22 @@ def login(request, data):
     )
     if user is None:
         return _error("Неверное имя или пароль", status=401)
-    return JsonResponse(_account(user))
+    return JsonResponse(_account(user, _profile(user)))
 
 
-def _user_from_token(request):
-    header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
-        return None
-    try:
-        user_id = signing.loads(header[7:], salt=TOKEN_SALT)
-    except signing.BadSignature:
-        return None
-    return get_user_model().objects.filter(pk=user_id, is_active=True).first()
+@with_token
+def save(request, user, data):
+    if request.method == "GET":
+        return JsonResponse({"save": _stored_save(_profile(user))})
 
-
-def _int(value, default=0):
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return default
-
-
-def _parse_event(raw):
-    """Событие с телефона: {id, w, g, c, t}. Некорректные события пропускаем молча."""
-    if not isinstance(raw, dict):
-        return None
-    try:
-        event_id = uuid.UUID(str(raw["id"]))
-    except (KeyError, ValueError):
-        return None
-    correct = raw.get("c")
-    return {
-        "uuid": event_id,
-        "word_id": max(_int(raw.get("w")), 0),
-        "game": str(raw.get("g", ""))[:16],
-        "correct": None if correct is None else bool(correct),
-        "ts": _int(raw.get("t")),
-    }
-
-
-@json_post
-def sync(request, data):
-    user = _user_from_token(request)
-    if user is None:
-        return _error("Нужно войти заново", status=401)
-
-    events = data.get("events") or []
-    if not isinstance(events, list) or len(events) > MAX_EVENTS_PER_SYNC:
-        return _error("Слишком много событий за раз")
-    parsed = [e for e in map(_parse_event, events) if e]
-    Attempt.objects.bulk_create([Attempt(user=user, **e) for e in parsed], ignore_conflicts=True)
-
-    # Имя и аватар: побеждает более поздняя правка (время правки присылает телефон).
-    profile, _ = Profile.objects.get_or_create(user=user)
-    client = data.get("profile")
-    if isinstance(client, dict) and _int(client.get("updated")) > profile.updated:
-        profile.display_name = str(client.get("name", ""))[:60]
-        profile.avatar = str(client.get("avatar", ""))[:16]
-        profile.updated = _int(client.get("updated"))
-        profile.save(update_fields=["display_name", "avatar", "updated"])
-
-    rows = user.attempts.values_list("uuid", "word_id", "game", "correct", "ts")
-    return JsonResponse(
-        {
-            "profile": {
-                "name": profile.display_name,
-                "avatar": profile.avatar,
-                "updated": profile.updated,
-            },
-            "events": [
-                {"id": str(u), "w": w, "g": g, "c": None if c is None else int(c), "t": t}
-                for u, w, g, c, t in rows
-            ],
-        }
-    )
+    incoming = clean_save(data.get("save"))
+    if incoming is None:
+        return _error("Некорректное сохранение")
+    with transaction.atomic():
+        profile, _ = Profile.objects.select_for_update().get_or_create(user=user)
+        stored = _stored_save(profile)
+        if incoming["updated"] < stored["updated"]:
+            # На сервере новее (например, с другого телефона) — телефон примет серверное.
+            return JsonResponse({"save": stored}, status=409)
+        _store(profile, incoming)
+    return JsonResponse({"save": incoming})

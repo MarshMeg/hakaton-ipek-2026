@@ -1,6 +1,7 @@
 /* Шесть игр раздела «Игры». Каждая — Alpine-компонент, который строит раунды из словаря
- * (/content.json) прямо на телефоне и пишет каждую попытку в журнал (ZB.Store.record).
- * Сервер в игре не участвует, поэтому всё работает без сети.
+ * (/content.json) прямо на телефоне. Ответы копятся в this.answers и записываются в сохранение
+ * одним действием, когда игра пройдена до конца (ZB.Save.commit в finish). Прерванная игра
+ * прогресс не меняет. Сервер в игре не участвует, поэтому всё работает без сети.
  */
 (function () {
   'use strict';
@@ -19,6 +20,7 @@
       score: 0,
       maxScore: 8,
       done: false,
+      answers: [], // [{w: id слова, ok}] — ответы этой игры, в сохранение попадут в finish()
       feedback: null, // 'ok' | 'bad' | null
       message: '',
 
@@ -44,6 +46,7 @@
         this.score = 0;
         this.maxScore = this.rounds;
         this.done = false;
+        this.answers = [];
         this.feedback = null;
         this.message = '';
         this.newRound();
@@ -88,8 +91,10 @@
         return same;
       },
 
+      log: function (word, ok) { this.answers.push({ w: word.id, ok: ok }); },
+
       answer: function (word, ok) {
-        ZB.Store.record(word.id, this.slug, ok);
+        this.log(word, ok);
         if (ok) this.score++;
         this.feedback = ok ? 'ok' : 'bad';
         ZB.Sound.play(ok ? 'ok' : 'bad');
@@ -111,7 +116,11 @@
       },
 
       finish: function () {
+        var slug = this.slug;
+        var answers = this.answers;
+        var stars = this.stars();
         this.done = true;
+        ZB.Save.commit(function (s) { ZB.addGame(s, slug, answers, stars); });
         ZB.Sound.play('win');
       },
 
@@ -249,7 +258,7 @@
         if (!item || item.placed) return;
         var ok = item.group === groupIndex;
         if (!item.tried) {
-          ZB.Store.record(item.word.id, this.slug, ok);
+          this.log(item.word, ok);
           if (ok) this.score++;
         }
         item.tried = true;
@@ -366,7 +375,7 @@
         this.open = [];
         if (a.word.id === b.word.id) {
           a.matched = b.matched = true;
-          ZB.Store.record(a.word.id, this.slug, true);
+          this.log(a.word, true);
           ZB.Sound.play('ok');
           this.score++;
           ZB.playAudio(a.word);

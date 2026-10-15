@@ -4,10 +4,12 @@
 //   manifest.json  {"version", "built", "files": {"/learn/": {"sha", "type", "size"}}}
 //   blobs/<sha256> содержимое файлов (имя = хэш, поэтому файлы не дублируются).
 // Первая версия лежит в assets APK, поэтому приложение работает сразу после установки
-// без интернета. Обновления скачиваются с сервера в папку приложения: сначала все новые
-// блобы (каждый проверяется по sha256), последним — манифест. Новая версия включается при
-// следующем запуске, так что во время игры страницы не меняются. Прогресс игрока хранится
-// отдельно (localStorage WebView + копия в progress.json) и обновлением не затрагивается.
+// без интернета. При каждом запуске, до показа WebView, приложение проверяет обновление
+// (main.dart): скачивает с сервера все новые блобы (каждый проверяется по sha256), последним —
+// манифест, и сразу включает новую версию. После старта WebView снимок «замораживается»
+// (freeze): если обновление не успело, оно включится при следующем запуске, так что во время
+// игры страницы не меняются. Прогресс игрока хранится отдельно (localStorage WebView + копия
+// в save.json) и обновлением не затрагивается.
 
 import 'dart:convert';
 import 'dart:io';
@@ -45,14 +47,22 @@ class Manifest {
     });
     return Manifest(data['version'] as String, (data['built'] as num?)?.toInt() ?? 0, files);
   }
+
+  /// Стоит ли переходить на [remote]: другая версия, не пустая и собрана позже текущей
+  /// (то же правило, что при выборе между снимком из APK и скачанным в [Bundle.load]).
+  static bool isUpdate(Manifest current, Manifest remote) =>
+      remote.files.isNotEmpty && remote.version != current.version && remote.built > current.built;
 }
 
 class Bundle {
-  Bundle._(this.manifest, this._dir, this._assetShas, this.pendingVersion);
+  Bundle._(this.manifest, this._dir, this._assetShas);
 
-  final Manifest manifest;
+  Manifest manifest;
   final Directory _dir;
   final Set<String> _assetShas;
+  bool _frozen = false;
+
+  /// Скачанная, но ещё не включённая версия (включится при следующем запуске).
   String? pendingVersion;
 
   String get version => manifest.version;
@@ -82,7 +92,7 @@ class Bundle {
     }
     final active = downloaded.built > fromAssets.built ? downloaded : fromAssets;
     final assetShas = fromAssets.files.values.map((f) => f.sha).toSet();
-    final bundle = Bundle._(active, dir, assetShas, null);
+    final bundle = Bundle._(active, dir, assetShas);
     await bundle._collectGarbage();
     return bundle;
   }
@@ -105,16 +115,21 @@ class Bundle {
   Future<bool> _hasBlob(String sha) async =>
       _assetShas.contains(sha) || await File('${_dir.path}/blobs/$sha').exists();
 
-  /// Скачивает новую версию снимка, если она есть. Возвращает её версию или null.
-  Future<String?> update(Uri server) async {
+  /// Дальше снимок не меняется до следующего запуска: WebView уже показывает страницы.
+  void freeze() => _frozen = true;
+
+  /// Скачивает новую версию снимка, если она есть, и включает её (если снимок ещё не
+  /// заморожен). Возвращает её версию или null. Без сети за [manifestTimeout] — null.
+  Future<String?> update(
+    Uri server, {
+    Duration manifestTimeout = const Duration(seconds: 5),
+  }) async {
     final client = http.Client();
     try {
-      final res = await client
-          .get(server.resolve('/bundle/manifest.json'))
-          .timeout(const Duration(seconds: 10));
+      final res = await client.get(server.resolve('/bundle/manifest.json')).timeout(manifestTimeout);
       if (res.statusCode != 200) return null;
       final remote = Manifest.parse(utf8.decode(res.bodyBytes));
-      if (remote.version == version || remote.files.isEmpty) return null;
+      if (!Manifest.isUpdate(manifest, remote)) return null;
 
       for (final sha in remote.files.values.map((f) => f.sha).toSet()) {
         if (await _hasBlob(sha)) continue;
@@ -135,7 +150,11 @@ class Bundle {
       final tmp = File('${_dir.path}/manifest.json.tmp');
       await tmp.writeAsBytes(res.bodyBytes, flush: true);
       await tmp.rename('${_dir.path}/manifest.json');
-      pendingVersion = remote.version;
+      if (_frozen) {
+        pendingVersion = remote.version;
+      } else {
+        manifest = remote;
+      }
       return remote.version;
     } catch (e) {
       debugPrint('Обновление снимка не удалось: $e');

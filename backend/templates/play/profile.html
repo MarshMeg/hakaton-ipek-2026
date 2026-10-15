@@ -1,25 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Профиль — Ӟеч-а бур-а удмурт кыл?{% endblock %}
-{# Здесь можно войти в облачный аккаунт, поэтому экран первого запуска не показываем. #}
-{% block onboarding %}{% endblock %}
 {% block content %}
 <div x-data="profilePage()">
   {# --- профиль ребёнка --- #}
-  <template x-if="!$store.app.profile">
-    <section class="card text-center">
-      <p class="text-5xl">🙂</p>
-      <p class="mt-2 font-bold">Профиля пока нет.</p>
-      <button type="button" class="btn-primary mt-4 w-full" @click="$store.app.createProfile('Гость', ZB.AVATARS[0]); editing = true">Создать профиль</button>
-    </section>
-  </template>
-
   <template x-if="$store.app.profile">
     <section class="card">
       <div class="flex items-center gap-4" x-show="!editing">
         <span class="text-6xl" x-text="$store.app.profile.avatar"></span>
         <div class="min-w-0">
           <h1 class="truncate text-2xl font-extrabold" x-text="$store.app.profile.name"></h1>
-          <p class="text-sm font-bold text-gray-500" x-text="$store.app.profile.account ? '☁️ ' + $store.app.profile.account.username : 'Только на этом телефоне'"></p>
         </div>
         <button type="button" class="ml-auto text-2xl" title="Изменить" @click="startEdit()">✏️</button>
       </div>
@@ -39,16 +28,6 @@
           <button class="btn-primary">Сохранить</button>
         </div>
       </form>
-
-      {# Несколько детей на одном телефоне. #}
-      <div class="mt-4 flex flex-wrap gap-2" x-show="!editing">
-        <template x-for="p in $store.app.profiles" :key="p.id">
-          <button type="button" class="chip" @click="ZB.Store.setActive(p.id)"
-                  :class="p.id === $store.app.profile.id ? 'border-brand-red bg-red-50' : 'border-gray-300 bg-white'"
-                  x-text="p.avatar + ' ' + p.name"></button>
-        </template>
-        <button type="button" class="chip border-dashed border-gray-400 bg-white" @click="addChild()">+ Добавить</button>
-      </div>
     </section>
   </template>
 
@@ -80,46 +59,14 @@
     <a href="{% url 'play:report' %}" class="btn-ghost mt-3 w-full">📋 Отчёт для родителей и учителя</a>
   </section>
 
-  {# --- облачный аккаунт --- #}
-  <section id="cloud" class="mt-6" x-show="$store.app.profile">
-    <h2 class="text-lg font-extrabold">☁️ Облачный аккаунт</h2>
-    <p class="text-sm text-gray-600">Играть можно и без него. Аккаунт сохраняет прогресс на сервере, чтобы перенести его на другой телефон.</p>
-
-    <template x-if="$store.app.profile && $store.app.profile.account">
-      <div class="card mt-2">
-        <p>Вход выполнен: <b x-text="$store.app.profile.account.username"></b></p>
-        <p class="text-sm text-gray-500" x-text="syncedText()"></p>
-        <div class="mt-3 grid grid-cols-2 gap-3">
-          <button type="button" class="btn-primary" @click="doSync()" :disabled="busy">Синхронизировать</button>
-          <button type="button" class="btn-ghost" @click="ZB.logout()">Выйти</button>
-        </div>
-      </div>
-    </template>
-
-    <template x-if="$store.app.profile && !$store.app.profile.account">
-      <form class="card mt-2" @submit.prevent="submit()">
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" class="chip py-2" @click="mode = 'signup'"
-                  :class="mode === 'signup' ? 'border-brand-red bg-red-50' : 'border-gray-300'">Регистрация</button>
-          <button type="button" class="chip py-2" @click="mode = 'login'"
-                  :class="mode === 'login' ? 'border-brand-red bg-red-50' : 'border-gray-300'">Вход</button>
-        </div>
-        <label class="mt-3 block font-bold">Имя для входа
-          <input x-model="username" required autocomplete="username" autocapitalize="none"
-                 class="mt-1 w-full rounded-2xl border-2 border-gray-300 px-4 py-3 font-normal focus:border-brand-red focus:outline-none">
-        </label>
-        <label class="mt-3 block font-bold">Пароль
-          <input x-model="password" type="password" required minlength="6"
-                 :autocomplete="mode === 'signup' ? 'new-password' : 'current-password'"
-                 class="mt-1 w-full rounded-2xl border-2 border-gray-300 px-4 py-3 font-normal focus:border-brand-red focus:outline-none">
-        </label>
-        <button class="btn-primary mt-4 w-full" :disabled="busy"
-                x-text="mode === 'signup' ? 'Создать аккаунт' : 'Войти'"></button>
-        <p class="mt-2 text-xs text-gray-500" x-show="mode === 'signup'">Аккаунт лучше создавать вместе со взрослым.</p>
-      </form>
-    </template>
-    <p class="mt-2 text-sm font-bold text-ok" x-show="notice" x-text="notice"></p>
-    <p class="mt-2 text-sm font-bold text-bad" x-show="error" x-text="error"></p>
+  {# --- аккаунт --- #}
+  <section class="mt-6" x-show="$store.app.account">
+    <h2 class="text-lg font-extrabold">☁️ Аккаунт</h2>
+    <div class="card mt-2">
+      <p>Вход выполнен: <b x-text="$store.app.account && $store.app.account.username"></b></p>
+      <p class="text-sm text-gray-500" x-text="syncedText()"></p>
+      <button type="button" class="btn-ghost mt-3 w-full" @click="logout()" :disabled="busy">Выйти</button>
+    </div>
   </section>
 
   {# --- о языке --- #}
@@ -136,41 +83,26 @@
 <script>
   function profilePage() {
     return {
-      editing: false, name: '', avatar: '',
-      mode: 'signup', username: '', password: '', error: '', notice: '', busy: false,
+      editing: false, name: '', avatar: '', busy: false,
       startEdit() {
         const p = this.$store.app.profile;
         this.name = p.name; this.avatar = p.avatar; this.editing = true;
       },
       saveEdit() {
-        if (!this.name.trim()) return;
-        ZB.Store.updateProfile(this.$store.app.profile.id, { name: this.name.trim(), avatar: this.avatar });
+        const name = this.name.trim().slice(0, 60);
+        if (!name) return;
+        const avatar = this.avatar;
+        ZB.Save.commit((s) => { s.profile = { name, avatar }; });
         this.editing = false;
-        ZB.sync().catch(() => {});
       },
-      addChild() {
-        this.$store.app.createProfile('Новый игрок', ZB.AVATARS[Math.floor(Math.random() * ZB.AVATARS.length)]);
-        this.startEdit();
-      },
-      submit() {
-        this.error = ''; this.notice = ''; this.busy = true;
-        const action = this.mode === 'signup' ? ZB.signup : ZB.login;
-        action(this.username.trim(), this.password)
-          .then(() => { this.notice = 'Готово! Прогресс сохранён в облаке.'; this.password = ''; })
-          .catch((e) => { this.error = e.message; })
-          .finally(() => { this.busy = false; });
-      },
-      doSync() {
-        this.error = ''; this.notice = ''; this.busy = true;
-        ZB.sync()
-          .then(() => { this.notice = 'Синхронизировано'; })
-          .catch((e) => { this.notice = ''; this.error = e.message; })
-          .finally(() => { this.busy = false; });
+      logout() {
+        this.busy = true;
+        ZB.logout().finally(() => { this.busy = false; });
       },
       syncedText() {
-        const a = this.$store.app.profile.account;
-        if (!a.synced) return 'Ещё не синхронизировано';
-        return 'Синхронизировано: ' + new Date(a.synced).toLocaleString('ru-RU');
+        const a = this.$store.app.account;
+        if (!a || !a.synced) return 'Прогресс ещё не отправлялся на сервер';
+        return 'Прогресс отправлен на сервер: ' + new Date(a.synced).toLocaleString('ru-RU');
       },
     };
   }
