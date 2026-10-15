@@ -48,6 +48,27 @@
   </nav>
 
   {% block onboarding %}{% include "_onboarding.html" %}{% endblock %}
+  <script>
+    // Свои русские подсказки HTML5-валидации вместо браузерных (на телефоне с английским
+    // языком было бы «Please fill out this field»).
+    document.addEventListener("invalid", (e) => {
+      const f = e.target;
+      if (!f.validity || f.validity.customError) return;
+      if (f.validity.valueMissing) {
+        f.setCustomValidity("Заполни это поле");
+      } else if (f.validity.tooShort) {
+        f.setCustomValidity("Слишком коротко: нужно не меньше " + f.minLength + " символов");
+      } else if (f.validity.tooLong) {
+        f.setCustomValidity("Слишком длинно: не больше " + f.maxLength + " символов");
+      } else if (f.validity.typeMismatch || f.validity.patternMismatch) {
+        f.setCustomValidity("Проверь, правильно ли заполнено поле");
+      }
+    }, true);
+    // Как только игрок начинает исправлять поле, сбрасываем подсказку — иначе форма не отправится.
+    const resetValidity = (e) => { if (e.target.setCustomValidity) e.target.setCustomValidity(""); };
+    document.addEventListener("input", resetValidity, true);
+    document.addEventListener("change", resetValidity, true);
+  </script>
 </body>
 {% endwith %}
 </html>

@@ -9,6 +9,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'bridge.dart';
 import 'bundle.dart';
@@ -17,6 +18,25 @@ import 'bundle.dart';
 /// Для локального сервера в эмуляторе: --dart-define=SERVER_URL=http://10.0.2.2:8000
 const String defaultServerUrl =
     String.fromEnvironment('SERVER_URL', defaultValue: 'https://hakaton.marshmeg.ru');
+
+/// Сборка «с выбором адреса»: --dart-define=ASK_SERVER_URL=true. При каждом запуске приложение
+/// сначала спрашивает, какой адрес открыть (для проверки на локальном или тестовом сервере).
+/// Офлайн-снимок при этом отдаётся по выбранному адресу.
+const bool askServerUrl = bool.fromEnvironment('ASK_SERVER_URL');
+
+const String _prefsKey = 'server_url';
+
+/// Приводит введённый адрес к виду со схемой; null — если это не http(s)-адрес.
+/// Без схемы подставляется http:// — так обычно вводят локальный сервер (192.168.0.10:8000).
+String? normalizeServerUrl(String input) {
+  var text = input.trim();
+  if (text.isEmpty) return null;
+  if (!text.contains('://')) text = 'http://$text';
+  final uri = Uri.tryParse(text);
+  if (uri == null || uri.host.isEmpty) return null;
+  if (uri.scheme != 'http' && uri.scheme != 'https') return null;
+  return uri.toString();
+}
 
 /// Пути, которые всегда идут в сеть, даже если такой файл есть в снимке.
 const _networkOnly = ['/api/', '/admin/', '/bundle/'];
@@ -57,12 +77,13 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  final Uri _server = Uri.parse(defaultServerUrl);
+  Uri _server = Uri.parse(defaultServerUrl);
   InAppWebViewController? _controller;
   Bundle? _bundle;
   Bridge? _bridge;
   double _progress = 0;
   String? _error;
+  bool _asking = false;
 
   @override
   void initState() {
@@ -71,13 +92,29 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> _init() async {
+    final prefs = await SharedPreferences.getInstance();
+    _server = Uri.parse(prefs.getString(_prefsKey) ?? defaultServerUrl);
     final bundle = await Bundle.load();
+    if (!mounted) return;
     setState(() {
       _bundle = bundle;
       _bridge = Bridge(bundle);
+      _asking = askServerUrl;
     });
     // Новая версия снимка качается в фоне и включится при следующем запуске.
-    bundle.update(_server);
+    if (!askServerUrl) bundle.update(_server);
+  }
+
+  Future<void> _applyServerUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKey, url);
+    setState(() {
+      _server = Uri.parse(url);
+      _asking = false;
+      _error = null;
+    });
+    _bundle?.update(_server);
+    _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())));
   }
 
   /// Ответ на запрос WebView из снимка. null — пусть WebView идёт в сеть.
@@ -128,6 +165,8 @@ class _GameScreenState extends State<GameScreen> {
         body: SafeArea(
           child: bundle == null
               ? const Center(child: CircularProgressIndicator(color: brandRed))
+              : _asking
+              ? _ServerUrlView(initialUrl: _server.toString(), onSubmit: _applyServerUrl)
               : Stack(
                   children: [
                     InAppWebView(
@@ -155,7 +194,12 @@ class _GameScreenState extends State<GameScreen> {
                       },
                     ),
                     if (_progress < 1) LinearProgressIndicator(value: _progress, color: brandRed, minHeight: 3),
-                    if (_error != null) _ErrorView(message: _error!, onRetry: _reload),
+                    if (_error != null)
+                      _ErrorView(
+                        message: _error!,
+                        onRetry: _reload,
+                        onEditUrl: () => setState(() => _asking = true),
+                      ),
                   ],
                 ),
         ),
@@ -166,10 +210,11 @@ class _GameScreenState extends State<GameScreen> {
 
 /// Показывается, только если страницы нет в снимке и нет сети (например, сборка без снимка).
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
+  const _ErrorView({required this.message, required this.onRetry, required this.onEditUrl});
 
   final String message;
   final VoidCallback onRetry;
+  final VoidCallback onEditUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -197,7 +242,96 @@ class _ErrorView extends StatelessWidget {
             onPressed: onRetry,
             child: const Text('Повторить'),
           ),
+          const SizedBox(height: 8),
+          TextButton(onPressed: onEditUrl, child: const Text('Изменить адрес сервера')),
         ],
+      ),
+    );
+  }
+}
+
+/// Экран выбора адреса сервера: при запуске сборки с ASK_SERVER_URL и по кнопке на экране «нет связи».
+class _ServerUrlView extends StatefulWidget {
+  const _ServerUrlView({required this.initialUrl, required this.onSubmit});
+
+  final String initialUrl;
+  final ValueChanged<String> onSubmit;
+
+  @override
+  State<_ServerUrlView> createState() => _ServerUrlViewState();
+}
+
+class _ServerUrlViewState extends State<_ServerUrlView> {
+  late final TextEditingController _input = TextEditingController(text: widget.initialUrl);
+  String? _error;
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final url = normalizeServerUrl(_input.text);
+    if (url == null) {
+      setState(() => _error = 'Введите адрес, например http://192.168.0.10:8000');
+      return;
+    }
+    widget.onSubmit(url);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.dns_rounded, size: 72, color: brandRed),
+            const SizedBox(height: 16),
+            const Text(
+              'Адрес сервера',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: brandInk),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Какой адрес открыть в приложении?',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _input,
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.go,
+              autocorrect: false,
+              onSubmitted: (_) => _submit(),
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: 'http://192.168.0.10:8000',
+                errorText: _error,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: brandRed,
+                minimumSize: const Size.fromHeight(52),
+              ),
+              onPressed: _submit,
+              child: const Text('Открыть'),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => setState(() {
+                _input.text = defaultServerUrl;
+                _error = null;
+              }),
+              child: const Text('Адрес по умолчанию'),
+            ),
+          ],
+        ),
       ),
     );
   }

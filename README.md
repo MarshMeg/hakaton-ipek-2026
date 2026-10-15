@@ -57,7 +57,7 @@ Android (Flutter)                                   Сервер (Django)
 ## Стек
 | Слой | Технологии |
 |---|---|
-| Backend | Python 3.12, Django 5.2, gunicorn, whitenoise |
+| Backend | Python 3.12 (uv), Django 5.2, gunicorn, whitenoise |
 | Frontend | Django Templates, Alpine.js, Tailwind CSS (брендбук в `backend/tailwind.config.js`) |
 | Данные | PostgreSQL 16, MinIO (S3) для аудио и картинок |
 | Мобильное приложение | Flutter: `flutter_inappwebview` (перехват запросов), уведомления, геолокация |
@@ -78,12 +78,27 @@ docker compose up --build
 При старте контейнер применяет миграции, загружает словарь из `backend/seeds/vocab.yaml`,
 собирает офлайн-снимок и создаёт администратора.
 
+## Сервер и деплой
+Сервер — Debian с Docker, проект лежит в `/opt/votes`. Там тот же `docker-compose.yml` плюс
+надстройка [docker-compose.prod.yml](docker-compose.prod.yml): наружу смотрит только Caddy
+(порты 80/443, HTTPS-сертификат получает сам), он же раздаёт медиа из MinIO по пути `/votes-media/`.
+
+Деплой автоматический: после push в `main` и зелёных проверок задача `deploy` в
+[ci.yml](.github/workflows/ci.yml) копирует исходники на сервер по SSH и выполняет
+`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
+(миграции, словарь и офлайн-снимок — в `backend/entrypoint.sh`). Настройки в GitHub: секрет
+`DEPLOY_SSH_KEY`, переменные `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_URL`.
+
+Секреты и адрес сайта хранятся в `/opt/votes/.env` на сервере (в git его нет, деплой его не трогает):
+пароль администратора — `DJANGO_SUPERUSER_PASSWORD`, адрес — `SITE_ADDRESS`, ссылки на медиа —
+`S3_PUBLIC_DOMAIN` и `S3_PUBLIC_PROTOCOL`. После правки `.env` — перезапуск той же командой `up -d`.
+
 ## Запуск без Docker
 Инструменты ставятся через [mise](https://mise.jdx.dev), подробно — [LOCAL_SETUP.md](LOCAL_SETUP.md).
 ```bash
 cd backend
-mise trust && mise install   # Python 3.12 + Tailwind CLI
-mise run setup               # venv, зависимости, миграции, словарь
+mise trust && mise install   # uv + Tailwind CLI
+mise run setup               # uv sync (Python 3.12, зависимости), миграции, словарь
 mise run dev                 # http://localhost:8000
 ```
 
@@ -94,6 +109,11 @@ mise run dev                 # http://localhost:8000
 CI собирает APK при изменениях в `mobile/` или `backend/`: сначала собирает офлайн-снимок из
 `seeds/vocab.yaml`, потом `flutter build apk`. Сборка из `main` публикуется в
 [Releases](https://github.com/MarshMeg/hakaton-ipek-2026/releases).
+
+**Сборка с выбором адреса** — для проверки на своём сервере, при каждом запуске спрашивает, какой
+адрес открыть (офлайн-снимок отдаётся по этому адресу):
+https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes-ask.apk
+(локально: `mise run apk:ask`).
 
 Локально (Android SDK — из Android Studio):
 ```bash
