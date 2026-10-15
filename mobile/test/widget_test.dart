@@ -15,4 +15,11 @@ void main() {
     expect(m.built, 5);
     expect(m.files['/learn/']!.type, 'text/html');
   });
+
+  test('адрес сервера нормализуется', () {
+    expect(normalizeServerUrl(' 192.168.0.10:8000 '), 'http://192.168.0.10:8000');
+    expect(normalizeServerUrl('https://hakaton.marshmeg.ru'), 'https://hakaton.marshmeg.ru');
+    expect(normalizeServerUrl(''), isNull);
+    expect(normalizeServerUrl('ftp://example.com'), isNull);
+  });
 }

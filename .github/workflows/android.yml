@@ -26,21 +26,21 @@ jobs:
       - uses: actions/checkout@v4
       # Офлайн-снимок из seeds/vocab.yaml — так же, как его собирает сервер при старте
       # (DEBUG=0 + collectstatic: те же адреса статики, та же версия снимка).
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: backend/requirements*.txt
+          version: "0.13.x"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
       - name: Офлайн-снимок
         working-directory: backend
         env:
           DJANGO_DEBUG: "0"
         run: |
-          pip install -r requirements.txt
-          python manage.py migrate --noinput
-          python manage.py seed
-          python manage.py collectstatic --noinput
-          python manage.py build_bundle --out ../mobile/assets/bundle
+          uv sync --locked --no-dev
+          uv run python manage.py migrate --noinput
+          uv run python manage.py seed
+          uv run python manage.py collectstatic --noinput
+          uv run python manage.py build_bundle --out ../mobile/assets/bundle
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -51,16 +51,23 @@ jobs:
           cache: true
       - run: flutter create --platforms=android --org ru.votes .
       - run: flutter pub get
+      # Иконка приложения поверх стандартной из flutter create (настройки — в pubspec.yaml).
+      - run: dart run flutter_launcher_icons
       - run: flutter analyze
       # Адрес сервера вшивается в APK. Можно переопределить переменной репозитория SERVER_URL
       # (Settings → Secrets and variables → Actions → Variables).
       - run: flutter build apk --release --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
       - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes.apk
       - run: ls -lh build/votes.apk   # ТЗ: желательно не больше 100–150 МБ
+      # Вторая сборка — для проверки: при запуске спрашивает, какой адрес открыть.
+      - run: flutter build apk --release --dart-define=ASK_SERVER_URL=true --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+      - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes-ask.apk
       - uses: actions/upload-artifact@v4
         with:
           name: votes-apk
-          path: mobile/build/votes.apk
+          path: |
+            mobile/build/votes.apk
+            mobile/build/votes-ask.apk
 
   # Сборка из main публикуется как GitHub Release с APK:
   # https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes.apk
@@ -80,7 +87,10 @@ jobs:
           name: Ӟеч-а бур-а удмурт кыл? — сборка ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           make_latest: true
-          files: votes.apk
+          files: |
+            votes.apk
+            votes-ask.apk
           body: |
-            APK для Android, сервер: ${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+            votes.apk — APK для Android, сервер: ${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+            votes-ask.apk — сборка для проверки: при запуске спрашивает адрес сервера
             Коммит: ${{ github.sha }}
