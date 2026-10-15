@@ -1,0 +1,32 @@
+{% comment %}«Трудные слова»: та же механика, что в «Выбери перевод», но слова — с ошибками из
+сохранения. Если трудных слов меньше трёх, вместо игры — объяснение и обычная игра.{% endcomment %}
+<template x-if="!empty">
+  <div>{% include "play/games/choose.html" %}</div>
+</template>
+<template x-if="empty">
+  <div class="card text-center">
+    <template x-if="!hardLeft">
+      <div>
+        <div class="text-6xl">🎉</div>
+        <p class="mt-3 text-xl font-extrabold">Трудных слов нет!</p>
+        <p class="mt-2 text-muted-strong">Если в игре ошибёшься, слово появится здесь — и его можно будет повторить.</p>
+      </div>
+    </template>
+    <template x-if="hardLeft">
+      <div>
+        <div class="text-6xl">🌱</div>
+        <p class="mt-3 text-xl font-extrabold">Трудных слов пока мало</p>
+        <p class="mt-2 text-muted-strong">Здесь нужно хотя бы три слова. Сыграй ещё — и возвращайся!</p>
+        <ul class="mt-3 grid gap-1">
+          <template x-for="h in hardList" :key="h.word.id">
+            <li><b x-text="h.word.udm"></b> — <span x-text="h.word.ru"></span></li>
+          </template>
+        </ul>
+      </div>
+    </template>
+    <div class="mt-5 grid gap-3">
+      <a href="{% url 'play:game' 'choose' %}" class="btn-primary">🎯 Выбери перевод</a>
+      <a href="{% url 'play:games' %}" class="btn-ghost">Все игры</a>
+    </div>
+  </div>
+</template>

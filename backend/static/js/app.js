@@ -19,6 +19,7 @@
   var OLD_STATE_KEY = 'zb.state.v1'; // журнал событий старых версий, переводится в сохранение
   var BOOTED_KEY = 'zb.booted'; // sessionStorage: синхронизация при запуске уже была
   var XP_PER_CORRECT = 10;
+  var HARD_CLEARED_AFTER = 3; // столько верных ответов подряд — и слово больше не «трудное»
   var DAY_MS = 86400000;
   var SYNC_TIMEOUT_MS = 5000;
   var KEEPALIVE_LIMIT = 60000; // fetch keepalive не отправит тело больше 64 КБ
@@ -492,10 +493,31 @@
       var w = save.words[a.w] = save.words[a.w] || { ok: 0, bad: 0, seen: 0, last: 0 };
       var field = a.ok ? 'ok' : 'bad';
       w[field]++; day[field]++; game[field]++;
+      w.streak = a.ok ? (w.streak || 0) + 1 : 0;
       w.last = now;
     });
     game.played++;
     game.best = Math.max(game.best || 0, stars);
+  }
+
+  /* «Трудные» слова: в них ошибались, и после этого ещё не ответили верно HARD_CLEARED_AFTER
+   * раз подряд (поле streak; в старых сохранениях его нет — считаем, что серия 0). Сначала
+   * слова с большим числом ошибок. Возвращает [{word, ok, bad, streak}]. */
+  function hardWords(save, content) {
+    if (!save || !content) return [];
+    var byWord = save.words;
+    return Object.keys(byWord)
+      .filter(function (id) {
+        var w = byWord[id];
+        return w.bad > 0 && (w.streak || 0) < HARD_CLEARED_AFTER && content.wordById[id];
+      })
+      .sort(function (a, b) {
+        return byWord[b].bad - byWord[a].bad || (byWord[a].streak || 0) - (byWord[b].streak || 0);
+      })
+      .map(function (id) {
+        var w = byWord[id];
+        return { word: content.wordById[id], ok: w.ok, bad: w.bad, streak: w.streak || 0 };
+      });
   }
 
   /* Просмотренные карточки темы: ids — id слов. */
@@ -572,13 +594,7 @@
     var seenIds = Object.keys(byWord).filter(function (id) { return byWord[id].seen > 0; });
     var known = function (id) { return !content || content.wordById[id]; };
 
-    var hard = Object.keys(byWord)
-      .filter(function (id) { return content && byWord[id].bad > 0 && content.wordById[id]; })
-      .sort(function (a, b) { return byWord[b].bad - byWord[a].bad; })
-      .slice(0, 5)
-      .map(function (id) {
-        return { word: content.wordById[id], ok: byWord[id].ok, bad: byWord[id].bad };
-      });
+    var allHard = hardWords(save, content);
 
     var daily = [];
     for (var i = 13; i >= 0; i--) {
@@ -620,7 +636,8 @@
       learnedWords: content ? learnedIds.filter(known).map(function (id) { return content.wordById[id]; }) : [],
       seen: seenIds.filter(known).length,
       totalWords: content ? content.words.length : 0,
-      hard: hard,
+      hard: allHard.slice(0, 5),
+      hardCount: allHard.length,
       daily: daily,
       maxDay: maxDay,
       byGame: save.games,
@@ -738,6 +755,7 @@
     Save: Save, Auth: Auth, Settings: Settings, Content: Content, Bridge: Bridge, Sound: Sound,
     computeStats: computeStats, wordOfDay: wordOfDay, fromEvents: fromEvents, emptySave: emptySave,
     addGame: addGame, addViews: addViews, cardViews: cardViews,
+    hardWords: hardWords, HARD_CLEARED_AFTER: HARD_CLEARED_AFTER,
     pic: pic, picKey: picKey, playAudio: playAudio,
     signup: signup, login: login, logout: logout,
     locate: locate, distanceKm: distanceKm, IZHEVSK: IZHEVSK,

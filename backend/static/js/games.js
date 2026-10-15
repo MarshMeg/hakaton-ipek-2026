@@ -1,4 +1,4 @@
-/* Шесть игр раздела «Игры». Каждая — Alpine-компонент, который строит раунды из словаря
+/* Шесть игр раздела «Игры» и режим «Трудные слова». Каждая — Alpine-компонент, который строит раунды из словаря
  * (/content.json) прямо на телефоне. Ответы копятся в this.answers и записываются в сохранение
  * одним действием, когда игра пройдена до конца (ZB.Save.commit в finish). Прерванная игра
  * прогресс не меняет. Сервер в игре не участвует, поэтому всё работает без сети.
@@ -20,6 +20,7 @@
       score: 0,
       maxScore: 8,
       done: false,
+      empty: false, // играть не во что (в «Трудных словах» — мало трудных слов)
       answers: [], // [{w: id слова, ok}] — ответы этой игры, в сохранение попадут в finish()
       feedback: null, // 'ok' | 'bad' | null
       message: '',
@@ -150,8 +151,9 @@
 
   // ---------- «Выбери перевод» ----------
 
-  function choose() {
-    return base('choose', {
+  /* Механика «Выбери перевод»; её же использует режим «Трудные слова». */
+  function chooseRounds() {
+    return {
       target: null,
       options: [],
       chosen: null,
@@ -178,7 +180,79 @@
       },
 
       optionText: function (opt) { return this.reverse ? opt.udm : opt.ru; },
-    });
+    };
+  }
+
+  function choose() {
+    return base('choose', chooseRounds());
+  }
+
+  // ---------- «Трудные слова» ----------
+
+  var HARD_MIN = 3; // меньше трудных слов — играть не во что: одно слово повторялось бы раз за разом
+  var HARD_MAX = 10; // берём самые трудные, чтобы за игру каждое встретилось хотя бы раз-другой
+
+  /* «Выбери перевод», но слова — те, в которых ребёнок ошибался (ZB.hardWords по сохранению
+   * на телефоне). Страница одинакова для всех, список слов собирается здесь. */
+  function hard() {
+    var game = base('hard', chooseRounds());
+    var extra = {
+      hardList: [], // [{word, ok, bad, streak}] — слова этой игры
+      hardLeft: 0, // сколько трудных слов всего (для сообщения, если их мало)
+      cleared: 0, // сколько слов этой игры перестали быть трудными после неё
+
+      start: function () {
+        var all = ZB.hardWords(ZB.Save.get(), this.content);
+        this.hardLeft = all.length;
+        this.hardList = all.slice(0, HARD_MAX);
+        this.empty = all.length < HARD_MIN;
+        this.cleared = 0;
+        // Каждое слово — примерно по два раза (в обе стороны), но не больше обычных 8 раундов.
+        this.rounds = Math.min(8, this.hardList.length * 2);
+        if (this.empty) {
+          this.round = 0;
+          this.done = false;
+          this.feedback = null;
+          return;
+        }
+        // Очередь слов: каждое встречается поровну, одно и то же слово не идёт два раза подряд.
+        var words = this.hardList.map(function (h) { return h.word; });
+        var queue = [];
+        while (queue.length < this.rounds) {
+          var next = ZB.shuffle(words);
+          if (queue.length && next[0] === queue[queue.length - 1]) next.push(next.shift());
+          queue = queue.concat(next);
+        }
+        this.queue = queue;
+        chooseStart.call(this);
+      },
+
+      queue: [],
+      pickFresh: function () { return this.queue[this.round]; },
+
+      finish: function () {
+        chooseFinish.call(this);
+        var save = ZB.Save.get();
+        var stillHard = {};
+        ZB.hardWords(save, this.content).forEach(function (h) { stillHard[h.word.id] = true; });
+        var answered = {};
+        this.answers.forEach(function (a) { answered[a.w] = true; });
+        this.cleared = this.hardList.filter(function (h) {
+          return answered[h.word.id] && !stillHard[h.word.id];
+        }).length;
+      },
+    };
+    var chooseStart = game.start;
+    var chooseFinish = game.finish;
+    Object.keys(extra).forEach(function (k) { game[k] = extra[k]; });
+    var init = game.init;
+    game.init = function () {
+      var self = this;
+      init.call(this);
+      // Сохранение могло прийти с сервера уже после открытия страницы.
+      ZB.Save.onChange(function () { if (self.empty && self.content) self.start(); });
+    };
+    return game;
   }
 
   // ---------- «Найди лишнее» ----------
@@ -499,6 +573,7 @@
   document.addEventListener('alpine:init', function () {
     var Alpine = window.Alpine;
     Alpine.data('choose', choose);
+    Alpine.data('hard', hard);
     Alpine.data('odd', odd);
     Alpine.data('sort', sort);
     Alpine.data('memory', memory);

@@ -23,6 +23,7 @@ def test_bundle_contains_app(tmp_path, vocab):
         "/profile/",
         "/settings/",
         "/report/",
+        "/games/hard/",
         "/content.json",
     ]:
         assert url in files, url
