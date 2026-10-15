@@ -16,6 +16,11 @@ on:
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
+# Новый пуш в ту же ветку отменяет недоделанную сборку.
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android:
     runs-on: ubuntu-latest
@@ -45,6 +50,8 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      # Кэш Gradle (~/.gradle): без него первая сборка APK тратит минуты на скачивание зависимостей.
+      - uses: gradle/actions/setup-gradle@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -56,12 +63,16 @@ jobs:
       - run: flutter analyze
       # Адрес сервера вшивается в APK. Можно переопределить переменной репозитория SERVER_URL
       # (Settings → Secrets and variables → Actions → Variables).
-      - run: flutter build apk --release --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+      # Только ARM (32 и 64 бит): x86_64 нужен лишь эмуляторам, а без него сборка быстрее и APK меньше.
+      - run: flutter build apk --release --target-platform android-arm,android-arm64 --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
       - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes.apk
       - run: ls -lh build/votes.apk   # ТЗ: желательно не больше 100–150 МБ
       # Вторая сборка — для проверки: при запуске спрашивает, какой адрес открыть.
-      - run: flutter build apk --release --dart-define=ASK_SERVER_URL=true --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
-      - run: mv build/app/outputs/flutter-apk/app-release.apk build/votes-ask.apk
+      # В PR не нужна (в релиз попадает только сборка из main), поэтому пропускается.
+      - if: github.event_name != 'pull_request'
+        run: |
+          flutter build apk --release --target-platform android-arm,android-arm64 --dart-define=ASK_SERVER_URL=true --dart-define=SERVER_URL=${{ vars.SERVER_URL || 'https://hakaton.marshmeg.ru' }}
+          mv build/app/outputs/flutter-apk/app-release.apk build/votes-ask.apk
       - uses: actions/upload-artifact@v4
         with:
           name: votes-apk
