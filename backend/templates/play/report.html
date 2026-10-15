@@ -3,18 +3,18 @@
 {% block content %}
 {# Сводка для родителя или учителя. Строится из журнала на телефоне, поэтому работает без сети. #}
 <div x-data="reportPage()">
-  <a href="{% url 'play:profile' %}" class="font-bold text-gray-500 print:hidden">← Профиль</a>
+  <a href="{% url 'play:profile' %}" class="font-bold text-muted print:hidden">← Профиль</a>
   <h1 class="mt-2 text-2xl font-extrabold">📋 Отчёт об успехах</h1>
   <template x-if="$store.app.profile">
     <div>
       <p class="text-lg font-bold"><span x-text="$store.app.profile.avatar"></span> <span x-text="$store.app.profile.name"></span></p>
-      <p class="text-sm text-gray-500" x-text="'Составлен ' + new Date().toLocaleDateString('ru-RU')"></p>
+      <p class="text-sm text-muted" x-text="'Составлен ' + new Date().toLocaleDateString('ru-RU')"></p>
 
       <div class="mt-4 grid grid-cols-2 gap-3 text-center">
-        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.activeDays"></p><p class="text-xs font-bold text-gray-500">дней занятий</p></div>
-        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.streak"></p><p class="text-xs font-bold text-gray-500">дней подряд сейчас</p></div>
-        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.answers"></p><p class="text-xs font-bold text-gray-500">ответов в играх</p></div>
-        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.accuracy + '%'"></p><p class="text-xs font-bold text-gray-500">верных ответов</p></div>
+        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.activeDays"></p><p class="text-xs font-bold text-muted">дней занятий</p></div>
+        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.streak"></p><p class="text-xs font-bold text-muted">дней подряд сейчас</p></div>
+        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.answers"></p><p class="text-xs font-bold text-muted">ответов в играх</p></div>
+        <div class="card p-3"><p class="text-2xl font-extrabold" x-text="$store.app.stats.accuracy + '%'"></p><p class="text-xs font-bold text-muted">верных ответов</p></div>
       </div>
 
       {% include "play/_daily_chart.html" %}
@@ -26,14 +26,14 @@
             <div class="flex justify-between text-sm font-bold">
               <span x-text="t.icon + ' ' + t.title"></span><span x-text="t.learned + ' / ' + t.total"></span>
             </div>
-            <div class="mt-1 h-2 overflow-hidden rounded-full bg-gray-200"><div class="h-full bg-ok" :style="'width:' + t.percent + '%'"></div></div>
+            <div class="mt-1 h-2 overflow-hidden rounded-full bg-line-soft"><div class="h-full bg-ok" :style="'width:' + t.percent + '%'"></div></div>
           </div>
         </template>
       </div>
 
       <div class="card mt-3">
         <p class="font-extrabold">Выученные слова (<span x-text="$store.app.stats.learned"></span>)</p>
-        <p class="mt-1 text-sm text-gray-600" x-show="!$store.app.stats.learned">Слово считается выученным после двух верных ответов, если верных больше, чем ошибок.</p>
+        <p class="mt-1 text-sm text-muted-strong" x-show="!$store.app.stats.learned">Слово считается выученным после двух верных ответов, если верных больше, чем ошибок.</p>
         <p class="mt-1" x-text="$store.app.stats.learnedWords.map(w => w.udm + ' — ' + w.ru).join('; ')"></p>
       </div>
 

@@ -134,6 +134,9 @@ with `shouldInterceptRequest` serving GETs for the server origin from the bundle
 `info`, `setNotifications`, `location`, `share`).
 
 Brand colors/fonts are tokens in `backend/tailwind.config.js` (mirrored in `mobile/lib/main.dart`).
+Neutral and "soft" colors (`surface`, `line`, `muted`, `ok-soft`, `brand-redSoft`, …) are CSS variables in
+`backend/static/css/input.css` with a dark theme via `prefers-color-scheme`; use these tokens instead of
+`bg-white` / `gray-*` / `red-50` in templates and JS, or the dark theme breaks.
 Fonts and Alpine are vendored in `backend/static/` (no CDNs — offline, and the font must contain the
 Udmurt letters).
 
