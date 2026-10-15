@@ -4,14 +4,14 @@
   <template x-for="w in words" :key="w.id">
     <button type="button" class="tile flex flex-col items-center gap-2 py-5" @click="pick(w)" :disabled="!!feedback"
             :class="{
-              '!border-ok bg-green-50': feedback && w.id === oddWord.id,
-              '!border-bad bg-red-50': feedback === 'bad' && w.id === chosen,
+              '!border-ok bg-ok-faint': feedback && w.id === oddWord.id,
+              '!border-bad bg-brand-redSoft': feedback === 'bad' && w.id === chosen,
             }">
       <span class="h-14 w-14 text-5xl" x-show="showPics && hasPic(w)" x-html="pic(w)"></span>
       <span class="text-2xl" x-text="w.udm"></span>
-      <span class="text-sm font-bold text-gray-500" x-show="showPics" x-text="w.ru"></span>
+      <span class="text-sm font-bold text-muted" x-show="showPics" x-text="w.ru"></span>
     </button>
   </template>
 </div>
-<button type="button" class="mt-4 w-full text-sm font-bold text-gray-500 underline" x-show="!showPics && !feedback"
+<button type="button" class="mt-4 w-full text-sm font-bold text-muted underline" x-show="!showPics && !feedback"
         @click="showPics = true">Подсказка: показать картинки</button>
