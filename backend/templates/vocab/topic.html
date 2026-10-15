@@ -4,7 +4,8 @@
 <a href="{% url 'vocab:topics' %}" class="font-bold text-gray-500">← Все темы</a>
 <h1 class="mt-2 text-2xl font-extrabold">{{ topic.icon }} {{ topic.title }}</h1>
 {% if topic.title_udm %}<p class="font-bold text-brand-red">{{ topic.title_udm }}</p>{% endif %}
-<p class="text-gray-600">Нажми на карточку, чтобы увидеть перевод.</p>
+<p class="text-gray-600">Нажми на карточку, чтобы увидеть перевод. Слово станет выученным ✅,
+  когда ты дважды правильно ответишь на него в играх.</p>
 
 {% comment %} Карточки: лицевая сторона — слово по-удмуртски и картинка, оборот — перевод.
    Открытые карточки копятся на странице и записываются в сохранение как «просмотры» одним
