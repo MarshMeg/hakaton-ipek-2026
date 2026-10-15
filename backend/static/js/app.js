@@ -458,7 +458,7 @@
     if (!word) return '';
     if (word.img) return '<img src="' + escapeHtml(word.img) + '" alt="" class="h-full w-full object-contain">';
     if (word.color) {
-      return '<span class="block h-full w-full rounded-full border-4 border-gray-200" style="background:' +
+      return '<span class="block h-full w-full rounded-full border-4 border-line-soft" style="background:' +
         escapeHtml(word.color) + '"></span>';
     }
     var text = word.number != null ? word.number : word.emoji;

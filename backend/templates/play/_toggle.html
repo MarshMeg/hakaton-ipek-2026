@@ -3,11 +3,11 @@
   <span class="text-3xl">{{ icon }}</span>
   <span class="min-w-0 flex-1">
     <span class="block font-extrabold">{{ title }}</span>
-    <span class="block text-sm text-gray-600">{{ hint }}</span>
+    <span class="block text-sm text-muted-strong">{{ hint }}</span>
   </span>
   <span class="relative h-8 w-14 shrink-0 rounded-full transition"
-        :class="$store.app.settings.{{ key }} ? 'bg-ok' : 'bg-gray-300'">
-    <span class="absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all"
+        :class="$store.app.settings.{{ key }} ? 'bg-ok' : 'bg-line'">
+    <span class="absolute top-1 h-6 w-6 rounded-full bg-surface shadow transition-all"
           :class="$store.app.settings.{{ key }} ? 'left-7' : 'left-1'"></span>
   </span>
 </button>

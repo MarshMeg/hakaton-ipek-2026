@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#c8102e">
+  <meta name="color-scheme" content="light dark">
   <title>{% block title %}Ӟеч-а бур-а удмурт кыл?{% endblock %}</title>
   <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
@@ -14,7 +15,7 @@
 </head>
 {% with section=request.resolver_match.url_name %}
 <body class="min-h-screen bg-brand-paper font-sans text-brand-ink antialiased" x-data>
-  <header class="sticky top-0 z-20 bg-white/95 backdrop-blur">
+  <header class="sticky top-0 z-20 bg-surface/95 backdrop-blur">
     <div class="mx-auto flex max-w-xl items-center justify-between gap-2 px-4 py-2">
       <a href="{% url 'play:home' %}" class="flex min-w-0 items-center gap-2 text-lg font-extrabold">
         <img src="{% static 'img/logo.svg' %}" alt="" class="h-9 w-9 shrink-0">
@@ -32,7 +33,7 @@
   <main class="mx-auto max-w-xl px-4 pb-28 pt-4">{% block content %}{% endblock %}</main>
 
   {# Нижнее меню: четыре раздела из ТЗ + главная. #}
-  <nav class="fixed inset-x-0 bottom-0 z-20 border-t-2 border-gray-200 bg-white pb-[env(safe-area-inset-bottom)]">
+  <nav class="fixed inset-x-0 bottom-0 z-20 border-t-2 border-line-soft bg-surface pb-[env(safe-area-inset-bottom)]">
     <div class="mx-auto grid max-w-xl grid-cols-5 text-center text-xs font-bold">
       {% url 'play:home' as u %}
       {% include "_nav_item.html" with url=u icon="🏠" label="Главная" keys="home" %}
