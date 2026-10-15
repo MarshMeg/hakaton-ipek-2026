@@ -2,9 +2,10 @@
 <p class="text-center text-xl font-extrabold" x-text="set.title"></p>
 <div class="mt-4 flex min-h-[7rem] flex-wrap justify-center gap-3">
   <template x-for="item in items" :key="item.word.id">
-    <button type="button" x-show="!item.placed"
+    {# Не x-show: :style ниже перезаписывает атрибут style и стирает display:none. #}
+    <button type="button"
             class="tile flex touch-none items-center gap-2"
-            :class="{ '!border-brand-red bg-red-50': selected === item, 'animate-pulse !border-bad': shake === item.word.id }"
+            :class="{ hidden: item.placed, '!border-brand-red bg-red-50': selected === item, 'animate-pulse !border-bad': shake === item.word.id }"
             :style="dragStyle(item)"
             @pointerdown="dragStart($event, item)" @pointermove="dragMove($event)"
             @pointerup="dragEnd($event)" @pointercancel="drag = null">
