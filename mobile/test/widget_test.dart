@@ -22,4 +22,17 @@ void main() {
     expect(normalizeServerUrl(''), isNull);
     expect(normalizeServerUrl('ftp://example.com'), isNull);
   });
+
+  test('обновление снимка: только другая и более свежая непустая версия', () {
+    Manifest m(String version, int built, {bool empty = false}) => Manifest(
+      version,
+      built,
+      empty ? const {} : const {'/': BundleFile('00', 'text/html')},
+    );
+    final current = m('a', 10);
+    expect(Manifest.isUpdate(current, m('b', 20)), isTrue);
+    expect(Manifest.isUpdate(current, m('a', 20)), isFalse);
+    expect(Manifest.isUpdate(current, m('b', 5)), isFalse);
+    expect(Manifest.isUpdate(current, m('b', 20, empty: true)), isFalse);
+  });
 }

@@ -50,24 +50,38 @@ class Bridge {
 
   // --- резервная копия прогресса ---
   // localStorage WebView может быть очищен; копия в файле приложения позволяет его восстановить.
+  // JS передаёт строку {save, auth} (static/js/app.js) — здесь она хранится как есть.
+  // Старые версии хранили журнал событий в progress.json: его отдаём, пока нет save.json,
+  // чтобы JS перевёл его в сохранение.
 
-  Future<File> _progressFile() async {
+  Future<void> _writing = Future.value();
+
+  Future<File> _file(String name) async {
     final dir = await getApplicationSupportDirectory();
-    return File('${dir.path}/progress.json');
+    return File('${dir.path}/$name');
   }
 
-  Future<bool> _backup(String json) async {
+  Future<bool> _backup(String json) {
     jsonDecode(json); // не сохраняем мусор вместо прогресса
-    final file = await _progressFile();
-    final tmp = File('${file.path}.tmp');
-    await tmp.writeAsString(json, flush: true);
-    await tmp.rename(file.path);
-    return true;
+    // Записи идут по очереди: две копии подряд не должны писать в один .tmp одновременно.
+    final done = _writing.then((_) async {
+      final file = await _file('save.json');
+      final tmp = File('${file.path}.tmp');
+      await tmp.writeAsString(json, flush: true);
+      await tmp.rename(file.path);
+      return true;
+    });
+    _writing = done.catchError((_) => false);
+    return done;
   }
 
   Future<String?> _restore() async {
-    final file = await _progressFile();
-    return await file.exists() ? file.readAsString() : null;
+    await _writing;
+    for (final name in ['save.json', 'progress.json']) {
+      final file = await _file(name);
+      if (await file.exists()) return file.readAsString();
+    }
+    return null;
   }
 
   // --- уведомления: раз в день напоминание про «Слово дня» ---

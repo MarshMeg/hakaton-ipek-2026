@@ -15,5 +15,5 @@ urlpatterns = [
     path("bundle/<path:name>", views.bundle_file, name="bundle"),
     path("api/signup", api.signup, name="api_signup"),
     path("api/login", api.login, name="api_login"),
-    path("api/sync", api.sync, name="api_sync"),
+    path("api/save", api.save, name="api_save"),
 ]

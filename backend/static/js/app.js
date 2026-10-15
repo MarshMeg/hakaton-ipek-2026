@@ -1,19 +1,28 @@
-/* Ядро приложения на клиенте: локальный прогресс, словарь, статистика, синхронизация
- * и мост во Flutter. Всё работает без сети: страницы и /content.json берутся из офлайн-снимка.
+/* Ядро приложения на клиенте: вход, сохранение прогресса и его синхронизация, словарь,
+ * статистика и мост во Flutter. Страницы и /content.json берутся из офлайн-снимка, поэтому
+ * после первого входа всё работает без сети.
  *
- * Прогресс хранится в localStorage (ключ STATE_KEY) и дублируется во Flutter (файл на телефоне),
- * чтобы пережить очистку данных WebView. Журнал событий только дописывается, поэтому любые две
- * копии состояния можно безопасно объединить (merge) — ничего не теряется.
+ * Прогресс — одно «сохранение» на аккаунт (формат v2, см. play/api.py) в localStorage
+ * (SAVE_KEY) с копией во Flutter (файл на телефоне), чтобы пережить очистку данных WebView.
+ * При синхронизации более новое сохранение (по полю updated) заменяет старое целиком.
+ * Аккаунт (AUTH_KEY) и настройки устройства (SETTINGS_KEY) лежат отдельно и в сохранение
+ * не входят.
  *
  * Код намеренно без новейшего синтаксиса: приложение должно работать на Android 8.
  */
 (function () {
   'use strict';
 
-  var STATE_KEY = 'zb.state.v1';
+  var SAVE_KEY = 'zb.save.v2';
+  var AUTH_KEY = 'zb.auth.v1';
+  var SETTINGS_KEY = 'zb.settings.v1';
+  var OLD_STATE_KEY = 'zb.state.v1'; // журнал событий старых версий, переводится в сохранение
+  var BOOTED_KEY = 'zb.booted'; // sessionStorage: синхронизация при запуске уже была
   var XP_PER_CORRECT = 10;
-  var SYNC_BATCH = 2000;
   var DAY_MS = 86400000;
+  var SYNC_TIMEOUT_MS = 5000;
+  var KEEPALIVE_LIMIT = 60000; // fetch keepalive не отправит тело больше 64 КБ
+  var NO_NETWORK = 'Для первого входа нужен интернет';
 
   // ---------- утилиты ----------
 
@@ -22,18 +31,6 @@
   function dayKey(ts) {
     var d = new Date(ts);
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
-  }
-
-  function uuid() {
-    if (window.crypto && window.crypto.randomUUID) {
-      try { return window.crypto.randomUUID(); } catch (e) { /* не https — ниже */ }
-    }
-    var b = window.crypto.getRandomValues(new Uint8Array(16));
-    b[6] = (b[6] & 15) | 64;
-    b[8] = (b[8] & 63) | 128;
-    var h = '';
-    for (var i = 0; i < 16; i++) h += (b[i] < 16 ? '0' : '') + b[i].toString(16);
-    return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
   }
 
   function shuffle(list) {
@@ -58,13 +55,31 @@
     return m ? decodeURIComponent(m[1]) : '';
   }
 
+  function readJSON(storage, key) {
+    try {
+      var raw = storage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { console.warn('read', key, e); return null; }
+  }
+
+  function writeJSON(storage, key, value) {
+    try {
+      if (value === null) storage.removeItem(key);
+      else storage.setItem(key, JSON.stringify(value));
+    } catch (e) { console.warn('write', key, e); }
+  }
+
   // ---------- мост во Flutter ----------
+
+  // flutter_inappwebview создаёт window.flutter_inappwebview до загрузки страницы, а приложение
+  // дописывает «VotesApp» в User-Agent. В обычном браузере не ждём моста вовсе.
+  var inApp = !!window.flutter_inappwebview || /VotesApp/.test(navigator.userAgent);
 
   var Bridge = {
     ready: new Promise(function (resolve) {
+      if (!inApp) return resolve(false);
       if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) return resolve(true);
       window.addEventListener('flutterInAppWebViewPlatformReady', function () { resolve(true); });
-      // В обычном браузере событие не придёт.
       setTimeout(function () { resolve(false); }, 1500);
     }),
     available: function () {
@@ -80,147 +95,338 @@
     },
   };
 
-  // ---------- состояние ----------
+  // ---------- сервер ----------
 
-  function emptyState() {
-    return {
-      v: 1, rev: 0, active: null, profiles: {}, events: [],
-      settings: { sound: true, notifications: false, geo: false },
-    };
+  function withTimeout(promise, ms) {
+    if (!ms) return promise;
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () {
+        var err = new Error(NO_NETWORK);
+        err.network = true;
+        reject(err);
+      }, ms);
+      promise.then(
+        function (v) { clearTimeout(timer); resolve(v); },
+        function (e) { clearTimeout(timer); reject(e); }
+      );
+    });
   }
 
-  function readLocal() {
-    try {
-      var raw = window.localStorage.getItem(STATE_KEY);
-      if (raw) return normalize(JSON.parse(raw));
-    } catch (e) { console.warn('state read', e); }
-    return emptyState();
+  /* Запрос к /api/. Ошибка сети — err.network, ответ не 2xx — err.status и err.data. */
+  function api(method, path, body, opts) {
+    opts = opts || {};
+    var init = { method: method, headers: {} };
+    if (opts.token) init.headers.Authorization = 'Bearer ' + opts.token;
+    if (body !== undefined) {
+      init.headers['Content-Type'] = 'application/json';
+      init.body = JSON.stringify(body);
+      if (opts.keepalive && init.body.length < KEEPALIVE_LIMIT) init.keepalive = true;
+    }
+    var request = fetch(path, init).catch(function () {
+      var err = new Error(NO_NETWORK);
+      err.network = true;
+      throw err;
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (data) {
+        if (!r.ok) {
+          var err = new Error(data.error || 'Ошибка сервера (' + r.status + ')');
+          err.status = r.status;
+          err.data = data;
+          throw err;
+        }
+        return data;
+      });
+    });
+    return withTimeout(request, opts.timeout);
   }
 
-  function normalize(s) {
-    var base = emptyState();
-    if (!s || typeof s !== 'object') return base;
-    base.rev = s.rev || 0;
-    base.active = s.active || null;
-    base.profiles = s.profiles || {};
-    base.events = Array.isArray(s.events) ? s.events : [];
-    for (var k in s.settings || {}) base.settings[k] = s.settings[k];
+  // ---------- настройки устройства ----------
+
+  var Settings = {
+    values: (function () {
+      var base = { sound: true, notifications: false, geo: false };
+      var stored = readJSON(window.localStorage, SETTINGS_KEY) || {};
+      for (var k in stored) base[k] = stored[k];
+      return base;
+    })(),
+
+    set: function (key, value) {
+      this.values[key] = value;
+      writeJSON(window.localStorage, SETTINGS_KEY, this.values);
+      notify();
+    },
+  };
+
+  // ---------- аккаунт ----------
+
+  /* {username, token, synced}. После 401 токен стирается, а имя остаётся: так при входе
+   * в другой аккаунт видно, что локальное сохранение чужое. */
+  var Auth = {
+    get: function () { return readJSON(window.localStorage, AUTH_KEY); },
+    token: function () { var a = this.get(); return a && a.token; },
+    set: function (auth) { writeJSON(window.localStorage, AUTH_KEY, auth); backup(); notify(); },
+    patch: function (fields) {
+      var a = this.get();
+      if (!a) return;
+      for (var k in fields) a[k] = fields[k];
+      this.set(a);
+    },
+  };
+
+  // ---------- сохранение ----------
+
+  function emptySave(name, avatar) {
+    return { v: 2, updated: 0, profile: { name: name || '', avatar: avatar || '' }, words: {}, days: {}, games: {} };
+  }
+
+  function normalizeSave(s) {
+    if (!s || typeof s !== 'object' || s.v !== 2) return null;
+    var base = emptySave();
+    base.updated = typeof s.updated === 'number' ? s.updated : 0;
+    ['profile', 'words', 'days', 'games'].forEach(function (k) {
+      if (s[k] && typeof s[k] === 'object') base[k] = s[k];
+    });
     return base;
   }
 
-  /* Объединение двух копий состояния: профили — по времени правки, события — по id. */
-  function merge(a, b) {
-    var out = normalize(JSON.parse(JSON.stringify(a)));
-    b = normalize(b);
-    Object.keys(b.profiles).forEach(function (id) {
-      var mine = out.profiles[id];
-      var theirs = b.profiles[id];
-      if (!mine || (theirs.updated || 0) > (mine.updated || 0)) {
-        if (mine && mine.account && !theirs.account) theirs.account = mine.account;
-        out.profiles[id] = theirs;
-      }
+  function hasProgress(save) {
+    return !!save && (Object.keys(save.words).length > 0 || Object.keys(save.days).length > 0);
+  }
+
+  /* Журнал событий старой версии (zb.state.v1) → сохранение v2 активного профиля.
+   * Та же свёртка, что в миграции на сервере (accounts/migrations/0005_profile_save.py). */
+  function fromEvents(state) {
+    var p = state.profiles && state.profiles[state.active];
+    if (!p) return null;
+    var save = emptySave(p.name, p.avatar);
+    save.updated = p.updated || 0;
+    (state.events || []).forEach(function (e) {
+      if (e.p !== state.active) return;
+      save.updated = Math.max(save.updated, e.t);
+      var w = save.words[e.w] = save.words[e.w] || { ok: 0, bad: 0, seen: 0, last: 0 };
+      var key = dayKey(e.t);
+      var d = save.days[key] = save.days[key] || { ok: 0, bad: 0, seen: 0 };
+      w.last = Math.max(w.last, e.t);
+      if (e.c === null || e.c === undefined) { w.seen++; d.seen++; return; }
+      var g = save.games[e.g] = save.games[e.g] || { ok: 0, bad: 0, played: 0, best: 0 };
+      var field = e.c ? 'ok' : 'bad';
+      w[field]++; d[field]++; g[field]++;
     });
-    var index = {};
-    out.events.forEach(function (e) { index[e.id] = e; });
-    b.events.forEach(function (e) {
-      if (!index[e.id]) { out.events.push(e); index[e.id] = e; }
-      else if (e.s) index[e.id].s = 1;
-    });
-    out.events.sort(function (x, y) { return x.t - y.t; });
-    if (!out.active || !out.profiles[out.active]) out.active = b.active;
-    if (!a.rev) out.settings = b.settings;
-    out.rev = Math.max(a.rev || 0, b.rev || 0);
-    return out;
+    return { save: save, account: p.account || null };
+  }
+
+  /* Переход со старого формата: прогресс сохраняется, токен — тоже, если он был. */
+  function migrateOldState(state) {
+    if (state && state.settings && !readJSON(window.localStorage, SETTINGS_KEY)) {
+      for (var k in state.settings) Settings.set(k, state.settings[k]);
+    }
+    var old = fromEvents(state || {});
+    if (!old) return;
+    var current = Save.data;
+    if (!current || old.save.updated > current.updated) Save.replace(old.save);
+    if (!Auth.get() && old.account && old.account.token) {
+      Auth.set({ username: old.account.username, token: old.account.token, synced: 0 });
+    }
   }
 
   var listeners = [];
-  var backupTimer = null;
 
-  var Store = {
-    state: readLocal(),
+  function notify() { listeners.forEach(function (fn) { fn(); }); }
+
+  function backup() {
+    Bridge.call('backup', JSON.stringify({ save: Save.data, auth: Auth.get() }));
+  }
+
+  var pushing = null;
+  var pushAgain = false;
+
+  var Save = {
+    data: normalizeSave(readJSON(window.localStorage, SAVE_KEY)),
+
+    get: function () { return this.data; },
 
     onChange: function (fn) { listeners.push(fn); },
 
-    save: function () {
-      this.state.rev++;
-      try {
-        window.localStorage.setItem(STATE_KEY, JSON.stringify(this.state));
-      } catch (e) { console.warn('state write', e); }
-      // Резервная копия во Flutter — не чаще раза в полсекунды.
-      clearTimeout(backupTimer);
+    /* Заменить сохранение целиком (серверным, из копии во Flutter, при выходе — null). */
+    replace: function (save) {
+      this.data = save ? normalizeSave(save) : null;
+      writeJSON(window.localStorage, SAVE_KEY, this.data);
+      backup();
+      notify();
+    },
+
+    /* Конечное действие (игра завершена, карточки просмотрены, изменён профиль): изменить
+     * сохранение, записать его на телефоне и сразу отправить на сервер. */
+    commit: function (mutator, opts) {
+      if (!this.data) return null;
+      mutator(this.data);
+      this.data.updated = Math.max(Date.now(), this.data.updated + 1);
+      writeJSON(window.localStorage, SAVE_KEY, this.data);
+      backup();
+      notify();
+      return this.push(opts);
+    },
+
+    /* PUT /api/save. Возвращает Promise<boolean>: удалось ли отправить. Без сети сохранение
+     * остаётся на телефоне и уйдёт при следующем запуске. */
+    push: function (opts) {
       var self = this;
-      backupTimer = setTimeout(function () { Bridge.call('backup', JSON.stringify(self.state)); }, 500);
-      listeners.forEach(function (fn) { fn(); });
-    },
-
-    /* При запуске подтягиваем копию из Flutter: она могла пережить очистку WebView. */
-    restore: function () {
-      var self = this;
-      return Bridge.call('restore').then(function (raw) {
-        if (!raw) return false;
-        var backup;
-        try { backup = JSON.parse(raw); } catch (e) { return false; }
-        var before = self.state.events.length + ':' + Object.keys(self.state.profiles).length;
-        self.state = merge(self.state, backup);
-        var after = self.state.events.length + ':' + Object.keys(self.state.profiles).length;
-        if (before !== after) { self.save(); return true; }
-        return false;
-      });
-    },
-
-    // --- профили ---
-
-    profile: function () { return this.state.profiles[this.state.active] || null; },
-
-    profiles: function () {
-      var p = this.state.profiles;
-      return Object.keys(p).map(function (id) { return p[id]; })
-        .sort(function (a, b) { return a.created - b.created; });
-    },
-
-    createProfile: function (name, avatar, account) {
-      var now = Date.now();
-      var p = { id: uuid(), name: name, avatar: avatar, created: now, updated: now, account: account || null };
-      this.state.profiles[p.id] = p;
-      this.state.active = p.id;
-      this.save();
-      return p;
-    },
-
-    updateProfile: function (id, patch) {
-      var p = this.state.profiles[id];
-      if (!p) return;
-      for (var k in patch) p[k] = patch[k];
-      if (!('account' in patch)) p.updated = Date.now();
-      this.save();
-    },
-
-    setActive: function (id) {
-      if (this.state.profiles[id]) { this.state.active = id; this.save(); }
-    },
-
-    // --- журнал ---
-
-    /* correct: true/false — ответ в игре, null — просмотр карточки. */
-    record: function (wordId, game, correct) {
-      if (!this.state.active) return;
-      this.state.events.push({
-        id: uuid(), p: this.state.active, w: wordId, g: game,
-        c: correct === null ? null : (correct ? 1 : 0), t: Date.now(),
-      });
-      this.save();
-    },
-
-    events: function (profileId) {
-      var pid = profileId || this.state.active;
-      return this.state.events.filter(function (e) { return e.p === pid; });
-    },
-
-    setSetting: function (key, value) {
-      this.state.settings[key] = value;
-      this.save();
+      if (pushing) { pushAgain = true; return pushing; }
+      var token = Auth.token();
+      if (!token || !this.data) return Promise.resolve(false);
+      var sent = this.data;
+      pushing = api('PUT', '/api/save', { save: sent }, { token: token, keepalive: opts && opts.keepalive })
+        .then(function () {
+          Auth.patch({ synced: Date.now() });
+          return true;
+        }, function (err) {
+          if (err.status === 409 && err.data && err.data.save) {
+            // На сервере новее (другой телефон успел раньше) — принимаем серверное.
+            if (err.data.save.updated > self.data.updated) self.replace(err.data.save);
+            else pushAgain = true;
+            return false;
+          }
+          if (err.status === 401) expireAuth();
+          return false;
+        })
+        .then(function (ok) {
+          pushing = null;
+          var again = pushAgain && self.data !== null;
+          pushAgain = false;
+          return again ? self.push() : ok;
+        });
+      return pushing;
     },
   };
+
+  // ---------- вход и синхронизация ----------
+
+  var Boot = { phase: 'loading', onPhase: null };
+
+  function setPhase(phase) {
+    Boot.phase = phase;
+    if (Boot.onPhase) Boot.onPhase(phase);
+  }
+
+  function expireAuth() {
+    var a = Auth.get();
+    Auth.set(a ? { username: a.username, token: null, synced: a.synced || 0 } : null);
+    setPhase('auth');
+  }
+
+  /* Шаг 3 цикла: сравнить локальное сохранение с серверным, победитель заменяет проигравшего. */
+  function syncSave() {
+    var token = Auth.token();
+    if (!token) return Promise.resolve();
+    return api('GET', '/api/save', undefined, { token: token, timeout: SYNC_TIMEOUT_MS })
+      .then(function (data) { return adopt(data.save); })
+      .catch(function (err) {
+        if (err.status === 401) expireAuth();
+        // Нет сети или тайм-аут — продолжаем с локальным сохранением.
+      });
+  }
+
+  function adopt(server) {
+    server = normalizeSave(server);
+    var local = Save.data;
+    if (server && (!local || server.updated > local.updated)) {
+      Save.replace(server);
+      return Promise.resolve();
+    }
+    return Save.push();
+  }
+
+  /* Копия во Flutter переживает очистку WebView: берём её, если она новее. В копии может
+   * лежать и старый журнал событий (zb.state.v1) — тогда переводим его в сохранение. */
+  function restoreBackup() {
+    return Bridge.call('restore').then(function (raw) {
+      if (!raw) return;
+      var copy;
+      try { copy = JSON.parse(raw); } catch (e) { return; }
+      if (copy && copy.events && copy.profiles) { migrateOldState(copy); return; }
+      var save = normalizeSave(copy && copy.save);
+      if (save && (!Save.data || save.updated > Save.data.updated)) Save.replace(save);
+      var auth = copy && copy.auth;
+      if (auth && auth.token && !Auth.token()) Auth.set(auth);
+    });
+  }
+
+  function boot() {
+    var old = readJSON(window.localStorage, OLD_STATE_KEY);
+    if (old) {
+      migrateOldState(old);
+      writeJSON(window.localStorage, OLD_STATE_KEY, null);
+    }
+    var booted = readJSON(window.sessionStorage, BOOTED_KEY);
+    if (booted && Auth.token() && Save.data) { setPhase('ready'); return; }
+    setPhase('loading');
+    restoreBackup().then(function () {
+      if (!Auth.token()) { setPhase('auth'); return null; }
+      return syncSave().then(function () {
+        if (Boot.phase === 'auth') return;
+        if (!Save.data) Save.replace(emptySave());
+        writeJSON(window.sessionStorage, BOOTED_KEY, true);
+        setPhase('ready');
+      });
+    }).catch(function (e) {
+      console.error('boot', e);
+      setPhase(Auth.token() ? 'ready' : 'auth');
+    });
+  }
+
+  /* После входа: если на телефоне лежит сохранение другого аккаунта — выбрасываем его. */
+  function forgetForeignSave(username) {
+    var prev = Auth.get();
+    if (prev && prev.username && prev.username !== username) Save.replace(null);
+  }
+
+  function finishLogin() {
+    writeJSON(window.sessionStorage, BOOTED_KEY, true);
+    setPhase('ready');
+  }
+
+  /* Регистрация. Если на телефоне уже есть прогресс без аккаунта (перешёл со старой версии),
+   * он уходит в новый аккаунт, а имя и зверёк берутся из формы. */
+  function signup(form) {
+    var local = Save.data;
+    var keepLocal = hasProgress(local) && !(Auth.get() && Auth.get().username);
+    return api('POST', '/api/signup', {
+      username: form.username, password: form.password,
+      name: form.name, avatar: form.avatar, updated: Date.now(),
+    }).then(function (data) {
+      forgetForeignSave(data.username);
+      Auth.set({ username: data.username, token: data.token, synced: 0 });
+      if (keepLocal) {
+        Save.commit(function (s) { s.profile = { name: form.name, avatar: form.avatar }; });
+      } else {
+        Save.replace(data.save);
+      }
+      finishLogin();
+    });
+  }
+
+  function login(username, password) {
+    return api('POST', '/api/login', { username: username, password: password })
+      .then(function (data) {
+        forgetForeignSave(data.username);
+        Auth.set({ username: data.username, token: data.token, synced: 0 });
+        adopt(data.save);
+        finishLogin();
+      });
+  }
+
+  /* Выход: сначала пробуем отправить сохранение. Возвращает false, если игрок передумал. */
+  function logout() {
+    return Save.push().then(function (ok) {
+      if (!ok && !window.confirm('Не получилось отправить прогресс на сервер. Если выйти сейчас, ' +
+          'несохранённый прогресс пропадёт. Всё равно выйти?')) return false;
+      Save.replace(null);
+      Auth.set(null);
+      writeJSON(window.sessionStorage, BOOTED_KEY, null);
+      setPhase('auth');
+      return true;
+    });
+  }
 
   // ---------- словарь ----------
 
@@ -270,26 +476,87 @@
   }
 
   function playAudio(word) {
-    if (!word || !word.audio || !Store.state.settings.sound) return;
+    if (!word || !word.audio || !Settings.values.sound) return;
     try { new Audio(word.audio).play(); } catch (e) { /* без звука */ }
+  }
+
+  // ---------- прогресс ----------
+
+  /* Итоги сыгранной игры: answers — [{w: id слова, ok: true/false}], stars — 1…3. */
+  function addGame(save, slug, answers, stars) {
+    var now = Date.now();
+    var key = dayKey(now);
+    var day = save.days[key] = save.days[key] || { ok: 0, bad: 0, seen: 0 };
+    var game = save.games[slug] = save.games[slug] || { ok: 0, bad: 0, played: 0, best: 0 };
+    answers.forEach(function (a) {
+      var w = save.words[a.w] = save.words[a.w] || { ok: 0, bad: 0, seen: 0, last: 0 };
+      var field = a.ok ? 'ok' : 'bad';
+      w[field]++; day[field]++; game[field]++;
+      w.last = now;
+    });
+    game.played++;
+    game.best = Math.max(game.best || 0, stars);
+  }
+
+  /* Просмотренные карточки темы: ids — id слов. */
+  function addViews(save, ids) {
+    var now = Date.now();
+    var key = dayKey(now);
+    var day = save.days[key] = save.days[key] || { ok: 0, bad: 0, seen: 0 };
+    ids.forEach(function (id) {
+      var w = save.words[id] = save.words[id] || { ok: 0, bad: 0, seen: 0, last: 0 };
+      w.seen++;
+      w.last = now;
+      day.seen++;
+    });
+  }
+
+  /* Карточки темы: просмотры копятся на странице и записываются одним сохранением при уходе
+   * со страницы или по кнопке «Готово». Одна карточка за визит считается один раз. */
+  function cardViews() {
+    return {
+      seenIds: {},
+      pending: [],
+
+      init: function () {
+        var self = this;
+        window.addEventListener('pagehide', function () { self.flush(true); });
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'hidden') self.flush(true);
+        });
+      },
+
+      see: function (id) {
+        if (this.seenIds[id]) return;
+        this.seenIds[id] = true;
+        this.pending.push(id);
+      },
+
+      flush: function (keepalive) {
+        if (!this.pending.length) return Promise.resolve(false);
+        var ids = this.pending;
+        this.pending = [];
+        return Save.commit(function (s) { addViews(s, ids); }, { keepalive: keepalive }) || Promise.resolve(false);
+      },
+
+      done: function (url) {
+        this.flush(true);
+        window.location.href = url;
+      },
+    };
   }
 
   // ---------- статистика ----------
 
-  function computeStats(events, content) {
-    var byWord = {};
-    var days = {};
-    var byGame = {};
+  function computeStats(save, content) {
+    save = save || emptySave();
+    var byWord = save.words;
+    var days = save.days;
     var ok = 0;
     var bad = 0;
-    events.forEach(function (e) {
-      var key = dayKey(e.t);
-      days[key] = days[key] || { ok: 0, bad: 0, seen: 0 };
-      var w = byWord[e.w] = byWord[e.w] || { ok: 0, bad: 0, seen: 0 };
-      if (e.c === null || e.c === undefined) { w.seen++; days[key].seen++; return; }
-      byGame[e.g] = byGame[e.g] || { ok: 0, bad: 0 };
-      if (e.c) { ok++; w.ok++; days[key].ok++; byGame[e.g].ok++; }
-      else { bad++; w.bad++; days[key].bad++; byGame[e.g].bad++; }
+    Object.keys(byWord).forEach(function (id) {
+      ok += byWord[id].ok || 0;
+      bad += byWord[id].bad || 0;
     });
 
     // Серия дней: считаем от сегодня (или от вчера, если сегодня ещё не занимались).
@@ -306,11 +573,11 @@
     var known = function (id) { return !content || content.wordById[id]; };
 
     var hard = Object.keys(byWord)
-      .filter(function (id) { return byWord[id].bad > 0 && known(id); })
+      .filter(function (id) { return content && byWord[id].bad > 0 && content.wordById[id]; })
       .sort(function (a, b) { return byWord[b].bad - byWord[a].bad; })
       .slice(0, 5)
       .map(function (id) {
-        return { word: content ? content.wordById[id] : null, ok: byWord[id].ok, bad: byWord[id].bad };
+        return { word: content.wordById[id], ok: byWord[id].ok, bad: byWord[id].bad };
       });
 
     var daily = [];
@@ -348,7 +615,7 @@
       hard: hard,
       daily: daily,
       maxDay: maxDay,
-      byGame: byGame,
+      byGame: save.games,
       topics: topics,
       byWord: byWord,
     };
@@ -366,137 +633,13 @@
     return pool[((day * 2654435761) >>> 0) % pool.length];
   }
 
-  // ---------- облачный аккаунт ----------
-
-  function api(path, body, token) {
-    var headers = { 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = 'Bearer ' + token;
-    return fetch(path, { method: 'POST', headers: headers, body: JSON.stringify(body) })
-      .catch(function () { throw new Error('Нет связи с сервером. Попробуй, когда появится интернет.'); })
-      .then(function (r) {
-        return r.json().catch(function () { return {}; }).then(function (data) {
-          if (!r.ok) {
-            var err = new Error(data.error || 'Ошибка сервера (' + r.status + ')');
-            err.status = r.status;
-            throw err;
-          }
-          return data;
-        });
-      });
-  }
-
-  var syncing = {};
-
-  function sync(profileId) {
-    var pid = profileId || Store.state.active;
-    var p = Store.state.profiles[pid];
-    if (!p || !p.account || !p.account.token) return Promise.resolve(false);
-    if (syncing[pid]) return syncing[pid];
-
-    function round() {
-      var pending = Store.state.events.filter(function (e) { return e.p === pid && !e.s; });
-      var batch = pending.slice(0, SYNC_BATCH);
-      var payload = {
-        profile: { name: p.name, avatar: p.avatar, updated: p.updated },
-        events: batch.map(function (e) { return { id: e.id, w: e.w, g: e.g, c: e.c, t: e.t }; }),
-      };
-      return api('/api/sync', payload, p.account.token).then(function (data) {
-        var sent = {};
-        batch.forEach(function (e) { sent[e.id] = true; });
-        var have = {};
-        Store.state.events.forEach(function (e) {
-          if (sent[e.id]) e.s = 1;
-          have[e.id] = true;
-        });
-        (data.events || []).forEach(function (e) {
-          if (!have[e.id]) Store.state.events.push({ id: e.id, p: pid, w: e.w, g: e.g, c: e.c, t: e.t, s: 1 });
-        });
-        Store.state.events.sort(function (x, y) { return x.t - y.t; });
-        if (data.profile && data.profile.updated > (p.updated || 0)) {
-          p.name = data.profile.name || p.name;
-          p.avatar = data.profile.avatar || p.avatar;
-          p.updated = data.profile.updated;
-        }
-        p.account.synced = Date.now();
-        Store.save();
-        return pending.length > batch.length ? round() : true;
-      });
-    }
-
-    syncing[pid] = round().then(function (result) {
-      delete syncing[pid];
-      return result;
-    }, function (err) {
-      delete syncing[pid];
-      if (err.status === 401) Store.updateProfile(pid, { account: null });
-      throw err;
-    });
-    return syncing[pid];
-  }
-
-  /* Регистрация привязывает облачный аккаунт к текущему профилю. */
-  function signup(username, password) {
-    var p = Store.profile();
-    if (!p) return Promise.reject(new Error('Сначала создай профиль'));
-    return api('/api/signup', {
-      username: username, password: password, name: p.name, avatar: p.avatar, updated: p.updated,
-    }).then(function (data) {
-      Store.updateProfile(p.id, { account: { username: data.username, token: data.token } });
-      return sync(p.id);
-    });
-  }
-
-  /* Вход: если аккаунт уже есть на телефоне — переключаемся на него; если текущий профиль
-   * пустой и без аккаунта — привязываем к нему; иначе заводим новый локальный профиль. */
-  function login(username, password) {
-    return api('/api/login', { username: username, password: password }).then(function (data) {
-      var account = { username: data.username, token: data.token };
-      var existing = Store.profiles().filter(function (p) {
-        return p.account && p.account.username === data.username;
-      })[0];
-      var current = Store.profile();
-      var target;
-      if (existing) {
-        Store.updateProfile(existing.id, { account: account });
-        Store.setActive(existing.id);
-        target = existing;
-      } else if (current && !current.account && Store.events(current.id).length === 0) {
-        // Пустой профиль (например, «Гость» с первого экрана) получает имя и аватар из облака.
-        Store.updateProfile(current.id, {
-          account: account,
-          name: data.profile.name || current.name,
-          avatar: data.profile.avatar || current.avatar,
-          updated: data.profile.updated || 0,
-        });
-        target = current;
-      } else {
-        target = Store.createProfile(data.profile.name || data.username, data.profile.avatar || '🦊', account);
-        target.updated = data.profile.updated || 0;
-      }
-      return sync(target.id);
-    });
-  }
-
-  function logout(profileId) {
-    Store.updateProfile(profileId || Store.state.active, { account: null });
-  }
-
-  /* Тихая синхронизация при открытии страницы, если есть что отправить или давно не было. */
-  function autoSync() {
-    var p = Store.profile();
-    if (!p || !p.account || navigator.onLine === false) return;
-    var pending = Store.state.events.some(function (e) { return e.p === p.id && !e.s; });
-    var stale = !p.account.synced || Date.now() - p.account.synced > 10 * 60000;
-    if (pending || stale) sync(p.id).catch(function () { /* попробуем в следующий раз */ });
-  }
-
   // ---------- звуки ----------
 
   var audioCtx = null;
 
   var Sound = {
     play: function (kind) {
-      if (!Store.state.settings.sound) return;
+      if (!Settings.values.sound) return;
       try {
         var AC = window.AudioContext || window.webkitAudioContext;
         audioCtx = audioCtx || new AC();
@@ -551,45 +694,46 @@
   document.addEventListener('alpine:init', function () {
     var Alpine = window.Alpine;
     Alpine.store('app', {
+      // loading — заставка на время синхронизации, auth — окно входа, ready — игра.
+      phase: 'loading',
       profile: null,
-      profiles: [],
-      settings: Store.state.settings,
-      stats: computeStats([], null),
+      account: null,
+      settings: Settings.values,
+      stats: computeStats(null, null),
       content: null,
       ready: false,
 
       refresh: function () {
-        this.profile = Store.profile() ? Object.assign({}, Store.profile()) : null;
-        this.profiles = Store.profiles().map(function (p) { return Object.assign({}, p); });
-        this.settings = Object.assign({}, Store.state.settings);
-        this.stats = computeStats(Store.events(), this.content);
-      },
-
-      createProfile: function (name, avatar) {
-        name = (name || '').trim();
-        if (!name) return;
-        Store.createProfile(name.slice(0, 60), avatar || '🦊');
+        var save = Save.data;
+        var auth = Auth.get();
+        this.profile = save && Boot.phase === 'ready' ? Object.assign({}, save.profile) : null;
+        this.account = auth && auth.token ? { username: auth.username, synced: auth.synced || 0 } : null;
+        this.settings = Object.assign({}, Settings.values);
+        this.stats = computeStats(save, this.content);
       },
     });
 
     var store = Alpine.store('app');
+    Save.onChange(function () { store.refresh(); });
+    Boot.onPhase = function (phase) { store.phase = phase; store.refresh(); };
+    boot();
+    store.phase = Boot.phase;
     store.refresh();
-    Store.onChange(function () { store.refresh(); });
     Content.load().then(function (c) {
       store.content = c;
       store.ready = true;
       store.refresh();
     }).catch(function (e) { console.error('content', e); store.ready = true; });
-    Store.restore().then(function () { autoSync(); });
   });
 
   window.ZB = {
-    Store: Store, Content: Content, Bridge: Bridge, Sound: Sound,
-    computeStats: computeStats, wordOfDay: wordOfDay, merge: merge,
+    Save: Save, Auth: Auth, Settings: Settings, Content: Content, Bridge: Bridge, Sound: Sound,
+    computeStats: computeStats, wordOfDay: wordOfDay, fromEvents: fromEvents, emptySave: emptySave,
+    addGame: addGame, addViews: addViews, cardViews: cardViews,
     pic: pic, picKey: picKey, playAudio: playAudio,
-    sync: sync, signup: signup, login: login, logout: logout,
+    signup: signup, login: login, logout: logout,
     locate: locate, distanceKm: distanceKm, IZHEVSK: IZHEVSK,
-    shuffle: shuffle, sample: sample, param: param, dayKey: dayKey, uuid: uuid,
+    shuffle: shuffle, sample: sample, param: param, dayKey: dayKey,
     AVATARS: ['🦊', '🐻', '🐰', '🐿️', '🦔', '🐺', '🐱', '🐶', '🦉', '🐝'],
   };
 })();

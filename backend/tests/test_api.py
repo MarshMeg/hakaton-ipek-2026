@@ -1,19 +1,40 @@
+import importlib
 import json
-import uuid
 
 import pytest
 from django.contrib.auth import get_user_model
 
-from play.models import Attempt
+from play.api import MAX_SAVE_BYTES
+
+migration = importlib.import_module("accounts.migrations.0005_profile_save")
 
 
-def post(client, url, data, token=None):
-    headers = {"HTTP_AUTHORIZATION": f"Bearer {token}"} if token else {}
-    return client.post(url, json.dumps(data), content_type="application/json", **headers)
+def post(client, url, data):
+    return client.post(url, json.dumps(data), content_type="application/json")
 
 
-def event(word=1, correct=1, ts=1000):
-    return {"id": str(uuid.uuid4()), "w": word, "g": "choose", "c": correct, "t": ts}
+def auth(token):
+    return {"HTTP_AUTHORIZATION": f"Bearer {token}"} if token else {}
+
+
+def get_save(client, token=None):
+    return client.get("/api/save", **auth(token))
+
+
+def put_save(client, save, token=None):
+    body = json.dumps({"save": save})
+    return client.put("/api/save", body, content_type="application/json", **auth(token))
+
+
+def make_save(updated, ok=1):
+    return {
+        "v": 2,
+        "updated": updated,
+        "profile": {"name": "Айно", "avatar": "🦊"},
+        "words": {"17": {"ok": ok, "bad": 0, "seen": 0, "last": updated}},
+        "days": {"2026-10-15": {"ok": ok, "bad": 0, "seen": 0}},
+        "games": {"choose": {"ok": ok, "bad": 0, "played": 1, "best": 3}},
+    }
 
 
 @pytest.fixture
@@ -33,58 +54,137 @@ def token(client, db):
     return r.json()["token"]
 
 
-def test_signup_validation(client, token):
-    assert (
-        post(client, "/api/signup", {"username": "AINO", "password": "secret123"}).json()["error"]
-        == "Такое имя уже занято"
+def test_signup_returns_empty_save(client, db):
+    r = post(
+        client,
+        "/api/signup",
+        {
+            "username": "aino",
+            "password": "secret123",
+            "name": "Айно",
+            "avatar": "🦊",
+            "updated": 10,
+        },
     )
+    assert r.status_code == 201
+    data = r.json()
+    assert data["username"] == "aino"
+    assert data["token"]
+    assert data["save"] == {
+        "v": 2,
+        "updated": 10,
+        "profile": {"name": "Айно", "avatar": "🦊"},
+        "words": {},
+        "days": {},
+        "games": {},
+    }
+
+
+def test_signup_validation(client, token):
+    r = post(client, "/api/signup", {"username": "AINO", "password": "secret123"})
+    assert r.status_code == 400
+    assert r.json()["error"] == "Такое имя уже занято"
     assert post(client, "/api/signup", {"username": "bob", "password": "123"}).status_code == 400
 
 
-def test_login(client, token):
+def test_login_returns_save(client, token):
+    put_save(client, make_save(20), token)
     r = post(client, "/api/login", {"username": "aino", "password": "secret123"})
     assert r.status_code == 200
-    assert r.json()["profile"] == {"name": "Айно", "avatar": "🦊", "updated": 10}
+    assert r.json()["save"] == make_save(20)
     assert post(client, "/api/login", {"username": "aino", "password": "nope"}).status_code == 401
 
 
-def test_sync_requires_valid_token(client, db):
-    assert post(client, "/api/sync", {"events": []}).status_code == 401
-    assert post(client, "/api/sync", {"events": []}, token="forged").status_code == 401
+def test_save_requires_valid_token(client, db):
+    assert get_save(client).status_code == 401
+    assert get_save(client, "forged").status_code == 401
+    assert put_save(client, make_save(20)).status_code == 401
+    assert put_save(client, make_save(20), "forged").status_code == 401
 
 
-def test_sync_is_idempotent_union(client, token):
-    a, b = event(word=1), event(word=2, correct=0)
-    r = post(client, "/api/sync", {"events": [a, b]}, token)
+def test_put_newer_is_stored(client, token):
+    r = put_save(client, make_save(20), token)
     assert r.status_code == 200
-    # Повторная отправка (например, после обрыва связи) ничего не дублирует.
-    post(client, "/api/sync", {"events": [a, b]}, token)
-    assert Attempt.objects.count() == 2
-
-    # Второе устройство присылает своё событие и получает все.
-    c = event(word=3, correct=None)
-    data = post(client, "/api/sync", {"events": [c]}, token).json()
-    assert {e["id"] for e in data["events"]} == {a["id"], b["id"], c["id"]}
-    view = next(e for e in data["events"] if e["id"] == c["id"])
-    assert view["c"] is None
+    assert get_save(client, token).json()["save"] == make_save(20)
+    profile = get_user_model().objects.get(username="aino").profile
+    assert (profile.updated, profile.display_name, profile.avatar) == (20, "Айно", "🦊")
 
 
-def test_sync_skips_garbage_events(client, token):
-    r = post(client, "/api/sync", {"events": [{"id": "not-a-uuid"}, "junk", event()]}, token)
+def test_put_same_updated_is_accepted(client, token):
+    put_save(client, make_save(20, ok=1), token)
+    r = put_save(client, make_save(20, ok=2), token)
     assert r.status_code == 200
-    assert Attempt.objects.count() == 1
+    assert get_save(client, token).json()["save"]["words"]["17"]["ok"] == 2
 
 
-def test_profile_last_write_wins(client, token):
-    post(client, "/api/sync", {"profile": {"name": "Старое", "avatar": "🐻", "updated": 5}}, token)
-    user = get_user_model().objects.get(username="aino")
-    assert user.profile.display_name == "Айно"
-    data = post(
-        client, "/api/sync", {"profile": {"name": "Новое", "avatar": "🐻", "updated": 20}}, token
-    ).json()
-    assert data["profile"] == {"name": "Новое", "avatar": "🐻", "updated": 20}
+def test_put_older_conflicts(client, token):
+    put_save(client, make_save(30, ok=5), token)
+    r = put_save(client, make_save(20, ok=1), token)
+    assert r.status_code == 409
+    assert r.json()["save"] == make_save(30, ok=5)
 
 
-def test_api_rejects_bad_json(client, db):
-    r = client.post("/api/login", "{", content_type="application/json")
+def test_put_normalizes_profile(client, token):
+    save = make_save(20)
+    save["profile"] = {"name": "Я" * 100, "avatar": "🦊" * 20}
+    data = put_save(client, save, token).json()["save"]
+    assert len(data["profile"]["name"]) == 60
+    assert len(data["profile"]["avatar"]) == 16
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"v": 1},
+        {"updated": "20"},
+        {"updated": True},
+        {"words": []},
+        {"days": {"2026-10-15": 3}},
+        {"profile": "Айно"},
+    ],
+)
+def test_put_invalid_save(client, token, patch):
+    save = make_save(20)
+    save.update(patch)
+    assert put_save(client, save, token).status_code == 400
+
+
+def test_put_too_large(client, token):
+    save = make_save(20)
+    save["words"] = {str(i): {"ok": 1, "bad": 0, "seen": 0, "last": 0} for i in range(10000)}
+    assert len(json.dumps(save)) > MAX_SAVE_BYTES
+    assert put_save(client, save, token).status_code == 413
+
+
+def test_api_rejects_bad_json(client, token):
+    assert client.post("/api/login", "{", content_type="application/json").status_code == 400
+    r = client.put("/api/save", "{", content_type="application/json", **auth(token))
     assert r.status_code == 400
+
+
+def test_build_save_from_attempts():
+    day = 1760500000000  # 2025-10-15 07:46 по Ижевску
+    rows = [
+        (17, "choose", True, day),
+        (17, "choose", False, day + 1000),
+        (17, "card", None, day + 2000),
+        (5, "memory", True, day + 86400000),
+    ]
+    save = migration.build_save(rows, "Айно", "🦊", profile_updated=5)
+    assert save == {
+        "v": 2,
+        "updated": day + 86400000,
+        "profile": {"name": "Айно", "avatar": "🦊"},
+        "words": {
+            "17": {"ok": 1, "bad": 1, "seen": 1, "last": day + 2000},
+            "5": {"ok": 1, "bad": 0, "seen": 0, "last": day + 86400000},
+        },
+        "days": {
+            "2025-10-15": {"ok": 1, "bad": 1, "seen": 1},
+            "2025-10-16": {"ok": 1, "bad": 0, "seen": 0},
+        },
+        "games": {
+            "choose": {"ok": 1, "bad": 1, "played": 0, "best": 0},
+            "memory": {"ok": 1, "bad": 0, "played": 0, "best": 0},
+        },
+    }
