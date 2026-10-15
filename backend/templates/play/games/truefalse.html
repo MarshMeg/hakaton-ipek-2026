@@ -6,6 +6,6 @@
   <button type="button" class="mt-1 text-2xl" x-show="shown.audio" @click="speak(shown)" title="Послушать">🔊</button>
 </div>
 <div class="mt-8 grid grid-cols-2 gap-3">
-  <button type="button" class="btn-ok py-5 text-lg" @click="say(true)" :disabled="!!feedback">👍 Верно</button>
-  <button type="button" class="btn-bad py-5 text-lg" @click="say(false)" :disabled="!!feedback">👎 Не верно</button>
+  <button type="button" class="btn-ok whitespace-nowrap px-2 py-5 text-base sm:text-lg" @click="say(true)" :disabled="!!feedback">👍 Верно</button>
+  <button type="button" class="btn-bad whitespace-nowrap px-2 py-5 text-base sm:text-lg" @click="say(false)" :disabled="!!feedback">👎 Не верно</button>
 </div>

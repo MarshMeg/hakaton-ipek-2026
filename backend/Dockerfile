@@ -17,7 +17,8 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --locked --no-dev
 
 COPY . .
-RUN DJANGO_DEBUG=0 python manage.py collectstatic --noinput
+# Ключ нужен только чтобы загрузить настройки; настоящий приходит из окружения при запуске.
+RUN DJANGO_DEBUG=0 DJANGO_SECRET_KEY=collectstatic python manage.py collectstatic --noinput
 
 EXPOSE 8000
 # /app/.venv/bin в PATH, поэтому python и gunicorn берутся из окружения uv.

@@ -4,7 +4,7 @@ import json
 import pytest
 from django.contrib.auth import get_user_model
 
-from play.api import MAX_SAVE_BYTES
+from play.api import LOGIN_FAILS_PER_USER, MAX_SAVE_BYTES, SIGNUP_PER_IP
 
 migration = importlib.import_module("accounts.migrations.0005_profile_save")
 
@@ -160,6 +160,32 @@ def test_api_rejects_bad_json(client, token):
     assert client.post("/api/login", "{", content_type="application/json").status_code == 400
     r = client.put("/api/save", "{", content_type="application/json", **auth(token))
     assert r.status_code == 400
+
+
+def test_login_locks_after_failed_attempts(client, token):
+    for _ in range(LOGIN_FAILS_PER_USER[0]):
+        assert (
+            post(client, "/api/login", {"username": "aino", "password": "nope"}).status_code == 401
+        )
+    # Дальше отказ даже с верным паролем — до конца окна, и регистр имени не помогает.
+    r = post(client, "/api/login", {"username": "AINO", "password": "secret123"})
+    assert r.status_code == 429
+    assert r["Retry-After"] == "60"
+
+
+def test_signup_is_limited_per_ip(client, db):
+    def signup(i, ip):
+        data = {"username": f"kid{i}", "password": "secret123"}
+        body = json.dumps(data)
+        return client.post(
+            "/api/signup", body, content_type="application/json", HTTP_X_FORWARDED_FOR=ip
+        )
+
+    for i in range(SIGNUP_PER_IP[0]):
+        assert signup(i, "1.2.3.4, 10.0.0.1").status_code == 201
+    assert signup(999, "1.2.3.4, 10.0.0.1").status_code == 429
+    # Учитывается последний адрес (его добавил Caddy), а не подделанный клиентом первый.
+    assert signup(1000, "1.2.3.4, 10.0.0.2").status_code == 201
 
 
 def test_build_save_from_attempts():
