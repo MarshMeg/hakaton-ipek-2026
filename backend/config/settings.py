@@ -3,14 +3,22 @@
 from pathlib import Path
 
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
 environ.Env.read_env(BASE_DIR.parent / ".env")
 
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="dev-insecure-change-me")
 DEBUG = env.bool("DJANGO_DEBUG", default=True)
+# Ключом подписаны токены входа (play.api) — без DEBUG ключ по умолчанию не годится, его надо
+# задать явно. docker-compose.yml подставляет свой для локального запуска, а
+# docker-compose.prod.yml без DJANGO_SECRET_KEY в .env не стартует.
+SECRET_KEY = env("DJANGO_SECRET_KEY", default="")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured("Задайте DJANGO_SECRET_KEY (обязателен при DJANGO_DEBUG=0)")
+    SECRET_KEY = "dev-insecure-change-me"
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["*"])
 CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 # За обратным прокси (nginx/caddy с HTTPS) Django узнаёт протокол из этого заголовка.

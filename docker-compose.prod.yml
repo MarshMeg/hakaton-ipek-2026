@@ -23,6 +23,8 @@ services:
     environment:
       # Secure-cookie и HSTS: снаружи сайт доступен только по HTTPS (вход по http://IP при этом не работает).
       DJANGO_HTTPS_ONLY: ${DJANGO_HTTPS_ONLY:-1}
+      # Токены входа подписаны этим ключом: локальный ключ из docker-compose.yml здесь не годится.
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Задайте DJANGO_SECRET_KEY в .env на сервере}
     ports: !reset []
 
   minio:

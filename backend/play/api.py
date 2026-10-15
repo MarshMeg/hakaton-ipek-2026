@@ -15,6 +15,9 @@
 
 Авторизация — токен в заголовке `Authorization: Bearer …` (подписанный id пользователя),
 без cookies, поэтому CSRF здесь не нужен.
+
+Вход и регистрация ограничены по частоте (`rate_limit`), чтобы пароль нельзя было подбирать
+перебором, а аккаунты — создавать скриптом.
 """
 
 import json
@@ -22,6 +25,7 @@ from functools import wraps
 
 from django.contrib.auth import authenticate, get_user_model
 from django.core import signing
+from django.core.cache import cache
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -49,6 +53,44 @@ def _json_body(request):
     except ValueError:
         return None
     return data if isinstance(data, dict) else None
+
+
+def client_ip(request) -> str:
+    """IP клиента. В проде перед Django стоит Caddy: он кладёт адрес клиента последним
+    в X-Forwarded-For (подделанные клиентом значения остаются левее), а REMOTE_ADDR — адрес
+    самого Caddy."""
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    if forwarded:
+        return forwarded.split(",")[-1].strip()
+    return request.META.get("REMOTE_ADDR", "")
+
+
+def rate_limit(scope, key, limit, window) -> bool:
+    """Засчитывает попытку; False — если в текущем окне `window` секунд их уже больше `limit`.
+
+    Счётчики лежат в кэше Django (по умолчанию в памяти процесса, у каждого воркера gunicorn
+    свой), поэтому лимит приблизительный — от перебора паролей этого достаточно.
+    """
+    cache_key = f"rl:{scope}:{key}"
+    cache.add(cache_key, 0, window)
+    try:
+        count = cache.incr(cache_key)
+    except ValueError:  # ключ истёк между add и incr
+        cache.set(cache_key, 1, window)
+        count = 1
+    return count <= limit
+
+
+def _too_many():
+    response = _error("Слишком много попыток. Подожди минуту и попробуй снова", status=429)
+    response["Retry-After"] = "60"
+    return response
+
+
+# Лимиты подобраны под класс за одним школьным IP: 30 детей входят одновременно.
+LOGIN_PER_IP = (60, 60)  # попыток входа с одного IP в минуту
+LOGIN_FAILS_PER_USER = (10, 300)  # неверных паролей к одному имени за 5 минут
+SIGNUP_PER_IP = (40, 600)  # регистраций с одного IP за 10 минут
 
 
 def json_post(view):
@@ -176,6 +218,8 @@ def _account(user, profile) -> dict:
 
 @json_post
 def signup(request, data):
+    if not rate_limit("signup", client_ip(request), *SIGNUP_PER_IP):
+        return _too_many()
     username = str(data.get("username", "")).strip()
     password = str(data.get("password", ""))
     if not username or len(username) > 150:
@@ -199,12 +243,15 @@ def signup(request, data):
 
 @json_post
 def login(request, data):
-    user = authenticate(
-        request,
-        username=str(data.get("username", "")).strip(),
-        password=str(data.get("password", "")),
-    )
+    username = str(data.get("username", "")).strip()
+    fails_key = f"rl:login-fail:{username.lower()}"
+    if not rate_limit("login", client_ip(request), *LOGIN_PER_IP) or (
+        cache.get(fails_key, 0) >= LOGIN_FAILS_PER_USER[0]
+    ):
+        return _too_many()
+    user = authenticate(request, username=username, password=str(data.get("password", "")))
     if user is None:
+        rate_limit("login-fail", username.lower(), *LOGIN_FAILS_PER_USER)
         return _error("Неверное имя или пароль", status=401)
     return JsonResponse(_account(user, _profile(user)))
 
