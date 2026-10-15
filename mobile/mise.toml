@@ -6,7 +6,7 @@ java = "temurin-17"
 [tasks.setup]
 description = "Сгенерировать платформенные файлы Android и скачать зависимости"
 run = [
-  "flutter create --platforms=android --org ru.votes .",
+  "flutter create --platforms=android --org ru.marshmeg --project-name hakaton .",
   "flutter pub get",
   "dart run flutter_launcher_icons",
 ]
