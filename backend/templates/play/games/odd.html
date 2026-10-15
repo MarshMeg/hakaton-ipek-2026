@@ -2,13 +2,14 @@
 <p class="text-center text-xl font-extrabold">Какое слово лишнее?</p>
 <div class="mt-5 grid grid-cols-2 gap-3">
   <template x-for="w in words" :key="w.id">
-    <button type="button" class="tile flex flex-col items-center gap-2 py-5" @click="pick(w)" :disabled="!!feedback"
+    <button type="button" class="tile flex min-w-0 flex-col items-center gap-2 px-2 py-5" @click="pick(w)" :disabled="!!feedback"
             :class="{
               '!border-ok bg-ok-faint': feedback && w.id === oddWord.id,
               '!border-bad bg-brand-redSoft': feedback === 'bad' && w.id === chosen,
             }">
       <span class="h-14 w-14 text-5xl" x-show="showPics && hasPic(w)" x-html="pic(w)"></span>
-      <span class="text-2xl" x-text="w.udm"></span>
+      {# На 360 px в плитку влезает ~10 букв крупного шрифта («гордкушман»), длиннее — переносим. #}
+      <span class="max-w-full break-words text-xl sm:text-2xl" x-text="w.udm"></span>
       <span class="text-sm font-bold text-muted" x-show="showPics" x-text="w.ru"></span>
     </button>
   </template>
