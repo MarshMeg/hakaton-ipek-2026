@@ -19,7 +19,7 @@
 |---|---|---|
 | `mise.toml` (корень) | — | `up`, `down` (Docker) |
 | `backend/mise.toml` | uv 0.13 (Python 3.12 ставит он), Tailwind CLI 3.4.17 | `setup`, `dev`, `test`, `lint`, `fmt`, `css`, `css:watch`, `seed`, `bundle` |
-| `mobile/mise.toml` | Flutter 3.47, Java temurin-17 | `setup`, `check`, `dev`, `apk`, `apk:ask` |
+| `mobile/mise.toml` | Flutter 3.47, Java temurin-17 | `setup`, `check`, `dev`, `apk` |
 
 `backend/Dockerfile` ставит зависимости тем же uv по тому же `uv.lock` (`uv sync --locked --no-dev`),
 так что версии пакетов локально и в контейнере совпадают.
@@ -101,8 +101,8 @@ mise run check                        # flutter analyze + flutter test, как �
 ```bash
 mise run dev
 ```
-4. Release APK (сервер `https://hakaton.marshmeg.ru`): `mise run apk`. Сборка, которая при запуске
-   спрашивает адрес сервера (для проверки на своём сервере): `mise run apk:ask`.
+4. Release APK (сервер `https://hakaton.marshmeg.ru`): `mise run apk`. Другой сервер задаётся при
+   сборке: `flutter build apk --release --dart-define=SERVER_URL=http://192.168.0.10:8000`.
 
 Важно: в `mobile/android/` в git хранятся только `app/src/main/AndroidManifest.xml` и
 `app/build.gradle.kts` (minSdk 26, desugaring), остальное генерирует `mise run setup` — не коммить

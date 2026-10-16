@@ -16,13 +16,6 @@ void main() {
     expect(m.files['/learn/']!.type, 'text/html');
   });
 
-  test('адрес сервера нормализуется', () {
-    expect(normalizeServerUrl(' 192.168.0.10:8000 '), 'http://192.168.0.10:8000');
-    expect(normalizeServerUrl('https://hakaton.marshmeg.ru'), 'https://hakaton.marshmeg.ru');
-    expect(normalizeServerUrl(''), isNull);
-    expect(normalizeServerUrl('ftp://example.com'), isNull);
-  });
-
   test('обновление снимка: только другая и более свежая непустая версия', () {
     Manifest m(String version, int built, {bool empty = false}) => Manifest(
       version,
