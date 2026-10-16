@@ -61,6 +61,10 @@ class Command(BaseCommand):
                 if is_new or update:
                     self._attach_media(word, w)
                     word.save()
+                elif self._attach_media(word, w, only_missing=True):
+                    # Картинки и звук, добавленные в файл позже: без --update докладываются только
+                    # туда, где их ещё нет, — загруженное через админку не перезаписывается.
+                    word.save()
 
         for s_order, s in enumerate(data.get("sorting", [])):
             for group in s["groups"]:
@@ -87,10 +91,13 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"Словарь загружен: новых слов {created}, всего {total}.")
         )
 
-    def _attach_media(self, word, w):
+    def _attach_media(self, word, w, only_missing=False) -> bool:
         # Файлы сохраняются через storage — локально в media/ или в MinIO, если USE_S3=1.
+        attached = False
         for field in ("image", "audio"):
-            if w.get(field):
+            if w.get(field) and not (only_missing and getattr(word, field)):
                 path = SEEDS_DIR / "media" / w[field]
                 with path.open("rb") as fh:
                     getattr(word, field).save(path.name, File(fh), save=False)
+                attached = True
+        return attached

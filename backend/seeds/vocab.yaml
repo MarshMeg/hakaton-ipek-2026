@@ -15,74 +15,74 @@ topics:
     title: Вежливые слова
     icon: "👋"
     words:
-      - {udm: ӟечбуресь, ru: здравствуйте, emoji: "🤝"}
-      - {udm: умоесь, ru: здравствуйте, emoji: "🙂"}
-      - {udm: чырткем, ru: привет, emoji: "👋"}
-      - {udm: салам, ru: привет, emoji: "🖐️"}
-      - {udm: бур ӵукна, ru: доброе утро, emoji: "🌅"}
-      - {udm: тау, ru: спасибо, emoji: "🙏"}
-      - {udm: ӟеч лу, ru: до свидания, emoji: "🚪"}
+      - {udm: ӟечбуресь, ru: здравствуйте, image: words/hello.webp, emoji: "🤝"}
+      - {udm: умоесь, ru: здравствуйте, image: words/hello.webp, emoji: "🙂"}
+      - {udm: чырткем, ru: привет, image: words/hi.webp, emoji: "👋"}
+      - {udm: салам, ru: привет, image: words/hi.webp, emoji: "🖐️"}
+      - {udm: бур ӵукна, ru: доброе утро, image: words/good-morning.webp, emoji: "🌅"}
+      - {udm: тау, ru: спасибо, image: words/thanks.webp, emoji: "🙏"}
+      - {udm: ӟеч лу, ru: до свидания, image: words/goodbye.webp, emoji: "🚪"}
 
   - slug: numbers
     title: Числа 1–10
     icon: "🔢"
     kind: numbers
     words:
-      - {udm: одӥг, ru: один, number: 1}
-      - {udm: кык, ru: два, number: 2}
-      - {udm: куинь, ru: три, number: 3}
-      - {udm: ньыль, ru: четыре, number: 4}
-      - {udm: вить, ru: пять, number: 5}
-      - {udm: куать, ru: шесть, number: 6}
-      - {udm: сизьым, ru: семь, number: 7}
-      - {udm: тямыс, ru: восемь, number: 8}
-      - {udm: укмыс, ru: девять, number: 9}
-      - {udm: дас, ru: десять, number: 10}
+      - {udm: одӥг, ru: один, image: words/one.webp, number: 1}
+      - {udm: кык, ru: два, image: words/two.webp, number: 2}
+      - {udm: куинь, ru: три, image: words/three.webp, number: 3}
+      - {udm: ньыль, ru: четыре, image: words/four.webp, number: 4}
+      - {udm: вить, ru: пять, image: words/five.webp, number: 5}
+      - {udm: куать, ru: шесть, image: words/six.webp, number: 6}
+      - {udm: сизьым, ru: семь, image: words/seven.webp, number: 7}
+      - {udm: тямыс, ru: восемь, image: words/eight.webp, number: 8}
+      - {udm: укмыс, ru: девять, image: words/nine.webp, number: 9}
+      - {udm: дас, ru: десять, image: words/ten.webp, number: 10}
 
   - slug: wild-animals
     family: animals
     title: Дикие животные
     icon: "🐻"
     words:
-      - {udm: гондыр, ru: медведь, emoji: "🐻"}
-      - {udm: кион, ru: волк, emoji: "🐺"}
-      - {udm: койык, ru: лось, emoji: "🦌"}
-      - {udm: ӟичы, ru: лисица, emoji: "🦊"}
-      - {udm: лудкеч, ru: заяц, emoji: "🐇"}
-      - {udm: коньы, ru: белка, emoji: "🐿️"}
-      - {udm: ӵушъял, ru: ёж, emoji: "🦔"}
-      - {udm: кырпарсь, ru: кабан, emoji: "🐗"}
+      - {udm: гондыр, ru: медведь, image: words/bear.webp, emoji: "🐻"}
+      - {udm: кион, ru: волк, image: words/wolf.webp, emoji: "🐺"}
+      - {udm: койык, ru: лось, image: words/elk.webp, emoji: "🦌"}
+      - {udm: ӟичы, ru: лисица, image: words/fox.webp, emoji: "🦊"}
+      - {udm: лудкеч, ru: заяц, image: words/hare.webp, emoji: "🐇"}
+      - {udm: коньы, ru: белка, image: words/squirrel.webp, emoji: "🐿️"}
+      - {udm: ӵушъял, ru: ёж, image: words/hedgehog.webp, emoji: "🦔"}
+      - {udm: кырпарсь, ru: кабан, image: words/boar.webp, emoji: "🐗"}
 
   - slug: farm-animals
     family: animals
     title: Домашние животные
     icon: "🐄"
     words:
-      - {udm: скал, ru: корова, emoji: "🐄"}
-      - {udm: вал, ru: лошадь, emoji: "🐴"}
-      - {udm: ыж, ru: овца, emoji: "🐑"}
-      - {udm: така, ru: баран, emoji: "🐏"}
-      - {udm: ош, ru: бык, emoji: "🐂"}
-      - {udm: кеч, ru: коза, emoji: "🐐"}
-      - {udm: парсь, ru: свинья, emoji: "🐖"}
-      - {udm: пуны, ru: собака, emoji: "🐕"}
-      - {udm: курег, ru: курица, emoji: "🐔"}
-      - {udm: атас, ru: петух, emoji: "🐓"}
-      - {udm: курка, ru: индейка, emoji: "🦃"}
+      - {udm: скал, ru: корова, image: words/cow.webp, emoji: "🐄"}
+      - {udm: вал, ru: лошадь, image: words/horse.webp, emoji: "🐴"}
+      - {udm: ыж, ru: овца, image: words/sheep.webp, emoji: "🐑"}
+      - {udm: така, ru: баран, image: words/ram.webp, emoji: "🐏"}
+      - {udm: ош, ru: бык, image: words/bull.webp, emoji: "🐂"}
+      - {udm: кеч, ru: коза, image: words/goat.webp, emoji: "🐐"}
+      - {udm: парсь, ru: свинья, image: words/pig.webp, emoji: "🐖"}
+      - {udm: пуны, ru: собака, image: words/dog.webp, emoji: "🐕"}
+      - {udm: курег, ru: курица, image: words/hen.webp, emoji: "🐔"}
+      - {udm: атас, ru: петух, image: words/rooster.webp, emoji: "🐓"}
+      - {udm: курка, ru: индейка, image: words/turkey.webp, emoji: "🦃"}
 
   - slug: food
     family: food
     title: Продукты, еда
     icon: "🍞"
     words:
-      - {udm: сиён, ru: еда, emoji: "🍽️"}
-      - {udm: нянь, ru: хлеб, emoji: "🍞"}
-      - {udm: йӧл, ru: молоко, emoji: "🥛"}
-      - {udm: ӝук, ru: каша, emoji: "🥣"}
-      - {udm: пельнянь, ru: пельмени, emoji: "🥟"}
-      - {udm: шыд, ru: суп, emoji: "🍲"}
-      - {udm: кукей, ru: яйцо, alt: курегпуз, emoji: "🥚"}
-      - {udm: сӥль, ru: мясо, emoji: "🥩", needs_check: "в docx написано «сüль» с латинской ü"}
+      - {udm: сиён, ru: еда, image: words/food.webp, emoji: "🍽️"}
+      - {udm: нянь, ru: хлеб, image: words/bread.webp, emoji: "🍞"}
+      - {udm: йӧл, ru: молоко, image: words/milk.webp, emoji: "🥛"}
+      - {udm: ӝук, ru: каша, image: words/porridge.webp, emoji: "🥣"}
+      - {udm: пельнянь, ru: пельмени, image: words/pelmeni.webp, emoji: "🥟"}
+      - {udm: шыд, ru: суп, image: words/soup.webp, emoji: "🍲"}
+      - {udm: кукей, ru: яйцо, image: words/egg.webp, alt: курегпуз, emoji: "🥚"}
+      - {udm: сӥль, ru: мясо, image: words/meat.webp, emoji: "🥩", needs_check: "в docx написано «сüль» с латинской ü"}
       - {udm: вӧй, ru: масло, emoji: "🧈", needs_check: "в docx написано «вöй» с латинской ö"}
       - {udm: табань, ru: блин, emoji: "🥞"}
 

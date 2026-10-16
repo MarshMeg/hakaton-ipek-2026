@@ -9,6 +9,12 @@ def _clear_cache():
     cache.clear()
 
 
+@pytest.fixture(autouse=True)
+def _media_root(settings, tmp_path):
+    """Картинки, которые seed прикрепляет к словам, пишутся во временную папку, а не в media/."""
+    settings.MEDIA_ROOT = tmp_path / "media"
+
+
 @pytest.fixture
 def vocab(db):
     """Словарь из seeds/vocab.yaml."""
