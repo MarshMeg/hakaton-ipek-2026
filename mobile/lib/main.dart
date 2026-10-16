@@ -12,7 +12,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'bridge.dart';
 import 'bundle.dart';
@@ -22,33 +21,30 @@ import 'bundle.dart';
 const String defaultServerUrl =
     String.fromEnvironment('SERVER_URL', defaultValue: 'https://hakaton.marshmeg.ru');
 
-/// Сборка «с выбором адреса»: --dart-define=ASK_SERVER_URL=true. При каждом запуске приложение
-/// сначала спрашивает, какой адрес открыть (для проверки на локальном или тестовом сервере).
-/// Офлайн-снимок при этом отдаётся по выбранному адресу.
-const bool askServerUrl = bool.fromEnvironment('ASK_SERVER_URL');
-
-const String _prefsKey = 'server_url';
-
 /// Сколько ждать обновления снимка при запуске, прежде чем открыть игру на текущем.
 const Duration updateBudget = Duration(seconds: 20);
 
 /// Метка в User-Agent: по ней JS понимает, что открыт в приложении и стоит ждать мост.
 const String userAgentMark = 'VotesApp';
 
-/// Приводит введённый адрес к виду со схемой; null — если это не http(s)-адрес.
-/// Без схемы подставляется http:// — так обычно вводят локальный сервер (192.168.0.10:8000).
-String? normalizeServerUrl(String input) {
-  var text = input.trim();
-  if (text.isEmpty) return null;
-  if (!text.contains('://')) text = 'http://$text';
-  final uri = Uri.tryParse(text);
-  if (uri == null || uri.host.isEmpty) return null;
-  if (uri.scheme != 'http' && uri.scheme != 'https') return null;
-  return uri.toString();
-}
-
 /// Пути, которые всегда идут в сеть, даже если такой файл есть в снимке.
 const _networkOnly = ['/api/', '/admin/', '/bundle/'];
+
+/// Отдавать ли запрос WebView из снимка: только GET к нашему серверу [server], кроме [_networkOnly].
+/// Чужие адреса, POST/PUT к /api/ и т. п. уходят в сеть как обычно.
+bool servedFromBundle(Uri url, String? method, Uri server) {
+  if (url.origin != server.origin) return false;
+  if ((method ?? 'GET').toUpperCase() != 'GET') return false;
+  return !_networkOnly.any(url.path.startsWith);
+}
+
+/// Делит тип из манифеста («text/html; charset=utf-8») на MIME-тип и кодировку:
+/// WebResourceResponse принимает их отдельно (кодировка у Android называется contentEncoding).
+({String mime, String? charset}) splitContentType(String type) {
+  final parts = type.split(';');
+  final charset = parts.length > 1 ? parts[1].split('=').last.trim() : null;
+  return (mime: parts.first.trim(), charset: charset);
+}
 
 // Цвета брендбука (совпадают с backend/tailwind.config.js).
 const Color brandRed = Color(0xFFC8102E);
@@ -86,13 +82,12 @@ class GameScreen extends StatefulWidget {
 }
 
 class _GameScreenState extends State<GameScreen> {
-  Uri _server = Uri.parse(defaultServerUrl);
+  final Uri _server = Uri.parse(defaultServerUrl);
   InAppWebViewController? _controller;
   Bundle? _bundle;
   Bridge? _bridge;
   double _progress = 0;
   String? _error;
-  bool _asking = false;
   bool _updating = true;
 
   @override
@@ -102,16 +97,13 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> _init() async {
-    final prefs = await SharedPreferences.getInstance();
-    _server = Uri.parse(prefs.getString(_prefsKey) ?? defaultServerUrl);
     final bundle = await Bundle.load();
     if (!mounted) return;
     setState(() {
       _bundle = bundle;
       _bridge = Bridge(bundle);
-      _asking = askServerUrl;
     });
-    if (!askServerUrl) await _updateBundle();
+    await _updateBundle();
   }
 
   /// Шаги 1–2 цикла запуска: новая версия снимка включается сразу, до показа WebView.
@@ -127,43 +119,19 @@ class _GameScreenState extends State<GameScreen> {
     if (mounted) setState(() => _updating = false);
   }
 
-  Future<void> _applyServerUrl(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsKey, url);
-    setState(() {
-      _server = Uri.parse(url);
-      _asking = false;
-      _error = null;
-    });
-    final controller = _controller;
-    if (controller == null) {
-      await _updateBundle();
-    } else {
-      controller.loadUrl(urlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())));
-    }
-  }
-
-  /// Ответ на запрос WebView из снимка. null — пусть WebView идёт в сеть.
-  ///
-  /// Подменяем только GET к нашему серверу: чужие адреса, POST/PUT к /api/ и файлы, которых
-  /// нет в снимке, уходят в сеть как обычно.
+  /// Ответ на запрос WebView из снимка. null — пусть WebView идёт в сеть
+  /// (запрос не для снимка или такого файла в снимке нет).
   Future<WebResourceResponse?> _intercept(WebResourceRequest request) async {
     final bundle = _bundle;
-    final url = request.url;
-    if (bundle == null || url.origin != _server.origin) return null;
-    if ((request.method ?? 'GET').toUpperCase() != 'GET') return null;
-    if (_networkOnly.any(url.path.startsWith)) return null;
-    final file = bundle.lookup(url.path);
+    if (bundle == null || !servedFromBundle(request.url, request.method, _server)) return null;
+    final file = bundle.lookup(request.url.path);
     if (file == null) return null;
     final data = await bundle.read(file.sha);
     if (data == null) return null;
-    // В манифесте тип вида «text/html; charset=utf-8», а WebResourceResponse принимает MIME-тип
-    // и кодировку отдельно (кодировка у Android называется contentEncoding).
-    final parts = file.type.split(';');
-    final charset = parts.length > 1 ? parts[1].split('=').last.trim() : null;
+    final type = splitContentType(file.type);
     return WebResourceResponse(
-      contentType: parts.first.trim(),
-      contentEncoding: charset,
+      contentType: type.mime,
+      contentEncoding: type.charset,
       data: data,
       statusCode: 200,
       reasonPhrase: 'OK',
@@ -198,8 +166,6 @@ class _GameScreenState extends State<GameScreen> {
         body: SafeArea(
           child: bundle == null
               ? const _SplashView(text: 'Загрузка…')
-              : _asking
-              ? _ServerUrlView(initialUrl: _server.toString(), onSubmit: _applyServerUrl)
               : _updating
               ? const _SplashView(text: 'Проверяем обновления…')
               : Stack(
@@ -231,11 +197,7 @@ class _GameScreenState extends State<GameScreen> {
                     ),
                     if (_progress < 1) LinearProgressIndicator(value: _progress, color: brandRed, minHeight: 3),
                     if (_error != null)
-                      _ErrorView(
-                        message: _error!,
-                        onRetry: _reload,
-                        onEditUrl: () => setState(() => _asking = true),
-                      ),
+                      _ErrorView(message: _error!, onRetry: _reload),
                   ],
                 ),
         ),
@@ -276,13 +238,12 @@ class _SplashView extends StatelessWidget {
   }
 }
 
-/// Показывается, только если страницы нет в снимке и нет сети (например, сборка без снимка).
+/// Показывается, только если страницы нет в снимке и нет сети (например, первый запуск без интернета).
 class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry, required this.onEditUrl});
+  const _ErrorView({required this.message, required this.onRetry});
 
   final String message;
   final VoidCallback onRetry;
-  final VoidCallback onEditUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -310,96 +271,7 @@ class _ErrorView extends StatelessWidget {
             onPressed: onRetry,
             child: const Text('Повторить'),
           ),
-          const SizedBox(height: 8),
-          TextButton(onPressed: onEditUrl, child: const Text('Изменить адрес сервера')),
         ],
-      ),
-    );
-  }
-}
-
-/// Экран выбора адреса сервера: при запуске сборки с ASK_SERVER_URL и по кнопке на экране «нет связи».
-class _ServerUrlView extends StatefulWidget {
-  const _ServerUrlView({required this.initialUrl, required this.onSubmit});
-
-  final String initialUrl;
-  final ValueChanged<String> onSubmit;
-
-  @override
-  State<_ServerUrlView> createState() => _ServerUrlViewState();
-}
-
-class _ServerUrlViewState extends State<_ServerUrlView> {
-  late final TextEditingController _input = TextEditingController(text: widget.initialUrl);
-  String? _error;
-
-  @override
-  void dispose() {
-    _input.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final url = normalizeServerUrl(_input.text);
-    if (url == null) {
-      setState(() => _error = 'Введите адрес, например http://192.168.0.10:8000');
-      return;
-    }
-    widget.onSubmit(url);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.dns_rounded, size: 72, color: brandRed),
-            const SizedBox(height: 16),
-            const Text(
-              'Адрес сервера',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: brandInk),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Какой адрес открыть в приложении?',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _input,
-              keyboardType: TextInputType.url,
-              textInputAction: TextInputAction.go,
-              autocorrect: false,
-              onSubmitted: (_) => _submit(),
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: 'http://192.168.0.10:8000',
-                errorText: _error,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: brandRed,
-                minimumSize: const Size.fromHeight(52),
-              ),
-              onPressed: _submit,
-              child: const Text('Открыть'),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              onPressed: () => setState(() {
-                _input.text = defaultServerUrl;
-                _error = null;
-              }),
-              child: const Text('Адрес по умолчанию'),
-            ),
-          ],
-        ),
       ),
     );
   }

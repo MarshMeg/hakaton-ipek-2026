@@ -101,10 +101,11 @@ docker compose up --build
 надстройка [docker-compose.prod.yml](docker-compose.prod.yml): наружу смотрит только Caddy
 (порты 80/443, HTTPS-сертификат получает сам), он же раздаёт медиа из MinIO по пути `/votes-media/`.
 
-Деплой автоматический: после push в `main` и зелёных проверок задача `deploy` в
-[ci.yml](.github/workflows/ci.yml) копирует исходники на сервер по SSH и выполняет
-`docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build`
-(миграции, словарь и офлайн-снимок — в `backend/entrypoint.sh`). Настройки в GitHub: секрет
+Деплой автоматический: после push в `main` и зелёных проверок ([ci.yml](.github/workflows/ci.yml))
+задача `build` собирает образ web в GitHub Actions и публикует его в GHCR, а `deploy` копирует
+compose-файлы на сервер по SSH и запускает [deploy/deploy.sh](deploy/deploy.sh): тот скачивает образ
+и перезапускает web (миграции, словарь и офлайн-снимок — в `backend/entrypoint.sh`). Если после этого
+сайт не отвечает, сервер откатывается на предыдущий образ, а задача падает. Настройки в GitHub: секрет
 `DEPLOY_SSH_KEY`, переменные `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_URL`.
 
 Секреты и адрес сайта хранятся в `/opt/votes/.env` на сервере (в git его нет, деплой его не трогает):
@@ -125,14 +126,9 @@ mise run dev                 # http://localhost:8000
 **Скачать APK:** https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes.apk
 (Android 8.0 и выше).
 
-CI собирает APK при изменениях в `mobile/` или `backend/`: сначала собирает офлайн-снимок из
-`seeds/vocab.yaml`, потом `flutter build apk`. Сборка из `main` публикуется в
-[Releases](https://github.com/MarshMeg/hakaton-ipek-2026/releases).
-
-**Сборка с выбором адреса** — для проверки на своём сервере, при каждом запуске спрашивает, какой
-адрес открыть (офлайн-снимок отдаётся по этому адресу):
-https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes-ask.apk
-(локально: `mise run apk:ask`).
+CI собирает APK только при изменениях в `mobile/` (`flutter analyze`, `flutter test`,
+`flutter build apk`). Офлайн-снимка в этом APK нет: приложение скачивает его с сервера при первом
+запуске. Сборка из `main` публикуется в [Releases](https://github.com/MarshMeg/hakaton-ipek-2026/releases).
 
 Локально (Android SDK — из Android Studio):
 ```bash

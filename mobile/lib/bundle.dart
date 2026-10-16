@@ -3,8 +3,8 @@
 // Снимок собирает бэкенд (`manage.py build_bundle`) в формате
 //   manifest.json  {"version", "built", "files": {"/learn/": {"sha", "type", "size"}}}
 //   blobs/<sha256> содержимое файлов (имя = хэш, поэтому файлы не дублируются).
-// Первая версия лежит в assets APK, поэтому приложение работает сразу после установки
-// без интернета. При каждом запуске, до показа WebView, приложение проверяет обновление
+// Первая версия скачивается при первом запуске (APK из CI идёт без снимка) или лежит в assets
+// APK, если её туда положили при локальной сборке. При каждом запуске, до показа WebView, приложение проверяет обновление
 // (main.dart): скачивает с сервера все новые блобы (каждый проверяется по sha256), последним —
 // манифест, и сразу включает новую версию. После старта WebView снимок «замораживается»
 // (freeze): если обновление не успело, оно включится при следующем запуске, так что во время
@@ -56,6 +56,10 @@ class Manifest {
 
 class Bundle {
   Bundle._(this.manifest, this._dir, this._assetShas);
+
+  /// Снимок в папке [dir] без assets APK — для тестов.
+  @visibleForTesting
+  Bundle.forTest(Manifest manifest, Directory dir) : this._(manifest, dir, const {});
 
   Manifest manifest;
   // Папка скачанного снимка: manifest.json и blobs/.
@@ -123,11 +127,13 @@ class Bundle {
 
   /// Скачивает новую версию снимка, если она есть, и включает её (если снимок ещё не
   /// заморожен). Возвращает её версию или null. Без сети за [manifestTimeout] — null.
+  /// [httpClient] — для тестов; по умолчанию создаётся свой и закрывается по окончании.
   Future<String?> update(
     Uri server, {
     Duration manifestTimeout = const Duration(seconds: 5),
+    http.Client? httpClient,
   }) async {
-    final client = http.Client();
+    final client = httpClient ?? http.Client();
     try {
       final res = await client.get(server.resolve('/bundle/manifest.json')).timeout(manifestTimeout);
       if (res.statusCode != 200) return null;
@@ -164,7 +170,7 @@ class Bundle {
       debugPrint('Обновление снимка не удалось: $e');
       return null;
     } finally {
-      client.close();
+      if (httpClient == null) client.close();
     }
   }
 

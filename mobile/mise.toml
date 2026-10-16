@@ -22,7 +22,3 @@ run = "flutter run --dart-define=SERVER_URL=http://10.0.2.2:8000"
 [tasks.apk]
 description = "Собрать release APK (сервер https://hakaton.marshmeg.ru; снимок — cd ../backend && mise run bundle)"
 run = "flutter build apk --release --target-platform android-arm,android-arm64"
-
-[tasks."apk:ask"]
-description = "Собрать release APK, который при запуске спрашивает адрес сервера"
-run = "flutter build apk --release --target-platform android-arm,android-arm64 --dart-define=ASK_SERVER_URL=true"

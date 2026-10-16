@@ -55,7 +55,7 @@ CSS: `backend/static/css/app.css` **собирается и коммитится
 пересоберите его через `mise run css` (standalone Tailwind CLI v3.4.17, без Node; сканирует
 `backend/templates/` и `backend/static/js/`). Классов, которых нет в собранном CSS, просто не будет.
 
-Мобильное приложение (`cd mobile && mise run setup | check | dev | apk | apk:ask`; Android SDK —
+Мобильное приложение (`cd mobile && mise run setup | check | dev | apk`; Android SDK —
 из Android Studio, не из mise; APK собирает CI): в git только `lib/`, `test/`, `pubspec.yaml`,
 `assets/icon/`, `assets/bundle/**/.gitkeep`, `android/app/src/main/AndroidManifest.xml` и
 `android/app/build.gradle.kts` (minSdk 26, desugaring для `flutter_local_notifications`) — остальное
@@ -71,20 +71,27 @@ CSS: `backend/static/css/app.css` **собирается и коммитится
 
 ## CI/CD (`.github/workflows/`)
 
-`ci.yml` запускается на каждый push и PR: ruff, проверка миграций, pytest. `android.yml` (push только
-в `main`, ветки — через `pull_request`) запускается при изменениях в `mobile/**`, `backend/**` или
-в самом workflow (и вручную через `workflow_dispatch`): собирает офлайн-снимок (`DJANGO_DEBUG=0`, seed,
-collectstatic, `build_bundle --out ../mobile/assets/bundle` — как на сервере, поэтому версии снимка
-совпадают), затем `flutter analyze` и `flutter build apk`; на `main` задача `release` публикует
-GitHub Release `apk-<run_number>` с `votes.apk` и `votes-ask.apk` (`--dart-define=ASK_SERVER_URL=true`:
-спрашивает адрес сервера при каждом запуске, для проверки на другом сервере; снимок тогда отдаётся
-по этому адресу). Постоянная ссылка — `releases/latest/download/votes.apk`; адрес сервера в APK —
-`vars.SERVER_URL || https://hakaton.marshmeg.ru` (он же значение по умолчанию в `mobile/lib/main.dart`).
+`ci.yml` запускается на каждый push и PR. Задача `tests` (проверка `tests/ci`): ruff, проверка
+миграций на PostgreSQL 16 (сервис-контейнер, `makemigrations --check` и `migrate`), pytest. На push в
+`main` дальше идут `build` — образ web из `backend/` собирается в GitHub Actions (кэш слоёв `type=gha`)
+и публикуется в GHCR как `ghcr.io/marshmeg/hakaton-ipek-2026/web:<sha>` и `:latest` — и `deploy`.
 
-Деплой: задача `deploy` в `ci.yml` (push в `main`, после успешного `backend`) копирует исходники
+`android.yml` (push только в `main`, ветки — через `pull_request`) запускается при изменениях в
+`mobile/**` или в самом workflow (и вручную через `workflow_dispatch`): `flutter analyze`,
+`flutter test`, `flutter build apk`; на `main` задача `release` публикует GitHub Release
+`apk-<run_number>` с `votes.apk`. Офлайн-снимок в CI не собирается: APK скачивает его с сервера
+при первом запуске, поэтому правки бэкенда не пересобирают APK. Постоянная ссылка —
+`releases/latest/download/votes.apk`; адрес сервера в APK — `vars.SERVER_URL || https://hakaton.marshmeg.ru`
+(он же значение по умолчанию в `mobile/lib/main.dart`).
+
+Деплой: задача `deploy` в `ci.yml` (push в `main`, после `build`) копирует compose-файлы и `deploy/`
 rsync'ом в `/opt/votes` на сервер (`vars.DEPLOY_USER@vars.DEPLOY_HOST`, ключ в `secrets.DEPLOY_SSH_KEY`),
-выполняет `docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build` и проверяет
-`vars.DEPLOY_URL/content.json`. `docker-compose.prod.yml` добавляет Caddy (`deploy/Caddyfile`: HTTPS,
+входит на сервере в GHCR временным `GITHUB_TOKEN` и запускает `deploy/deploy.sh <образ>`: тот
+скачивает образ, ставит работающему образу тег `votes-web:previous`, новому — `votes-web:current`
+(из него web запускается в `docker-compose.prod.yml`) и делает `up -d --no-build`. Затем задача
+проверяет `vars.DEPLOY_URL/content.json`; если сайт не ответил — `deploy.sh --rollback` возвращает
+`votes-web:previous`, и задача падает. Миграции БД откат не отменяет.
+`docker-compose.prod.yml` добавляет Caddy (`deploy/Caddyfile`: HTTPS,
 `/votes-media/*` → MinIO) и закрывает наружные порты web и MinIO. `/opt/votes/.env` на сервере не в git
 и исключён из rsync. Прод включает `DJANGO_HTTPS_ONLY=1` (Secure-cookie и HSTS). Образ MinIO —
 `pgsty/minio` (официальный `minio/minio` убрали из реестров). В продовой БД остались таблицы удалённых
@@ -145,7 +152,7 @@ Flutter через `ZB.Bridge` и делает `PUT`, не дожидаясь о
 
 ## Мобильное приложение (`mobile/lib/`)
 
-- `bundle.dart` — активный снимок: из assets APK или скачанный, тот, у которого `built` новее;
+- `bundle.dart` — активный снимок: скачанный или из assets APK (в APK из CI его нет), тот, у которого `built` новее;
   `update()` докачивает недостающие блобы, проверяет sha256, пишет манифест последним и сразу
   переключается на новую версию, если ещё не было `freeze()`.
 - `main.dart` — при каждом запуске: заставка «Проверяем обновления…», `await bundle.update()` не

@@ -1,5 +1,6 @@
 # Надстройка над docker-compose.yml для сервера:
-#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Образ web собирает CI и выкатывает deploy/deploy.sh под локальным тегом votes-web:current.
 # Наружу смотрит только Caddy (80/443); web, MinIO и PostgreSQL доступны лишь внутри сети compose.
 services:
   caddy:
@@ -19,6 +20,8 @@ services:
       - web
 
   web:
+    # Если образа ещё нет (сервер без CI), compose соберёт его из ./backend под этим же тегом.
+    image: votes-web:current
     restart: unless-stopped
     environment:
       # Secure-cookie и HSTS: снаружи сайт доступен только по HTTPS (вход по http://IP при этом не работает).
