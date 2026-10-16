@@ -25,6 +25,27 @@ def test_seed_does_not_overwrite_admin_edits_without_update(vocab):
     assert word.ru == "медведь"
 
 
+def test_seed_attaches_new_images_without_update(vocab):
+    word = Word.objects.get(udm="гондыр")
+    assert word.image.name.startswith("words/bear")
+    # Слово загрузили раньше, чем в файл добавили картинку: seed без --update её докладывает.
+    word.image = ""
+    word.save()
+    call_command("seed")
+    word.refresh_from_db()
+    assert word.image.name.startswith("words/bear")
+    # А картинку, заменённую в админке, без --update не трогает.
+    word.image = "words/custom.webp"
+    word.save()
+    call_command("seed")
+    word.refresh_from_db()
+    assert word.image.name == "words/custom.webp"
+
+
+def test_seed_images_exist(vocab):
+    assert Word.objects.exclude(image="").count() == 44
+
+
 def test_sorting_sets_reference_existing_topics(vocab):
     slugs = set(Topic.objects.values_list("slug", flat=True))
     for s in SortingSet.objects.all():
@@ -58,7 +79,14 @@ def test_content_json(client, vocab):
     data = client.get(reverse("vocab:content")).json()
     assert {t["slug"] for t in data["topics"]} >= {"numbers", "colors", "family"}
     word = next(w for w in data["words"] if w["udm"] == "кык")
-    assert word == {"id": word["id"], "topic": "numbers", "udm": "кык", "ru": "два", "number": 2}
+    assert word == {
+        "id": word["id"],
+        "topic": "numbers",
+        "udm": "кык",
+        "ru": "два",
+        "number": 2,
+        "img": "/media/words/two.webp",
+    }
     assert data["sorting"] and data["facts"] and data["version"]
     # Версия зависит только от содержимого.
     assert client.get(reverse("vocab:content")).json()["version"] == data["version"]
