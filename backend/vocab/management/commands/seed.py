@@ -95,9 +95,30 @@ class Command(BaseCommand):
         # Файлы сохраняются через storage — локально в media/ или в MinIO, если USE_S3=1.
         attached = False
         for field in ("image", "audio"):
-            if w.get(field) and not (only_missing and getattr(word, field)):
-                path = SEEDS_DIR / "media" / w[field]
+            if not w.get(field):
+                continue
+            path = SEEDS_DIR / "media" / w[field]
+            current = getattr(word, field)
+            if not only_missing or not current or _is_stale_seed_copy(current, path):
                 with path.open("rb") as fh:
                     getattr(word, field).save(path.name, File(fh), save=False)
                 attached = True
         return attached
+
+
+def _is_stale_seed_copy(current, path: Path) -> bool:
+    """Файл когда-то загружен из seeds/media/, а в репозитории его с тех пор заменили.
+
+    Копию узнаём по имени: storage сохраняет «hen.webp» как есть или как «hen_<суффикс>.webp».
+    Загруженное через админку называется иначе и не трогается. Содержимое сравниваем по размеру —
+    это один HEAD-запрос к MinIO, а не скачивание файла.
+    """
+    name = Path(current.name)
+    if name.suffix != path.suffix or not (
+        name.stem == path.stem or name.stem.startswith(f"{path.stem}_")
+    ):
+        return False
+    try:
+        return current.storage.size(current.name) != path.stat().st_size
+    except OSError:
+        return True

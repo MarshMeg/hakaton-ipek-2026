@@ -1,7 +1,9 @@
 import pytest
+from django.core.files.base import ContentFile
 from django.core.management import CommandError, call_command
 from django.urls import reverse
 
+from vocab.management.commands.seed import SEEDS_DIR
 from vocab.models import Fact, SortingSet, Topic, Word
 
 
@@ -40,6 +42,16 @@ def test_seed_attaches_new_images_without_update(vocab):
     call_command("seed")
     word.refresh_from_db()
     assert word.image.name == "words/custom.webp"
+
+
+def test_seed_replaces_outdated_seed_images(vocab):
+    """Картинку перерисовали в seeds/media/ — seed без --update меняет и уже загруженную."""
+    word = Word.objects.get(udm="гондыр")
+    word.image.save("bear.webp", ContentFile(b"old"), save=True)
+    call_command("seed")
+    word.refresh_from_db()
+    assert word.image.name.startswith("words/bear")
+    assert word.image.size == (SEEDS_DIR / "media" / "words" / "bear.webp").stat().st_size
 
 
 def test_seed_images_exist(vocab):
