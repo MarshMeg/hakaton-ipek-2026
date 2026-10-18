@@ -33,7 +33,7 @@
 
       <div class="card mt-3">
         <p class="font-extrabold">Выученные слова (<span x-text="$store.app.stats.learned"></span>)</p>
-        <p class="mt-1 text-sm text-muted-strong" x-show="!$store.app.stats.learned">Слово считается выученным после двух верных ответов, если верных больше, чем ошибок.</p>
+        <p class="mt-1 text-sm text-muted-strong" x-show="!$store.app.stats.learned">Слово считается выученным после двух верных ответов, если верных больше, чем ошибок. Слово, в котором недавно ошибся, снова станет выученным после трёх верных ответов подряд.</p>
         <p class="mt-1" x-text="$store.app.stats.learnedWords.map(w => w.udm + ' — ' + w.ru).join('; ')"></p>
       </div>
 

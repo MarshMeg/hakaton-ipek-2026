@@ -19,6 +19,7 @@
   var OLD_STATE_KEY = 'zb.state.v1'; // журнал событий старых версий, переводится в сохранение
   var BOOTED_KEY = 'zb.booted'; // sessionStorage: синхронизация при запуске уже была
   var XP_PER_CORRECT = 10;
+  var AVATARS = ['🦊', '🐻', '🐰', '🐿️', '🦔', '🐺', '🐱', '🐶', '🦉', '🐝'];
   var HARD_CLEARED_AFTER = 3; // столько верных ответов подряд — и слово больше не «трудное»
   var DAY_MS = 86400000;
   var SYNC_TIMEOUT_MS = 5000;
@@ -519,6 +520,10 @@
     game.best = Math.max(game.best || 0, stars);
   }
 
+  function isHard(w) {
+    return w.bad > 0 && (w.streak || 0) < HARD_CLEARED_AFTER;
+  }
+
   /* «Трудные» слова: в них ошибались, и после этого ещё не ответили верно HARD_CLEARED_AFTER
    * раз подряд (поле streak; в старых сохранениях его нет — считаем, что серия 0). Сначала
    * слова с большим числом ошибок. Возвращает [{word, ok, bad, streak}]. */
@@ -527,8 +532,7 @@
     var byWord = save.words;
     return Object.keys(byWord)
       .filter(function (id) {
-        var w = byWord[id];
-        return w.bad > 0 && (w.streak || 0) < HARD_CLEARED_AFTER && content.wordById[id];
+        return isHard(byWord[id]) && content.wordById[id];
       })
       .sort(function (a, b) {
         return byWord[b].bad - byWord[a].bad || (byWord[a].streak || 0) - (byWord[b].streak || 0);
@@ -606,10 +610,11 @@
     if (!days[dayKey(t)]) t -= DAY_MS;
     while (days[dayKey(t)]) { streak++; t -= DAY_MS; }
 
-    // «Выучено»: хотя бы два верных ответа и верных больше, чем ошибок.
+    // «Выучено»: хотя бы два верных ответа, верных больше, чем ошибок, и слово не «трудное»
+    // (иначе оно попало бы и в «Выученные», и в «Чаще ошибаешься»).
     var learnedIds = Object.keys(byWord).filter(function (id) {
       var w = byWord[id];
-      return w.ok >= 2 && w.ok > w.bad;
+      return w.ok >= 2 && w.ok > w.bad && !isHard(w);
     });
     var seenIds = Object.keys(byWord).filter(function (id) { return byWord[id].seen > 0; });
     // Слово могли удалить из словаря, а в сохранении оно осталось — такие не считаем.
@@ -744,6 +749,18 @@
 
   // ---------- Alpine ----------
 
+  /* Профиль для шаблонов: name и avatar — что показывать (без имени — логин аккаунта, без
+   * зверька — первый из AVATARS), ownName и ownAvatar — что сохранено, для формы правки. */
+  function shownProfile(p, account) {
+    var name = (p.name || '').trim();
+    return {
+      name: name || (account ? account.username : ''),
+      avatar: p.avatar || AVATARS[0],
+      ownName: name,
+      ownAvatar: p.avatar || '',
+    };
+  }
+
   document.addEventListener('alpine:init', function () {
     var Alpine = window.Alpine;
     Alpine.store('app', {
@@ -761,8 +778,8 @@
       refresh: function () {
         var save = Save.data;
         var auth = Auth.get();
-        this.profile = save && Boot.phase === 'ready' ? Object.assign({}, save.profile) : null;
         this.account = auth && auth.token ? { username: auth.username, synced: auth.synced || 0 } : null;
+        this.profile = save && Boot.phase === 'ready' ? shownProfile(save.profile, this.account) : null;
         this.settings = Object.assign({}, Settings.values);
         this.stats = computeStats(save, this.content);
       },
@@ -790,6 +807,6 @@
     signup: signup, login: login, logout: logout,
     locate: locate, distanceKm: distanceKm, IZHEVSK: IZHEVSK,
     shuffle: shuffle, sample: sample, param: param, dayKey: dayKey,
-    AVATARS: ['🦊', '🐻', '🐰', '🐿️', '🦔', '🐺', '🐱', '🐶', '🦉', '🐝'],
+    AVATARS: AVATARS,
   };
 })();

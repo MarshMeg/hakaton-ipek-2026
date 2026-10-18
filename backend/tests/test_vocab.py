@@ -1,4 +1,7 @@
+import importlib
+
 import pytest
+from django.apps import apps as django_apps
 from django.core.files.base import ContentFile
 from django.core.management import CommandError, call_command
 from django.urls import reverse
@@ -63,6 +66,17 @@ def test_sorting_sets_reference_existing_topics(vocab):
     for s in SortingSet.objects.all():
         for group in s.groups:
             assert set(group["topics"]) <= slugs
+
+
+def test_vegetables_berries_set_renamed(db):
+    # Клубника (боры) — садовая ягода, поэтому набор не делит слова на «огород» и «лес».
+    migration = importlib.import_module("vocab.migrations.0002_rename_vegetables_berries_set")
+    SortingSet.objects.create(title=migration.OLD, groups=[])
+    migration.rename(django_apps, None)
+    assert list(SortingSet.objects.values_list("title", flat=True)) == [migration.NEW]
+    call_command("seed")
+    assert not SortingSet.objects.filter(title=migration.OLD).exists()
+    assert SortingSet.objects.filter(title=migration.NEW).count() == 1
 
 
 def test_udmurt_letters_are_cyrillic(vocab):

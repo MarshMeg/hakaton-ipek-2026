@@ -14,7 +14,7 @@
       </div>
       <form x-show="editing" @submit.prevent="saveEdit()">
         <label class="font-bold">Имя
-          <input x-model="name" maxlength="60" required
+          <input x-model="name" maxlength="60" required pattern=".*\S.*" title="Напиши имя"
                  class="mt-1 w-full rounded-2xl border-2 border-line px-4 py-3 font-normal focus:border-brand-red focus:outline-none">
         </label>
         <div class="mt-3 grid grid-cols-5 gap-2">
@@ -87,7 +87,7 @@
       editing: false, name: '', avatar: '', busy: false,
       startEdit() {
         const p = this.$store.app.profile;
-        this.name = p.name; this.avatar = p.avatar; this.editing = true;
+        this.name = p.ownName; this.avatar = p.ownAvatar || ZB.AVATARS[0]; this.editing = true;
       },
       saveEdit() {
         const name = this.name.trim().slice(0, 60);

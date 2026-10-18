@@ -87,6 +87,22 @@ def test_signup_validation(client, token):
     assert post(client, "/api/signup", {"username": "bob", "password": "123"}).status_code == 400
 
 
+def test_signup_strips_name(client, db):
+    # Имя из одних пробелов сохраняется пустым — тогда приложение показывает логин.
+    r = post(client, "/api/signup", {"username": "bob", "password": "secret123", "name": "   "})
+    assert r.json()["save"]["profile"]["name"] == ""
+    r = post(client, "/api/signup", {"username": "eva", "password": "secret123", "name": " Ева "})
+    assert r.json()["save"]["profile"]["name"] == "Ева"
+
+
+def test_put_save_strips_name(client, token):
+    save = make_save(20)
+    save["profile"]["name"] = " \t "
+    r = put_save(client, save, token)
+    assert r.status_code == 200
+    assert get_save(client, token).json()["save"]["profile"]["name"] == ""
+
+
 def test_login_returns_save(client, token):
     put_save(client, make_save(20), token)
     r = post(client, "/api/login", {"username": "aino", "password": "secret123"})

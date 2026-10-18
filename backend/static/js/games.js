@@ -325,26 +325,42 @@
         this.score = 0;
         this.maxScore = 0;
         this.done = false;
+        this.answers = [];
         this.feedback = null;
+        this.message = '';
+        this.usedSets = [];
+        this.usedWords = {};
         this.newRound();
       },
 
       newRound: function () {
         var c = this.content;
+        var self = this;
         // Только наборы, у которых в каждой корзинке есть хотя бы одно слово.
         var sets = c.sorting.filter(function (s) {
           return s.groups.every(function (g) {
             return g.topics.some(function (slug) { return c.topicBySlug[slug] && c.topicBySlug[slug].words.length; });
           });
         });
-        this.set = sets[Math.floor(Math.random() * sets.length)];
+        // Набор не повторяется, пока в партии не сыграны все остальные.
+        var fresh = sets.filter(function (s) { return self.usedSets.indexOf(s.title) < 0; });
+        if (!fresh.length) { this.usedSets = []; fresh = sets; }
+        this.set = fresh[Math.floor(Math.random() * fresh.length)];
+        this.usedSets.push(this.set.title);
         // 2 корзинки × 3 слова или 3+ корзинки × 2 слова — чтобы всё помещалось на экране.
         var perGroup = this.set.groups.length > 2 ? 2 : 3;
         var items = [];
         this.groups = this.set.groups.map(function (g, gi) {
           var words = [];
           g.topics.forEach(function (slug) { words = words.concat(c.topicBySlug[slug].words); });
-          ZB.sample(words, perGroup).forEach(function (w) {
+          // Слова, уже бывшие в партии (темы у наборов общие), — только если новых не хватает.
+          var unused = words.filter(function (w) { return !self.usedWords[w.id]; });
+          var picked = ZB.sample(unused, perGroup);
+          if (picked.length < perGroup) {
+            picked = picked.concat(ZB.sample(words.filter(function (w) { return picked.indexOf(w) < 0; }), perGroup - picked.length));
+          }
+          picked.forEach(function (w) {
+            self.usedWords[w.id] = true;
             items.push({ word: w, group: gi, placed: false, tried: false });
           });
           return { label: g.label, icon: g.icon || '', placed: [] };
