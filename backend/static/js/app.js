@@ -5,8 +5,9 @@
  * Прогресс — одно «сохранение» на аккаунт (формат v2, см. play/api.py) в localStorage
  * (SAVE_KEY) с копией во Flutter (файл на телефоне), чтобы пережить очистку данных WebView.
  * При синхронизации более новое сохранение (по полю updated) заменяет старое целиком.
- * Аккаунт (AUTH_KEY) и настройки устройства (SETTINGS_KEY) лежат отдельно и в сохранение
- * не входят.
+ * Настройки (звук, напоминание, геолокация) входят в сохранение (блок settings) и едут
+ * вместе с прогрессом на другой телефон; SETTINGS_KEY — их локальный кэш. Аккаунт (AUTH_KEY)
+ * лежит отдельно.
  *
  * Код намеренно без новейшего синтаксиса: приложение должно работать на Android 8.
  */
@@ -15,7 +16,9 @@
 
   var SAVE_KEY = 'zb.save.v2';
   var AUTH_KEY = 'zb.auth.v1';
-  var SETTINGS_KEY = 'zb.settings.v1';
+  var SETTINGS_KEY = 'zb.settings.v1'; // кэш settings из сохранения
+  var GEO_DEVICE_KEY = 'zb.geo.device'; // на этом устройстве геолокация уже разрешена
+  var SETTINGS_DEFAULTS = { sound: true, notifications: false, geo: false };
   var OLD_STATE_KEY = 'zb.state.v1'; // журнал событий старых версий, переводится в сохранение
   var BOOTED_KEY = 'zb.booted'; // sessionStorage: синхронизация при запуске уже была
   var XP_PER_CORRECT = 10;
@@ -147,20 +150,48 @@
     return withTimeout(request, opts.timeout);
   }
 
-  // ---------- настройки устройства ----------
+  // ---------- настройки ----------
 
+  /* Только известные булевы ключи; чего нет или что не булево — из fallback (по умолчанию —
+   * SETTINGS_DEFAULTS). Так же чистит настройки сервер (clean_settings в play/api.py). */
+  function cleanSettings(raw, fallback) {
+    var out = {};
+    raw = raw && typeof raw === 'object' ? raw : {};
+    fallback = fallback || SETTINGS_DEFAULTS;
+    for (var k in SETTINGS_DEFAULTS) {
+      out[k] = typeof raw[k] === 'boolean' ? raw[k] : fallback[k];
+    }
+    return out;
+  }
+
+  /* values — настройки из сохранения (кэш в SETTINGS_KEY, чтобы работали и до входа).
+   * Геолокация показывается, только если включена в аккаунте И разрешена на этом устройстве
+   * (geoEnabled): пришедшее с другого телефона geo=true не вызывает запрос разрешения молча. */
   var Settings = {
-    values: (function () {
-      var base = { sound: true, notifications: false, geo: false };
-      var stored = readJSON(window.localStorage, SETTINGS_KEY) || {};
-      for (var k in stored) base[k] = stored[k];
-      return base;
-    })(),
+    values: cleanSettings(readJSON(window.localStorage, SETTINGS_KEY)),
 
+    geoAllowed: function () { return !!readJSON(window.localStorage, GEO_DEVICE_KEY); },
+
+    geoEnabled: function () { return this.values.geo && this.geoAllowed(); },
+
+    /* Изменение игроком: в сохранение через Save.commit (растёт updated, уходит на сервер). */
     set: function (key, value) {
+      if (key === 'geo' && value) writeJSON(window.localStorage, GEO_DEVICE_KEY, true);
       this.values[key] = value;
       writeJSON(window.localStorage, SETTINGS_KEY, this.values);
-      notify();
+      var changed = Save.data && Save.data.settings[key] !== value;
+      if (!changed || !Save.commit(function (s) { s.settings[key] = value; })) notify();
+    },
+
+    /* Настройки из сохранения, пришедшего с сервера или из копии во Flutter. Если напоминание
+     * на этом устройстве было в другом состоянии — включаем или выключаем его через мост. */
+    apply: function (settings) {
+      var prev = this.values;
+      this.values = cleanSettings(settings, prev);
+      writeJSON(window.localStorage, SETTINGS_KEY, this.values);
+      if (this.values.notifications !== prev.notifications) {
+        Bridge.call('setNotifications', this.values.notifications);
+      }
     },
   };
 
@@ -183,7 +214,10 @@
   // ---------- сохранение ----------
 
   function emptySave(name, avatar) {
-    return { v: 2, updated: 0, profile: { name: name || '', avatar: avatar || '' }, words: {}, days: {}, games: {} };
+    return {
+      v: 2, updated: 0, profile: { name: name || '', avatar: avatar || '' },
+      words: {}, days: {}, games: {}, settings: cleanSettings(Settings.values),
+    };
   }
 
   function normalizeSave(s) {
@@ -193,6 +227,8 @@
     ['profile', 'words', 'days', 'games'].forEach(function (k) {
       if (s[k] && typeof s[k] === 'object') base[k] = s[k];
     });
+    // В сохранениях до появления настроек блока нет — берём то, что было на этом устройстве.
+    base.settings = cleanSettings(s.settings, Settings.values);
     return base;
   }
 
@@ -224,8 +260,11 @@
 
   /* Переход со старого формата: прогресс сохраняется, токен — тоже, если он был. */
   function migrateOldState(state) {
+    // Не через Settings.set: commit поднял бы updated текущего сохранения, и прогресс из
+    // журнала ниже проиграл бы ему. Настройки попадут в сохранение через emptySave.
     if (state && state.settings && !readJSON(window.localStorage, SETTINGS_KEY)) {
-      for (var k in state.settings) Settings.set(k, state.settings[k]);
+      if (state.settings.geo) writeJSON(window.localStorage, GEO_DEVICE_KEY, true);
+      Settings.apply(state.settings);
     }
     var old = fromEvents(state || {});
     if (!old) return;
@@ -260,6 +299,7 @@
     /* Заменить сохранение целиком (серверным, из копии во Flutter, при выходе — null). */
     replace: function (save) {
       this.data = save ? normalizeSave(save) : null;
+      if (this.data) Settings.apply(this.data.settings);
       writeJSON(window.localStorage, SAVE_KEY, this.data);
       backup();
       notify();
@@ -312,6 +352,9 @@
       return pushing;
     },
   };
+
+  // Кэш настроек и сохранение на телефоне должны совпадать (сохранение главнее).
+  if (Save.data) Settings.apply(Save.data.settings);
 
   // ---------- вход и синхронизация ----------
 
@@ -768,7 +811,7 @@
       phase: 'loading',
       profile: null,
       account: null,
-      settings: Settings.values,
+      settings: Object.assign({}, Settings.values, { geo: Settings.geoEnabled() }),
       stats: computeStats(null, null),
       content: null,
       ready: false,
@@ -780,7 +823,8 @@
         var auth = Auth.get();
         this.account = auth && auth.token ? { username: auth.username, synced: auth.synced || 0 } : null;
         this.profile = save && Boot.phase === 'ready' ? shownProfile(save.profile, this.account) : null;
-        this.settings = Object.assign({}, Settings.values);
+        // geo — то, что действует на этом устройстве (см. Settings.geoEnabled).
+        this.settings = Object.assign({}, Settings.values, { geo: Settings.geoEnabled() });
         this.stats = computeStats(save, this.content);
       },
     });
