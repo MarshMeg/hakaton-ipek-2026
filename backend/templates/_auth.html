@@ -33,7 +33,7 @@
         <template x-if="mode === 'signup'">
           <div>
             <label class="mt-4 block font-bold">Как тебя зовут?
-              <input x-model="name" maxlength="60" required placeholder="Имя"
+              <input x-model="name" maxlength="60" required pattern=".*\S.*" title="Напиши имя" placeholder="Имя"
                      class="mt-1 w-full rounded-2xl border-2 border-line px-4 py-3 text-lg font-normal focus:border-brand-red focus:outline-none">
             </label>
             <p class="mt-4 font-bold">Выбери зверька</p>
@@ -90,7 +90,10 @@
         this.step = 2;
       },
       submit() {
-        this.error = ''; this.offline = false; this.busy = true;
+        this.error = ''; this.offline = false;
+        // Имя из одних пробелов не пропускаем (pattern в поле ловит то же, это — на всякий случай).
+        if (this.mode === 'signup' && !this.name.trim()) { this.error = 'Напиши, как тебя зовут'; return; }
+        this.busy = true;
         const username = this.username.trim();
         const done = this.mode === 'signup'
           ? ZB.signup({ username, password: this.password, name: this.name.trim().slice(0, 60), avatar: this.avatar })

@@ -15,6 +15,7 @@ mobile/pubspec.lock
 # Генерируются flutter create / pub get
 mobile/android/local.properties
 mobile/android/app/src/main/java/
+mobile/android/app/.gradle/
 
 # Офлайн-снимок приложения (manage.py build_bundle): на сервере и в assets APK
 backend/bundle/

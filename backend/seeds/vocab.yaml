@@ -166,7 +166,7 @@ sorting:
     groups:
       - {label: "В лесу", icon: "🌲", topics: [wild-animals]}
       - {label: "Дома", icon: "🏡", topics: [farm-animals]}
-  - title: Огород или лес?
+  - title: Овощи или ягоды?
     groups:
       - {label: "Овощи", icon: "🥕", topics: [vegetables]}
       - {label: "Ягоды", icon: "🍓", topics: [berries]}

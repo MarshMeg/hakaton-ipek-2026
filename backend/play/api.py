@@ -179,7 +179,7 @@ def clean_save(raw):
         "v": SAVE_VERSION,
         "updated": updated,
         "profile": {
-            "name": str(profile.get("name", ""))[:60],
+            "name": str(profile.get("name", "")).strip()[:60],
             "avatar": str(profile.get("avatar", ""))[:16],
         },
     }
@@ -236,7 +236,7 @@ def signup(request, data):
     if users.filter(username__iexact=username).exists():
         return _error("Такое имя уже занято")
     save = empty_save(
-        str(data.get("name", ""))[:60],
+        str(data.get("name", "")).strip()[:60],
         str(data.get("avatar", ""))[:16],
         max(_int(data.get("updated")), 0),
     )
