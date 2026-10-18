@@ -83,44 +83,44 @@ topics:
       - {udm: шыд, ru: суп, image: words/soup.webp, emoji: "🍲"}
       - {udm: кукей, ru: яйцо, image: words/egg.webp, alt: курегпуз, emoji: "🥚"}
       - {udm: сӥль, ru: мясо, image: words/meat.webp, emoji: "🥩", needs_check: "в docx написано «сüль» с латинской ü"}
-      - {udm: вӧй, ru: масло, emoji: "🧈", needs_check: "в docx написано «вöй» с латинской ö"}
-      - {udm: табань, ru: блин, emoji: "🥞"}
+      - {udm: вӧй, ru: масло, image: words/butter.webp, emoji: "🧈", needs_check: "в docx написано «вöй» с латинской ö"}
+      - {udm: табань, ru: блин, image: words/pancake.webp, emoji: "🥞"}
 
   - slug: clothes
     title: Одежда
     icon: "👗"
     words:
-      - {udm: дэрем, ru: рубаха, alt: "сорочка, платье", emoji: "👗"}
-      - {udm: азькышет, ru: передник, alt: фартук}
-      - {udm: кышет, ru: платок, emoji: "🧣"}
+      - {udm: дэрем, ru: рубаха, image: words/shirt.webp, alt: "сорочка, платье", emoji: "👗"}
+      - {udm: азькышет, ru: передник, image: words/apron.webp, alt: фартук}
+      - {udm: кышет, ru: платок, image: words/headscarf.webp, emoji: "🧣"}
 
   - slug: family
     title: Моя семья
     icon: "👪"
     words:
-      - {udm: анай, ru: мама, emoji: "👩"}
-      - {udm: атай, ru: папа, emoji: "👨"}
-      - {udm: атай-анай, ru: родители, emoji: "👫"}
-      - {udm: агай, ru: брат, alt: дядя, emoji: "🧔",
+      - {udm: анай, ru: мама, image: words/mother.webp, emoji: "👩"}
+      - {udm: атай, ru: папа, image: words/father.webp, emoji: "👨"}
+      - {udm: атай-анай, ru: родители, image: words/parents.webp, emoji: "👫"}
+      - {udm: агай, ru: брат, image: words/brother.webp, alt: дядя, emoji: "🧔",
          needs_check: "в docx «агай» дан и как «брат», и как «дядя»"}
-      - {udm: апай, ru: сестра, emoji: "👧"}
-      - {udm: песянай, ru: бабушка, alt: песяй, emoji: "👵"}
-      - {udm: песятай, ru: дедушка, emoji: "👴"}
-      - {udm: кузпал, ru: супруг, alt: супруга, emoji: "💑"}
-      - {udm: кышно, ru: жена, emoji: "👰"}
-      - {udm: нылы, ru: дочь, emoji: "👩‍👧"}
-      - {udm: пие, ru: сын, emoji: "👦"}
+      - {udm: апай, ru: сестра, image: words/sister.webp, emoji: "👧"}
+      - {udm: песянай, ru: бабушка, image: words/grandmother.webp, alt: песяй, emoji: "👵"}
+      - {udm: песятай, ru: дедушка, image: words/grandfather.webp, emoji: "👴"}
+      - {udm: кузпал, ru: супруг, image: words/spouse.webp, alt: супруга, emoji: "💑"}
+      - {udm: кышно, ru: жена, image: words/wife.webp, emoji: "👰"}
+      - {udm: нылы, ru: дочь, image: words/daughter.webp, emoji: "👩‍👧"}
+      - {udm: пие, ru: сын, image: words/son.webp, emoji: "👦"}
 
   - slug: vegetables
     family: food
     title: Овощи
     icon: "🥕"
     words:
-      - {udm: сугон, ru: лук, emoji: "🧅"}
-      - {udm: кубиста, ru: капуста, emoji: "🥬"}
-      - {udm: гордкушман, ru: свёкла}
-      - {udm: кешыр, ru: морковь, emoji: "🥕"}
-      - {udm: кияр, ru: огурец, alt: огреч, emoji: "🥒"}
+      - {udm: сугон, ru: лук, image: words/onion.webp, emoji: "🧅"}
+      - {udm: кубиста, ru: капуста, image: words/cabbage.webp, emoji: "🥬"}
+      - {udm: гордкушман, ru: свёкла, image: words/beet.webp}
+      - {udm: кешыр, ru: морковь, image: words/carrot.webp, emoji: "🥕"}
+      - {udm: кияр, ru: огурец, image: words/cucumber.webp, alt: огреч, emoji: "🥒"}
 
   - slug: colors
     title: Цвета
@@ -128,37 +128,37 @@ topics:
     kind: colors
     words:
       - {udm: тӧдьы, ru: белый, color: "#ffffff"}
-      - {udm: сьӧд, ru: чёрный, color: "#1b1b1b"}
-      - {udm: лыз, ru: синий, color: "#1e5bd8"}
-      - {udm: ӵуж, ru: жёлтый, color: "#f2c200"}
-      - {udm: вож, ru: зелёный, color: "#2e9d3a"}
-      - {udm: льӧль, ru: розовый, color: "#f4a6c4"}
-      - {udm: горд, ru: красный, color: "#d7263d"}
+      - {udm: сьӧд, ru: чёрный, image: words/black.webp, color: "#1b1b1b"}
+      - {udm: лыз, ru: синий, image: words/blue.webp, color: "#1e5bd8"}
+      - {udm: ӵуж, ru: жёлтый, image: words/yellow.webp, color: "#f2c200"}
+      - {udm: вож, ru: зелёный, image: words/green.webp, color: "#2e9d3a"}
+      - {udm: льӧль, ru: розовый, image: words/pink.webp, color: "#f4a6c4"}
+      - {udm: горд, ru: красный, image: words/red.webp, color: "#d7263d"}
 
   - slug: berries
     family: food
     title: Ягоды
     icon: "🍓"
     words:
-      - {udm: шупу, ru: калина}
-      - {udm: ягмульыпу, ru: брусника}
+      - {udm: шупу, ru: калина, image: words/viburnum.webp}
+      - {udm: ягмульыпу, ru: брусника, image: words/lingonberry.webp}
       - {udm: узы, ru: земляника, emoji: "🍓"}
-      - {udm: боры, ru: клубника}
-      - {udm: нюрмульы, ru: клюква}
-      - {udm: лызмульы, ru: голубика, emoji: "🫐"}
+      - {udm: боры, ru: клубника, image: words/strawberry.webp}
+      - {udm: нюрмульы, ru: клюква, image: words/cranberry.webp}
+      - {udm: лызмульы, ru: голубика, image: words/blueberry.webp, emoji: "🫐"}
 
   - slug: phrases
     title: Полезные фразы
     icon: "💬"
     kind: phrases
     words:
-      - {udm: Ойдолэ тодматском!, ru: Давайте познакомимся!, emoji: "🤝"}
-      - {udm: Мынам нимы…, ru: Меня зовут…, emoji: "🙋"}
-      - {udm: Мон уг валаськы, ru: Я не понимаю, emoji: "🤷"}
-      - {udm: Мон шумпотӥсько, ru: Я рада, emoji: "😊"}
-      - {udm: Мынам воже потэ, ru: Я злюсь, emoji: "😠"}
-      - {udm: Мон кышкасько, ru: Мне страшно, emoji: "😨"}
-      - {udm: Мон тонэ яратӥсько, ru: Я тебя люблю, emoji: "❤️"}
+      - {udm: Ойдолэ тодматском!, ru: Давайте познакомимся!, image: words/lets-meet.webp, emoji: "🤝"}
+      - {udm: Мынам нимы…, ru: Меня зовут…, image: words/my-name-is.webp, emoji: "🙋"}
+      - {udm: Мон уг валаськы, ru: Я не понимаю, image: words/dont-understand.webp, emoji: "🤷"}
+      - {udm: Мон шумпотӥсько, ru: Я рада, image: words/happy.webp, emoji: "😊"}
+      - {udm: Мынам воже потэ, ru: Я злюсь, image: words/angry.webp, emoji: "😠"}
+      - {udm: Мон кышкасько, ru: Мне страшно, image: words/scared.webp, emoji: "😨"}
+      - {udm: Мон тонэ яратӥсько, ru: Я тебя люблю, image: words/love.webp, emoji: "❤️"}
 
 # Игра «Сортировка»: слова из тем каждой группы нужно разложить по корзинам.
 sorting:
