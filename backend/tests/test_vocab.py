@@ -58,7 +58,7 @@ def test_seed_replaces_outdated_seed_images(vocab):
 
 
 def test_seed_images_exist(vocab):
-    assert Word.objects.exclude(image="").count() == 44
+    assert Word.objects.exclude(image="").count() == 83
 
 
 def test_sorting_sets_reference_existing_topics(vocab):
