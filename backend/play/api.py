@@ -7,11 +7,17 @@
      "profile": {"name": "Аня", "avatar": "🦊"},
      "words": {"17": {"ok": 3, "bad": 1, "seen": 2, "streak": 2, "last": 1760500000000}},
      "days": {"2026-10-15": {"ok": 12, "bad": 3, "seen": 5}},
-     "games": {"choose": {"ok": 20, "bad": 4, "played": 3, "best": 3}}}
+     "games": {"choose": {"ok": 20, "bad": 4, "played": 3, "best": 3}},
+     "settings": {"sound": true, "notifications": false, "geo": false}}
 
 `streak` — верные ответы на слово подряд (после ошибки — 0): после трёх подряд слово
 перестаёт быть «трудным» (режим «Трудные слова», `ZB.hardWords` в static/js/app.js). В старых
 сохранениях поля нет, клиент считает его нулём.
+
+`settings` — настройки игрока (звук, напоминание, геолокация), едут вместе с прогрессом на
+любой телефон. Только булевы ключи из SETTINGS_DEFAULTS: неизвестные отбрасываются, не булевы
+значения и отсутствующие ключи заменяются значениями по умолчанию. В сохранениях, записанных до
+появления блока, его нет — тогда подставляются значения по умолчанию (`clean_settings`).
 
 При синхронизации более новое сохранение заменяет старое целиком, без слияния. Сервер
 принимает PUT, только если присланное не старее хранимого, иначе отвечает 409 и своим
@@ -41,6 +47,7 @@ TOKEN_SALT = "votes.api"
 SAVE_VERSION = 2
 MAX_SAVE_BYTES = 256 * 1024
 SAVE_SECTIONS = ("words", "days", "games")
+SETTINGS_DEFAULTS = {"sound": True, "notifications": False, "geo": False}
 
 
 def make_token(user) -> str:
@@ -154,6 +161,15 @@ def _int(value, default=0):
         return default
 
 
+def clean_settings(raw) -> dict:
+    """Настройки из сохранения: только известные булевы ключи, остальное — по умолчанию."""
+    raw = raw if isinstance(raw, dict) else {}
+    return {
+        key: raw[key] if isinstance(raw.get(key), bool) else default
+        for key, default in SETTINGS_DEFAULTS.items()
+    }
+
+
 def empty_save(name="", avatar="", updated=0) -> dict:
     return {
         "v": SAVE_VERSION,
@@ -162,6 +178,7 @@ def empty_save(name="", avatar="", updated=0) -> dict:
         "words": {},
         "days": {},
         "games": {},
+        "settings": dict(SETTINGS_DEFAULTS),
     }
 
 
@@ -188,6 +205,7 @@ def clean_save(raw):
         if not isinstance(value, dict) or not all(isinstance(v, dict) for v in value.values()):
             return None
         save[section] = value
+    save["settings"] = clean_settings(raw.get("settings"))
     return save
 
 
@@ -197,9 +215,10 @@ def _profile(user) -> Profile:
 
 
 def _stored_save(profile) -> dict:
-    """Хранимое сохранение; у аккаунтов, созданных в админке, его ещё нет."""
+    """Хранимое сохранение; у аккаунтов, созданных в админке, его ещё нет. В сохранениях,
+    записанных до появления настроек, блок `settings` достраивается на лету."""
     if profile.save_data:
-        return profile.save_data
+        return {**profile.save_data, "settings": clean_settings(profile.save_data.get("settings"))}
     return empty_save(profile.display_name, profile.avatar, profile.updated)
 
 

@@ -4,7 +4,14 @@ import json
 import pytest
 from django.contrib.auth import get_user_model
 
-from play.api import LOGIN_FAILS_PER_USER, MAX_SAVE_BYTES, SIGNUP_PER_IP
+from accounts.models import Profile
+from play.api import (
+    LOGIN_FAILS_PER_USER,
+    MAX_SAVE_BYTES,
+    SETTINGS_DEFAULTS,
+    SIGNUP_PER_IP,
+    clean_save,
+)
 
 migration = importlib.import_module("accounts.migrations.0005_profile_save")
 
@@ -34,6 +41,7 @@ def make_save(updated, ok=1):
         "words": {"17": {"ok": ok, "bad": 0, "seen": 0, "last": updated}},
         "days": {"2026-10-15": {"ok": ok, "bad": 0, "seen": 0}},
         "games": {"choose": {"ok": ok, "bad": 0, "played": 1, "best": 3}},
+        "settings": dict(SETTINGS_DEFAULTS),
     }
 
 
@@ -77,6 +85,7 @@ def test_signup_returns_empty_save(client, db):
         "words": {},
         "days": {},
         "games": {},
+        "settings": {"sound": True, "notifications": False, "geo": False},
     }
 
 
@@ -163,6 +172,58 @@ def test_put_invalid_save(client, token, patch):
     save = make_save(20)
     save.update(patch)
     assert put_save(client, save, token).status_code == 400
+
+
+def test_settings_are_stored(client, token):
+    save = make_save(20)
+    save["settings"] = {"sound": False, "notifications": True, "geo": True}
+    assert put_save(client, save, token).status_code == 200
+    assert get_save(client, token).json()["save"]["settings"] == save["settings"]
+
+
+def test_clean_save_without_settings_gets_defaults():
+    """Сохранение, записанное до появления настроек, читается с настройками по умолчанию."""
+    save = make_save(20)
+    del save["settings"]
+    assert clean_save(save)["settings"] == {"sound": True, "notifications": False, "geo": False}
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("громко", SETTINGS_DEFAULTS),
+        ([False], SETTINGS_DEFAULTS),
+        (
+            {"sound": 0, "notifications": "true", "geo": None},
+            SETTINGS_DEFAULTS,
+        ),
+        (
+            {"sound": False, "theme": "dark", "volume": 5},
+            {"sound": False, "notifications": False, "geo": False},
+        ),
+        ({"geo": True}, {"sound": True, "notifications": False, "geo": True}),
+    ],
+)
+def test_clean_save_settings_garbage(raw, expected):
+    """Мусор в настройках не ломает сохранение: неизвестные ключи отбрасываются,
+    не булевы значения заменяются значениями по умолчанию."""
+    save = make_save(20)
+    save["settings"] = raw
+    assert clean_save(save)["settings"] == expected
+
+
+def test_stored_save_without_settings_is_readable(client, token):
+    """В базе лежит сохранение без settings (записано старой версией) — GET достраивает блок."""
+    old = make_save(20)
+    del old["settings"]
+    Profile.objects.filter(user__username="aino").update(save_data=old, updated=20)
+    data = get_save(client, token).json()["save"]
+    assert data["settings"] == SETTINGS_DEFAULTS
+    assert data["words"] == old["words"]
+    # Более старое присланное по-прежнему отклоняется, ответ — тоже с настройками.
+    r = put_save(client, make_save(5), token)
+    assert r.status_code == 409
+    assert r.json()["save"]["settings"] == SETTINGS_DEFAULTS
 
 
 def test_put_too_large(client, token):
