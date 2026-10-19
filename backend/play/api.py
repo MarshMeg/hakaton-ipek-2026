@@ -249,6 +249,8 @@ def signup(request, data):
     password = str(data.get("password", ""))
     if not username or len(username) > 150:
         return _error("Придумай имя для входа")
+    if any(ch.isspace() for ch in username):
+        return _error("В имени для входа не должно быть пробелов")
     if len(password) < 6:
         return _error("Пароль должен быть не короче 6 символов")
     users = get_user_model().objects

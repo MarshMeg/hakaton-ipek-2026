@@ -49,6 +49,7 @@
 
         <label class="mt-4 block font-bold">Имя для входа
           <input x-model="username" required maxlength="150" autocomplete="username" autocapitalize="none"
+                 :pattern="mode === 'signup' ? '\\S+' : null" :title="mode === 'signup' ? 'Без пробелов, например aino2015' : null"
                  class="mt-1 w-full rounded-2xl border-2 border-line px-4 py-3 font-normal focus:border-brand-red focus:outline-none">
         </label>
         <label class="mt-3 block font-bold">Пароль
@@ -93,8 +94,9 @@
         this.error = ''; this.offline = false;
         // Имя из одних пробелов не пропускаем (pattern в поле ловит то же, это — на всякий случай).
         if (this.mode === 'signup' && !this.name.trim()) { this.error = 'Напиши, как тебя зовут'; return; }
-        this.busy = true;
         const username = this.username.trim();
+        if (this.mode === 'signup' && /\s/.test(username)) { this.error = 'В имени для входа не должно быть пробелов'; return; }
+        this.busy = true;
         const done = this.mode === 'signup'
           ? ZB.signup({ username, password: this.password, name: this.name.trim().slice(0, 60), avatar: this.avatar })
           : ZB.login(username, this.password);

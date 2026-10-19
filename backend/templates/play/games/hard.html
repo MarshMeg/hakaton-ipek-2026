@@ -16,7 +16,7 @@
       <div>
         <div class="text-6xl">🌱</div>
         <p class="mt-3 text-xl font-extrabold">Трудных слов пока мало</p>
-        <p class="mt-2 text-muted-strong">Здесь нужно хотя бы три слова. Сыграй ещё — и возвращайся!</p>
+        <p class="mt-2 text-muted-strong">Здесь нужно хотя бы <span x-text="ZB.HARD_MIN"></span> слова. Сыграй ещё — и возвращайся!</p>
         <ul class="mt-3 grid gap-1">
           <template x-for="h in hardList" :key="h.word.id">
             <li><b x-text="h.word.udm"></b> — <span x-text="h.word.ru"></span></li>

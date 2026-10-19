@@ -143,7 +143,7 @@ topics:
       - {udm: шупу, ru: калина, image: words/viburnum.webp}
       - {udm: ягмульыпу, ru: брусника, image: words/lingonberry.webp}
       - {udm: узы, ru: земляника, emoji: "🍓"}
-      - {udm: боры, ru: клубника, image: words/strawberry.webp}
+      - {udm: боры, ru: клубника, image: words/strawberry.webp, emoji: "🍓"}
       - {udm: нюрмульы, ru: клюква, image: words/cranberry.webp}
       - {udm: лызмульы, ru: голубика, image: words/blueberry.webp, emoji: "🫐"}
 

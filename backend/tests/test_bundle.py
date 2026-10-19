@@ -5,6 +5,8 @@ from django.core.management import call_command
 from django.urls import reverse
 
 from play.games import GAMES
+from play.mime import guess_type
+from vocab.models import Word, media_url
 
 
 def build(tmp_path):
@@ -61,3 +63,28 @@ def test_bundle_is_served_for_updates(client, tmp_path, vocab, settings):
     assert r.status_code == 200 and "immutable" in r["Cache-Control"]
     assert client.get(reverse("play:bundle", args=["../settings.py"])).status_code == 404
     assert client.get(reverse("play:bundle", args=["blobs/" + "f" * 64])).status_code == 404
+
+
+def test_media_types_without_os_table(monkeypatch):
+    """В Docker-образе mimetypes не знает .webp — тип всё равно правильный."""
+    monkeypatch.setattr("mimetypes.guess_type", lambda *a, **k: (None, None))
+    assert guess_type("words/bear.webp") == "image/webp"
+    assert guess_type("words/BEAR.WEBP") == "image/webp"
+    assert guess_type("audio/a.mp3") == "audio/mpeg"
+    assert guess_type("fonts/x.woff2") == "font/woff2"
+    assert guess_type("js/app.js") == "text/javascript; charset=utf-8"
+    assert guess_type("blob.unknown") == "application/octet-stream"
+
+
+def test_media_served_with_type(client, vocab):
+    word = Word.objects.exclude(image="").first()
+    r = client.get(media_url(word.image))
+    assert r.status_code == 200
+    assert r["Content-Type"] == "image/webp"
+
+
+def test_bundle_media_type(tmp_path, vocab):
+    files = build(tmp_path)["files"]
+    media = [meta for url, meta in files.items() if url.endswith(".webp")]
+    assert media
+    assert all(meta["type"] == "image/webp" for meta in media)

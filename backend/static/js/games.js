@@ -197,7 +197,6 @@
 
   // ---------- «Трудные слова» ----------
 
-  var HARD_MIN = 3; // меньше трудных слов — играть не во что: одно слово повторялось бы раз за разом
   var HARD_MAX = 10; // берём самые трудные, чтобы за игру каждое встретилось хотя бы раз-другой
 
   /* «Выбери перевод», но слова — те, в которых ребёнок ошибался (ZB.hardWords по сохранению
@@ -216,7 +215,7 @@
         var all = ZB.hardWords(ZB.Save.get(), this.content);
         this.hardLeft = all.length;
         this.hardList = all.slice(0, HARD_MAX);
-        this.empty = all.length < HARD_MIN;
+        this.empty = all.length < ZB.HARD_MIN;
         this.cleared = 0;
         // Каждое слово — примерно по два раза (в обе стороны), но не больше обычных 8 раундов.
         this.rounds = Math.min(8, this.hardList.length * 2);
@@ -595,10 +594,9 @@
         this.isTrue = Math.random() < 0.5;
         this.shown = this.target;
         if (!this.isTrue) {
-          var key = ZB.picKey(this.target);
           var t = this.target;
-          // Подменное слово должно явно не подходить: другая картинка и другой перевод.
-          var others = this.distractors(t, 6, 'ru').filter(function (w) { return !key || ZB.picKey(w) !== key; });
+          // Подменное слово должно явно не подходить: непохожая картинка (ZB.samePic) и другой перевод.
+          var others = this.distractors(t, 6, 'ru').filter(function (w) { return !ZB.samePic(t, w); });
           if (others.length) this.shown = others[0];
           else this.isTrue = true; // подменить нечем — раунд будет «верно»
         }

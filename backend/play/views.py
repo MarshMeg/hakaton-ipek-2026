@@ -2,7 +2,6 @@
 подставляет JS из локального хранилища. Благодаря этому страницы попадают в офлайн-снимок
 (см. management/commands/build_bundle.py) и работают без сети."""
 
-import mimetypes
 import re
 
 from django.conf import settings
@@ -14,6 +13,7 @@ from django.views.decorators.http import require_GET
 from vocab.models import Fact, Topic
 
 from .games import GAMES, GAMES_BY_SLUG
+from .mime import guess_type
 
 
 def home(request):
@@ -52,8 +52,7 @@ def media(request, path):
     """Отдаёт картинки и аудио из хранилища (локальная папка или MinIO) по нашему адресу."""
     if ".." in path or not default_storage.exists(path):
         raise Http404
-    content_type, _ = mimetypes.guess_type(path)
-    return FileResponse(default_storage.open(path), content_type=content_type)
+    return FileResponse(default_storage.open(path), content_type=guess_type(path))
 
 
 _SHA = re.compile(r"^[0-9a-f]{64}$")
