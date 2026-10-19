@@ -24,6 +24,9 @@
   var XP_PER_CORRECT = 10;
   var AVATARS = ['🦊', '🐻', '🐰', '🐿️', '🦔', '🐺', '🐱', '🐶', '🦉', '🐝'];
   var HARD_CLEARED_AFTER = 3; // столько верных ответов подряд — и слово больше не «трудное»
+  // Игра «Трудные слова» и кнопка «Повторить» в профиле — только с таким числом трудных слов:
+  // меньше — играть не во что, одно слово повторялось бы раз за разом.
+  var HARD_MIN = 3;
   var DAY_MS = 86400000;
   var SYNC_TIMEOUT_MS = 5000;
   var KEEPALIVE_LIMIT = 60000; // fetch keepalive не отправит тело больше 64 КБ
@@ -539,6 +542,18 @@
     return word.emoji ? 'e' + word.emoji : '';
   }
 
+  /* Похожи ли картинки двух слов. Сравниваются все признаки картинки, а не только показанный:
+   * у «узы» (земляника) есть только 🍓, а у «боры» (клубника) фото и тот же 🍓 в словаре —
+   * ребёнок их не различит, хотя picKey у них разный. */
+  function samePic(a, b) {
+    var keys = function (w) {
+      return [w.img && 'i' + w.img, w.color && 'c' + w.color,
+        w.number != null && 'n' + w.number, w.emoji && 'e' + w.emoji].filter(Boolean);
+    };
+    var kb = keys(b);
+    return keys(a).some(function (k) { return kb.indexOf(k) >= 0; });
+  }
+
   function playAudio(word) {
     if (!word || !word.audio || !Settings.values.sound) return;
     try { new Audio(word.audio).play(); } catch (e) { /* без звука */ }
@@ -709,6 +724,7 @@
       totalWords: content ? content.words.length : 0,
       hard: allHard.slice(0, 5),
       hardCount: allHard.length,
+      hardPlayable: allHard.length >= HARD_MIN,
       daily: daily,
       maxDay: maxDay,
       byGame: save.games,
@@ -846,8 +862,8 @@
     Save: Save, Auth: Auth, Settings: Settings, Content: Content, Bridge: Bridge, Sound: Sound,
     computeStats: computeStats, wordOfDay: wordOfDay, fromEvents: fromEvents, emptySave: emptySave,
     addGame: addGame, addViews: addViews, cardViews: cardViews,
-    hardWords: hardWords, HARD_CLEARED_AFTER: HARD_CLEARED_AFTER,
-    pic: pic, picKey: picKey, playAudio: playAudio,
+    hardWords: hardWords, HARD_CLEARED_AFTER: HARD_CLEARED_AFTER, HARD_MIN: HARD_MIN,
+    pic: pic, picKey: picKey, samePic: samePic, playAudio: playAudio,
     signup: signup, login: login, logout: logout,
     locate: locate, distanceKm: distanceKm, IZHEVSK: IZHEVSK,
     shuffle: shuffle, sample: sample, param: param, dayKey: dayKey,

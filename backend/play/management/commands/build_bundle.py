@@ -13,7 +13,6 @@ WebView из него, не обращаясь к сети. На сервере 
 
 import hashlib
 import json
-import mimetypes
 import shutil
 import time
 from pathlib import Path
@@ -26,6 +25,7 @@ from django.test import Client, override_settings
 from django.urls import reverse
 
 from play.games import GAMES
+from play.mime import guess_type
 from vocab.models import Topic, Word, media_url
 
 # Статика, которая не нужна на телефоне.
@@ -105,13 +105,13 @@ class Command(BaseCommand):
             add(url, response.content, response["Content-Type"])
 
         for url, path in static_files():
-            add(url, path.read_bytes(), _guess_type(path.name))
+            add(url, path.read_bytes(), guess_type(path.name))
 
         for word in Word.objects.all():
             for field in (word.image, word.audio):
                 if field and default_storage.exists(field.name):
                     with default_storage.open(field.name) as fh:
-                        add(media_url(field), fh.read(), _guess_type(field.name))
+                        add(media_url(field), fh.read(), guess_type(field.name))
 
         lines = "\n".join(f"{url} {files[url]['sha']}" for url in sorted(files))
         version = hashlib.sha256(lines.encode()).hexdigest()[:16]
@@ -136,14 +136,3 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.SUCCESS(f"Снимок {version}: {len(files)} файлов, {size:.1f} МБ → {out}")
         )
-
-
-def _guess_type(name: str) -> str:
-    content_type, _ = mimetypes.guess_type(name)
-    if name.endswith(".woff2"):
-        return "font/woff2"
-    if name.endswith(".js"):
-        return "text/javascript; charset=utf-8"
-    if content_type and content_type.startswith("text/"):
-        return content_type + "; charset=utf-8"
-    return content_type or "application/octet-stream"

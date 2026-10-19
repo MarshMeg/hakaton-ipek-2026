@@ -57,6 +57,20 @@ def test_seed_replaces_outdated_seed_images(vocab):
     assert word.image.size == (SEEDS_DIR / "media" / "words" / "bear.webp").stat().st_size
 
 
+def test_seed_fills_empty_emoji(vocab):
+    """Эмодзи, добавленный в vocab.yaml позже, доезжает до базы без --update; свой не меняется."""
+    word = Word.objects.get(udm="боры")
+    assert word.emoji == "🍓"
+    Word.objects.filter(pk=word.pk).update(emoji="")
+    call_command("seed")
+    word.refresh_from_db()
+    assert word.emoji == "🍓"
+    Word.objects.filter(pk=word.pk).update(emoji="🍒")
+    call_command("seed")
+    word.refresh_from_db()
+    assert word.emoji == "🍒"
+
+
 def test_seed_images_exist(vocab):
     assert Word.objects.exclude(image="").count() == 83
 

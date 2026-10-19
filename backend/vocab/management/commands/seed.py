@@ -17,6 +17,8 @@ from vocab.models import Fact, SortingSet, Topic, Word
 
 SEEDS_DIR = Path(settings.BASE_DIR) / "seeds"
 WORD_FIELDS = ("ru", "alt", "transcription", "emoji", "color", "number", "needs_check")
+# Эти поля, если в базе они пусты, а в файле появились позже, заполняются и без --update.
+FILL_EMPTY = ("alt", "transcription", "emoji", "color")
 
 
 class Command(BaseCommand):
@@ -61,10 +63,14 @@ class Command(BaseCommand):
                 if is_new or update:
                     self._attach_media(word, w)
                     word.save()
-                elif self._attach_media(word, w, only_missing=True):
-                    # Картинки и звук, добавленные в файл позже: без --update докладываются только
-                    # туда, где их ещё нет, — загруженное через админку не перезаписывается.
-                    word.save()
+                else:
+                    # Картинки, звук и поля из FILL_EMPTY, добавленные в файл позже: без --update
+                    # докладываются только туда, где их ещё нет, — правки в админке не трогаем.
+                    filled = [f for f in FILL_EMPTY if values[f] and not getattr(word, f)]
+                    for field in filled:
+                        setattr(word, field, values[field])
+                    if self._attach_media(word, w, only_missing=True) or filled:
+                        word.save()
 
         for s_order, s in enumerate(data.get("sorting", [])):
             for group in s["groups"]:

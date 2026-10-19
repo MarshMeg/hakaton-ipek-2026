@@ -96,6 +96,13 @@ def test_signup_validation(client, token):
     assert post(client, "/api/signup", {"username": "bob", "password": "123"}).status_code == 400
 
 
+@pytest.mark.parametrize("username", ["qa api3", "qa\tapi", "qa\u00a0api"])
+def test_signup_rejects_spaces_in_username(client, db, username):
+    r = post(client, "/api/signup", {"username": username, "password": "secret123"})
+    assert r.status_code == 400
+    assert r.json()["error"] == "В имени для входа не должно быть пробелов"
+
+
 def test_signup_strips_name(client, db):
     # Имя из одних пробелов сохраняется пустым — тогда приложение показывает логин.
     r = post(client, "/api/signup", {"username": "bob", "password": "secret123", "name": "   "})

@@ -54,7 +54,9 @@
             </li>
           </template>
         </ul>
-        <a href="{% url 'play:game' 'hard' %}" class="btn-primary mt-3 w-full">🔁 Повторить</a>
+        <a href="{% url 'play:game' 'hard' %}" class="btn-primary mt-3 w-full" x-show="$store.app.stats.hardPlayable">🔁 Повторить</a>
+        <p class="mt-3 text-sm text-muted" x-show="!$store.app.stats.hardPlayable"
+           x-text="'Игра «Трудные слова» откроется, когда таких слов будет ' + ZB.HARD_MIN + '.'"></p>
       </div>
     </template>
     <a href="{% url 'play:report' %}" class="btn-ghost mt-3 w-full">📋 Отчёт для родителей и учителя</a>
