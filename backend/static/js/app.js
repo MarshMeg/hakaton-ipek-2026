@@ -662,11 +662,14 @@
       bad += byWord[id].bad || 0;
     });
 
+    // День занятий — день, когда получен опыт (хотя бы один верный ответ в игре). Просмотр
+    // карточек в «Обучении» его не делает: иначе одна открытая карточка продлевала бы серию.
+    var studied = function (key) { return !!days[key] && days[key].ok > 0; };
     // Серия дней: считаем от сегодня (или от вчера, если сегодня ещё не занимались).
     var streak = 0;
     var t = Date.now();
-    if (!days[dayKey(t)]) t -= DAY_MS;
-    while (days[dayKey(t)]) { streak++; t -= DAY_MS; }
+    if (!studied(dayKey(t))) t -= DAY_MS;
+    while (studied(dayKey(t))) { streak++; t -= DAY_MS; }
 
     // «Выучено»: хотя бы два верных ответа, верных больше, чем ошибок, и слово не «трудное»
     // (иначе оно попало бы и в «Выученные», и в «Чаще ошибаешься»).
@@ -717,7 +720,7 @@
       correct: ok,
       wrong: bad,
       accuracy: ok + bad ? Math.round(100 * ok / (ok + bad)) : 0,
-      activeDays: Object.keys(days).length,
+      activeDays: Object.keys(days).filter(studied).length,
       learned: learnedIds.filter(known).length,
       learnedWords: content ? learnedIds.filter(known).map(function (id) { return content.wordById[id]; }) : [],
       seen: seenIds.filter(known).length,
