@@ -127,7 +127,7 @@ topics:
     icon: "🎨"
     kind: colors
     words:
-      - {udm: тӧдьы, ru: белый, color: "#ffffff"}
+      - {udm: тӧдьы, ru: белый, image: words/white.webp, color: "#ffffff"}
       - {udm: сьӧд, ru: чёрный, image: words/black.webp, color: "#1b1b1b"}
       - {udm: лыз, ru: синий, image: words/blue.webp, color: "#1e5bd8"}
       - {udm: ӵуж, ru: жёлтый, image: words/yellow.webp, color: "#f2c200"}
@@ -142,7 +142,7 @@ topics:
     words:
       - {udm: шупу, ru: калина, image: words/viburnum.webp}
       - {udm: ягмульыпу, ru: брусника, image: words/lingonberry.webp}
-      - {udm: узы, ru: земляника, emoji: "🍓"}
+      - {udm: узы, ru: земляника, image: words/wild-strawberry.webp, emoji: "🍓"}
       - {udm: боры, ru: клубника, image: words/strawberry.webp, emoji: "🍓"}
       - {udm: нюрмульы, ru: клюква, image: words/cranberry.webp}
       - {udm: лызмульы, ru: голубика, image: words/blueberry.webp, emoji: "🫐"}
