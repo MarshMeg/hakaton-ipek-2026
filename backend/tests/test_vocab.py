@@ -72,7 +72,7 @@ def test_seed_fills_empty_emoji(vocab):
 
 
 def test_seed_images_exist(vocab):
-    assert Word.objects.exclude(image="").count() == 83
+    assert not Word.objects.filter(image="").exists()
 
 
 def test_sorting_sets_reference_existing_topics(vocab):
