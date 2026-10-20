@@ -13,6 +13,7 @@
 <div x-data="ZB.cardViews()">
 <div class="mt-5 grid grid-cols-2 gap-4">
   {% for word in words %}
+  {# У каждой карточки свой маленький x-data (open), а see() берётся из внешнего ZB.cardViews(). #}
   <div class="card relative cursor-pointer select-none text-center transition"
        x-data="{ open: false }"
        :class="open ? 'border-brand-sun' : ''"

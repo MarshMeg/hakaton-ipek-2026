@@ -71,7 +71,7 @@ Android (Flutter)                                   Сервер (Django)
 - При запуске телефон сравнивает своё сохранение с серверным: более новое заменяет старое целиком.
   Схема: [docs/client-server.mmd](docs/client-server.mmd) (открывается в https://mermaid.live).
 
-Подробнее: [docs/architecture.md](docs/architecture.md).
+Подробнее: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Стек
 | Слой | Технологии |
@@ -154,6 +154,16 @@ cd mobile && mise run check
 
 > ⚠️ Слова взяты из «Материалов к кейсу». Перед сдачей их нужно сверить с носителем языка.
 > Спорные места помечены в поле `needs_check`. Факты о языке тоже нужно проверить.
+
+## Документация
+| Документ | О чём |
+|---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | общая схема, офлайн-снимок, сохранение и синхронизация, деплой |
+| [docs/BACKEND.md](docs/BACKEND.md) | модели, страницы и API, management-команды, тесты |
+| [docs/FRONTEND.md](docs/FRONTEND.md) | `app.js` и `games.js`, шаблоны, особенности Alpine.js 3 |
+| [docs/MOBILE.md](docs/MOBILE.md) | Flutter-обёртка, обновление снимка, мост, разрешения, сборка APK |
+| [docs/development.md](docs/development.md) | команды, CI/CD и соглашения для разработчика |
+| [docs/local-setup.md](docs/local-setup.md) | настройка окружения с нуля |
 
 ## Структура
 ```

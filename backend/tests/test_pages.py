@@ -9,6 +9,7 @@ from play.management.commands.build_bundle import page_urls
     ["play:home", "vocab:topics", "play:games", "play:profile", "play:settings", "play:report"],
 )
 def test_main_sections_open(client, vocab, name):
+    """Основные экраны открываются, и в каждом есть нижнее меню."""
     response = client.get(reverse(name))
     assert response.status_code == 200
     # Нижнее меню с четырьмя разделами из ТЗ.
@@ -26,11 +27,13 @@ def test_pages_do_not_depend_on_player(client, vocab):
 
 
 def test_topic_cards(client, vocab):
+    """На странице темы есть слова и переводы."""
     html = client.get(reverse("vocab:topic", args=["wild-animals"])).content.decode()
     assert "гондыр" in html and "медведь" in html
 
 
 def test_unknown_game_404(client, vocab):
+    """Неизвестная игра — 404."""
     assert client.get(reverse("play:game", args=["chess"])).status_code == 404
 
 
@@ -45,6 +48,7 @@ def test_hard_words_mode(client, vocab):
 
 
 def test_hard_words_mode_is_linked(client, vocab):
+    """На «Трудные слова» есть ссылки со списка игр и из профиля."""
     url = reverse("play:game", args=["hard"])
     assert url in client.get(reverse("play:games")).content.decode()
     assert url in client.get(reverse("play:profile")).content.decode()

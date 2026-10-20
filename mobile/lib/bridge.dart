@@ -22,6 +22,8 @@ class Bridge {
   final _notifications = FlutterLocalNotificationsPlugin();
   bool _notificationsReady = false;
 
+  /// Регистрирует обработчики в WebView. Ошибка в обработчике не роняет приложение:
+  /// она пишется в лог, а JS получает null.
   void attach(InAppWebViewController controller) {
     void handle(String name, Future<Object?> Function(List<dynamic> args) fn) {
       controller.addJavaScriptHandler(
@@ -103,6 +105,7 @@ class Bridge {
       await _notifications.cancel(id: _reminderId);
       return true;
     }
+    // На Android 13+ спрашивает разрешение, на старых версиях оно есть сразу.
     final granted = await android?.requestNotificationsPermission() ?? true;
     if (!granted) return false;
     await _notifications.periodicallyShow(
@@ -133,6 +136,7 @@ class Bridge {
     if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
       return null;
     }
+    // Последнее известное место подходит (нужна только примерная точка), иначе — новый запрос.
     final last = await Geolocator.getLastKnownPosition();
     final pos = last ??
         await Geolocator.getCurrentPosition(

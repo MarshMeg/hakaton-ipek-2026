@@ -27,6 +27,7 @@ def load_settings(**env):
     ],
 )
 def test_secret_key_required_without_debug(env, ok):
+    """Без DEBUG настройки не загружаются без DJANGO_SECRET_KEY."""
     result = load_settings(**env)
     assert (result.returncode == 0) is ok, result.stderr
     if not ok:

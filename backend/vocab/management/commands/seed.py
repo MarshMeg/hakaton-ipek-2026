@@ -51,6 +51,7 @@ class Command(BaseCommand):
             )
             topic_slugs.add(topic.slug)
             for w_order, w in enumerate(t["words"]):
+                # number в модели nullable, поэтому для него «пусто» — None, для строк — "".
                 values = {f: w.get(f, None if f == "number" else "") for f in WORD_FIELDS}
                 values["order"] = w_order
                 word, is_new = Word.objects.get_or_create(
@@ -98,6 +99,8 @@ class Command(BaseCommand):
         )
 
     def _attach_media(self, word, w, only_missing=False) -> bool:
+        # Прикрепляет image/audio из seeds/media/. Возвращает True, если что-то поменялось
+        # (тогда слово надо сохранить). only_missing — режим без --update.
         # Файлы сохраняются через storage — локально в media/ или в MinIO, если USE_S3=1.
         attached = False
         for field in ("image", "audio"):

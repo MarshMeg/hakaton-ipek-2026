@@ -106,6 +106,7 @@
         return same;
       },
 
+      // Только запомнить ответ (без счёта и звука) — «Сортировка» и «Найди пару» зовут его сами.
       log: function (word, ok) { this.answers.push({ w: word.id, ok: ok }); },
 
       answer: function (word, ok) {
@@ -140,6 +141,7 @@
         ZB.Sound.play('win');
       },
 
+      // Звёзды по доле верных ответов: от 90% — три, от 60% — две, иначе одна.
       stars: function () {
         var r = this.maxScore ? this.score / this.maxScore : 0;
         return r >= 0.9 ? 3 : r >= 0.6 ? 2 : 1;
@@ -153,6 +155,7 @@
       hasPic: function (w) { return !!ZB.picKey(w); },
       speak: ZB.playAudio,
     };
+    // Поля и методы конкретной игры перекрывают общие.
     Object.keys(extra).forEach(function (k) { game[k] = extra[k]; });
     return game;
   }
@@ -487,6 +490,8 @@
         this.open = [];
       },
 
+      // Открыть карточку. Когда открыты две: одно слово — пара найдена, иначе через 0,9 с
+      // обе закрываются (busy не даёт открыть третью, пока они видны).
       flip: function (card) {
         if (this.busy || card.flipped || card.matched) return;
         card.flipped = true;
@@ -616,6 +621,7 @@
     });
   }
 
+  // Имена компонентов совпадают со slug игр: game.html пишет x-data="{{ game.slug }}".
   document.addEventListener('alpine:init', function () {
     var Alpine = window.Alpine;
     Alpine.data('choose', choose);

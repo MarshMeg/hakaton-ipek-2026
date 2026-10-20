@@ -17,10 +17,12 @@ migration = importlib.import_module("accounts.migrations.0005_profile_save")
 
 
 def post(client, url, data):
+    """POST с JSON-телом — так же, как отправляет app.js."""
     return client.post(url, json.dumps(data), content_type="application/json")
 
 
 def auth(token):
+    """Заголовок Authorization для тестового клиента (пустой, если токена нет)."""
     return {"HTTP_AUTHORIZATION": f"Bearer {token}"} if token else {}
 
 
@@ -34,6 +36,7 @@ def put_save(client, save, token=None):
 
 
 def make_save(updated, ok=1):
+    """Минимальное корректное сохранение v2 с одним словом, днём и игрой."""
     return {
         "v": 2,
         "updated": updated,
@@ -47,6 +50,7 @@ def make_save(updated, ok=1):
 
 @pytest.fixture
 def token(client, db):
+    """Регистрирует aino и возвращает токен — почти всем тестам API нужен аккаунт."""
     r = post(
         client,
         "/api/signup",
@@ -63,6 +67,7 @@ def token(client, db):
 
 
 def test_signup_returns_empty_save(client, db):
+    """Регистрация отдаёт токен и пустое сохранение: имя, зверёк, настройки по умолчанию."""
     r = post(
         client,
         "/api/signup",
@@ -90,6 +95,7 @@ def test_signup_returns_empty_save(client, db):
 
 
 def test_signup_validation(client, token):
+    """Занятое имя (без учёта регистра) и короткий пароль — 400."""
     r = post(client, "/api/signup", {"username": "AINO", "password": "secret123"})
     assert r.status_code == 400
     assert r.json()["error"] == "Такое имя уже занято"
@@ -98,12 +104,14 @@ def test_signup_validation(client, token):
 
 @pytest.mark.parametrize("username", ["qa api3", "qa\tapi", "qa\u00a0api"])
 def test_signup_rejects_spaces_in_username(client, db, username):
+    """Пробелы (в том числе таб и неразрывный) в имени для входа не пропускаются."""
     r = post(client, "/api/signup", {"username": username, "password": "secret123"})
     assert r.status_code == 400
     assert r.json()["error"] == "В имени для входа не должно быть пробелов"
 
 
 def test_signup_strips_name(client, db):
+    """Имя ребёнка обрезается по краям при регистрации."""
     # Имя из одних пробелов сохраняется пустым — тогда приложение показывает логин.
     r = post(client, "/api/signup", {"username": "bob", "password": "secret123", "name": "   "})
     assert r.json()["save"]["profile"]["name"] == ""
@@ -112,6 +120,7 @@ def test_signup_strips_name(client, db):
 
 
 def test_put_save_strips_name(client, token):
+    """При PUT имя из одних пробелов тоже сохраняется пустым."""
     save = make_save(20)
     save["profile"]["name"] = " \t "
     r = put_save(client, save, token)
@@ -120,6 +129,7 @@ def test_put_save_strips_name(client, token):
 
 
 def test_login_returns_save(client, token):
+    """Вход возвращает серверное сохранение; неверный пароль — 401."""
     put_save(client, make_save(20), token)
     r = post(client, "/api/login", {"username": "aino", "password": "secret123"})
     assert r.status_code == 200
@@ -128,6 +138,7 @@ def test_login_returns_save(client, token):
 
 
 def test_save_requires_valid_token(client, db):
+    """Без токена или с поддельным токеном /api/save отвечает 401."""
     assert get_save(client).status_code == 401
     assert get_save(client, "forged").status_code == 401
     assert put_save(client, make_save(20)).status_code == 401
@@ -135,6 +146,7 @@ def test_save_requires_valid_token(client, db):
 
 
 def test_put_newer_is_stored(client, token):
+    """Новое сохранение записывается, а копии полей для админки обновляются."""
     r = put_save(client, make_save(20), token)
     assert r.status_code == 200
     assert get_save(client, token).json()["save"] == make_save(20)
@@ -143,6 +155,7 @@ def test_put_newer_is_stored(client, token):
 
 
 def test_put_same_updated_is_accepted(client, token):
+    """Равный updated принимается (повтор той же отправки)."""
     put_save(client, make_save(20, ok=1), token)
     r = put_save(client, make_save(20, ok=2), token)
     assert r.status_code == 200
@@ -150,6 +163,7 @@ def test_put_same_updated_is_accepted(client, token):
 
 
 def test_put_older_conflicts(client, token):
+    """Более старое сохранение отклоняется с 409, в ответе — серверное."""
     put_save(client, make_save(30, ok=5), token)
     r = put_save(client, make_save(20, ok=1), token)
     assert r.status_code == 409
@@ -157,6 +171,7 @@ def test_put_older_conflicts(client, token):
 
 
 def test_put_normalizes_profile(client, token):
+    """Слишком длинные имя и аватар обрезаются до 60 и 16 символов."""
     save = make_save(20)
     save["profile"] = {"name": "Я" * 100, "avatar": "🦊" * 20}
     data = put_save(client, save, token).json()["save"]
@@ -176,12 +191,14 @@ def test_put_normalizes_profile(client, token):
     ],
 )
 def test_put_invalid_save(client, token, patch):
+    """Сохранение с неправильной структурой — 400."""
     save = make_save(20)
     save.update(patch)
     assert put_save(client, save, token).status_code == 400
 
 
 def test_settings_are_stored(client, token):
+    """Блок settings сохраняется и возвращается как есть."""
     save = make_save(20)
     save["settings"] = {"sound": False, "notifications": True, "geo": True}
     assert put_save(client, save, token).status_code == 200
@@ -234,6 +251,7 @@ def test_stored_save_without_settings_is_readable(client, token):
 
 
 def test_put_too_large(client, token):
+    """Тело больше MAX_SAVE_BYTES — 413."""
     save = make_save(20)
     save["words"] = {str(i): {"ok": 1, "bad": 0, "seen": 0, "last": 0} for i in range(10000)}
     assert len(json.dumps(save)) > MAX_SAVE_BYTES
@@ -241,12 +259,14 @@ def test_put_too_large(client, token):
 
 
 def test_api_rejects_bad_json(client, token):
+    """Битый JSON в POST и PUT — 400."""
     assert client.post("/api/login", "{", content_type="application/json").status_code == 400
     r = client.put("/api/save", "{", content_type="application/json", **auth(token))
     assert r.status_code == 400
 
 
 def test_login_locks_after_failed_attempts(client, token):
+    """После LOGIN_FAILS_PER_USER неверных паролей вход блокируется (429)."""
     for _ in range(LOGIN_FAILS_PER_USER[0]):
         assert (
             post(client, "/api/login", {"username": "aino", "password": "nope"}).status_code == 401
@@ -258,6 +278,8 @@ def test_login_locks_after_failed_attempts(client, token):
 
 
 def test_signup_is_limited_per_ip(client, db):
+    """Регистрации ограничены по IP, IP берётся последним из X-Forwarded-For."""
+
     def signup(i, ip):
         data = {"username": f"kid{i}", "password": "secret123"}
         body = json.dumps(data)
@@ -273,6 +295,7 @@ def test_signup_is_limited_per_ip(client, db):
 
 
 def test_build_save_from_attempts():
+    """Миграция accounts/0005 сворачивает старый журнал попыток в сохранение v2."""
     day = 1760500000000  # 2025-10-15 07:46 по Ижевску
     rows = [
         (17, "choose", True, day),

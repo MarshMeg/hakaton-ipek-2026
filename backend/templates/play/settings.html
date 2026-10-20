@@ -27,6 +27,8 @@
         ZB.Bridge.call('info').then((info) => { this.info = info || null; });
         ZB.Content.load().then((c) => { this.contentVersion = c.version; });
       },
+      // Уведомления (в приложении) и геолокацию включаем, только если телефон дал разрешение;
+      // при отказе показываем ошибку, и настройка не меняется. Звук переключается сразу.
       async toggle(key) {
         this.error = '';
         const value = !this.$store.app.settings[key];
