@@ -45,7 +45,8 @@ class Topic(models.Model):
 
 
 class Word(models.Model):
-    """Слово или фраза. id слова хранится в журнале попыток — не пересоздавайте слова зря."""
+    """Слово или фраза. id слова — ключ в сохранениях игроков (блок words), поэтому слова
+    не надо удалять и создавать заново: прогресс по ним потеряется."""
 
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="words")
     udm = models.CharField("по-удмуртски", max_length=120)
@@ -75,6 +76,7 @@ class Word(models.Model):
     def __str__(self):
         return f"{self.udm} — {self.ru}"
 
+    # Ссылки для шаблонов и /content.json (пустая строка, если файла нет).
     @property
     def image_url(self) -> str:
         return media_url(self.image)

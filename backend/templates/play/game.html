@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ game.title }} — Ӟеч-а бур-а удмурт кыл?{% endblock %}
 {% block content %}
+{# x-data — имя компонента из games.js (Alpine.data), оно совпадает со slug игры. #}
 <div x-data="{{ game.slug }}" class="pb-4">
   <div class="flex items-center justify-between gap-2">
     <a href="{% url 'play:games' %}" class="font-bold text-muted">← Игры</a>

@@ -7,6 +7,11 @@ from django.db import models
 
 
 class Profile(models.Model):
+    """Профиль к стандартному User: тут лежит сохранение и пара полей-копий для админки.
+
+    Создаётся при регистрации (play.api.signup), а для аккаунтов из админки — при первом
+    обращении к API (get_or_create в play/api.py)."""
+
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
     )

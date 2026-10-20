@@ -8,6 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 env = environ.Env()
+# .env лежит в корне репозитория (рядом с docker-compose.yml), а не в backend/.
 environ.Env.read_env(BASE_DIR.parent / ".env")
 
 DEBUG = env.bool("DJANGO_DEBUG", default=True)

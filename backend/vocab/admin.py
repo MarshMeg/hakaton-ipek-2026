@@ -3,6 +3,7 @@ from django.contrib import admin
 from .models import Fact, SortingSet, Topic, Word
 
 
+# Слова редактируются прямо на странице темы, таблицей.
 class WordInline(admin.TabularInline):
     model = Word
     extra = 0

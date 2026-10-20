@@ -7,6 +7,8 @@ from .models import Fact, SortingSet, Topic, Word
 
 
 def word_data(word: Word) -> dict:
+    """Одно слово для /content.json. Необязательные поля (картинка, звук, эмодзи и т. д.)
+    попадают в JSON, только если они заполнены."""
     data = {"id": word.id, "topic": word.topic.slug, "udm": word.udm, "ru": word.ru}
     optional = {
         "alt": word.alt,
@@ -22,6 +24,7 @@ def word_data(word: Word) -> dict:
 
 
 def build_content() -> dict:
+    """Собирает весь словарь: темы, слова, наборы для «Сортировки», факты и версию."""
     topics = [
         {
             "slug": t.slug,
@@ -29,6 +32,7 @@ def build_content() -> dict:
             "title_udm": t.title_udm,
             "icon": t.icon,
             "kind": t.kind,
+            # Если семейство не задано, тема сама себе семейство (для «Найди лишнее»).
             "family": t.family or t.slug,
         }
         for t in Topic.objects.all()

@@ -81,6 +81,8 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
+/// Единственный экран приложения: сначала заставка, пока грузится и обновляется снимок,
+/// потом WebView с игрой на весь экран.
 class _GameScreenState extends State<GameScreen> {
   final Uri _server = Uri.parse(defaultServerUrl);
   InAppWebViewController? _controller;
@@ -88,6 +90,7 @@ class _GameScreenState extends State<GameScreen> {
   Bridge? _bridge;
   double _progress = 0;
   String? _error;
+  // true, пока идёт проверка обновления снимка — в это время показываем заставку.
   bool _updating = true;
 
   @override
@@ -141,6 +144,7 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  // Кнопка «Повторить» на экране ошибки: заново открываем главную.
   void _reload() {
     setState(() => _error = null);
     _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())));
@@ -172,6 +176,8 @@ class _GameScreenState extends State<GameScreen> {
                   children: [
                     InAppWebView(
                       initialUrlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())),
+                      // useShouldInterceptRequest — без него _intercept не вызывается, и всё
+                      // шло бы в сеть. applicationNameForUserAgent дописывает VotesApp в UA.
                       initialSettings: InAppWebViewSettings(
                         useShouldInterceptRequest: true,
                         javaScriptEnabled: true,

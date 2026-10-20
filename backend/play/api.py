@@ -51,6 +51,8 @@ SETTINGS_DEFAULTS = {"sound": True, "notifications": False, "geo": False}
 
 
 def make_token(user) -> str:
+    """Токен = id пользователя, подписанный SECRET_KEY. Срока действия у него нет:
+    при чтении (_user_from_token) max_age не передаётся."""
     return signing.dumps(user.pk, salt=TOKEN_SALT)
 
 
@@ -59,6 +61,7 @@ def _error(message, status=400):
 
 
 def _json_body(request):
+    # None значит «тело не JSON-объект» — вызывающий код отвечает 400.
     try:
         data = json.loads(request.body or b"{}")
     except ValueError:
@@ -107,6 +110,9 @@ SIGNUP_PER_IP = (40, 600)  # регистраций с одного IP за 10 �
 
 
 def json_post(view):
+    """Обёртка для signup/login: только POST, без CSRF, тело уже разобрано в dict
+    и передаётся во view вторым аргументом."""
+
     @csrf_exempt
     @require_POST
     @wraps(view)
@@ -120,6 +126,7 @@ def json_post(view):
 
 
 def _user_from_token(request):
+    # Возвращает пользователя или None (нет заголовка, подпись не сошлась, аккаунт выключен).
     header = request.headers.get("Authorization", "")
     if not header.startswith("Bearer "):
         return None
@@ -153,6 +160,7 @@ def with_token(view):
 
 
 def _int(value, default=0):
+    # bool в Python — тоже int, поэтому True/False отсекаем отдельно.
     if isinstance(value, bool):
         return default
     try:
@@ -171,6 +179,7 @@ def clean_settings(raw) -> dict:
 
 
 def empty_save(name="", avatar="", updated=0) -> dict:
+    """Сохранение нового аккаунта: прогресса ещё нет, настройки по умолчанию."""
     return {
         "v": SAVE_VERSION,
         "updated": updated,
@@ -200,6 +209,7 @@ def clean_save(raw):
             "avatar": str(profile.get("avatar", ""))[:16],
         },
     }
+    # Внутрь words/days/games не заглядываем: проверяем только, что это словарь словарей.
     for section in SAVE_SECTIONS:
         value = raw.get(section, {})
         if not isinstance(value, dict) or not all(isinstance(v, dict) for v in value.values()):
@@ -223,6 +233,7 @@ def _stored_save(profile) -> dict:
 
 
 def _store(profile, save):
+    """Записывает сохранение и обновляет копии updated / display_name / avatar для админки."""
     profile.save_data = save
     profile.updated = save["updated"]
     profile.display_name = save["profile"]["name"]
@@ -234,6 +245,7 @@ def _store(profile, save):
 
 
 def _account(user, profile) -> dict:
+    # Ответ на вход и регистрацию: {token, username, save}.
     return {
         "token": make_token(user),
         "username": user.get_username(),
@@ -243,6 +255,10 @@ def _account(user, profile) -> dict:
 
 @json_post
 def signup(request, data):
+    """POST /api/signup {username, password, name, avatar, updated} → 201 {token, username, save}.
+
+    Ошибки проверки — 400 с текстом для ребёнка, слишком много регистраций с IP — 429.
+    updated (мс по часам телефона) кладётся в новое сохранение; нет или мусор — 0."""
     if not rate_limit("signup", client_ip(request), *SIGNUP_PER_IP):
         return _too_many()
     username = str(data.get("username", "")).strip()
@@ -270,6 +286,7 @@ def signup(request, data):
 
 @json_post
 def login(request, data):
+    """POST /api/login {username, password} → {token, username, save}; неверно — 401."""
     username = str(data.get("username", "")).strip()
     # Два лимита: общий на IP (считается каждая попытка) и на неверные пароли к одному имени.
     # Второй здесь только проверяется, а растёт ниже — после неудачного входа, поэтому
@@ -288,6 +305,7 @@ def login(request, data):
 
 @with_token
 def save(request, user, data):
+    """GET /api/save → {save}; PUT /api/save {save} → {save} или 409 {save: серверное}."""
     if request.method == "GET":
         return JsonResponse({"save": _stored_save(_profile(user))})
 

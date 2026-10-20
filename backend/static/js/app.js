@@ -36,6 +36,7 @@
 
   function pad(n) { return n < 10 ? '0' + n : String(n); }
 
+  // Ключ дня по местному времени телефона, например '2026-10-20'. Им размечен блок days.
   function dayKey(ts) {
     var d = new Date(ts);
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -58,11 +59,13 @@
     });
   }
 
+  // Параметр из адресной строки, например param('topic') для /games/choose/?topic=numbers.
   function param(name) {
     var m = new RegExp('[?&]' + name + '=([^&#]*)').exec(window.location.search);
     return m ? decodeURIComponent(m[1]) : '';
   }
 
+  // localStorage может быть недоступен или в нём лежит мусор — тогда просто null, без падения.
   function readJSON(storage, key) {
     try {
       var raw = storage.getItem(key);
@@ -70,6 +73,7 @@
     } catch (e) { console.warn('read', key, e); return null; }
   }
 
+  // null удаляет ключ совсем.
   function writeJSON(storage, key, value) {
     try {
       if (value === null) storage.removeItem(key);
@@ -223,6 +227,8 @@
     };
   }
 
+  /* Приводит сохранение (из localStorage, с сервера, из копии во Flutter) к полному виду v2.
+   * Чужая версия или не объект — null. */
   function normalizeSave(s) {
     if (!s || typeof s !== 'object' || s.v !== 2) return null;
     var base = emptySave();
@@ -235,6 +241,7 @@
     return base;
   }
 
+  // Есть ли что терять: хотя бы одно слово или день в сохранении.
   function hasProgress(save) {
     return !!save && (Object.keys(save.words).length > 0 || Object.keys(save.days).length > 0);
   }
@@ -278,10 +285,12 @@
     }
   }
 
+  // Подписчики на изменение сохранения или входа (Save.onChange). Главный — store.refresh().
   var listeners = [];
 
   function notify() { listeners.forEach(function (fn) { fn(); }); }
 
+  // Копия {save, auth} во Flutter (bridge.dart → save.json). В браузере ничего не делает.
   function backup() {
     Bridge.call('backup', JSON.stringify({ save: Save.data, auth: Auth.get() }));
   }
@@ -386,6 +395,8 @@
       });
   }
 
+  /* Серверное сохранение новее — берём его, иначе (локальное новее или такое же) отправляем
+   * своё на сервер. */
   function adopt(server) {
     server = normalizeSave(server);
     var local = Save.data;
@@ -445,6 +456,7 @@
     if (prev && prev.username && prev.username !== username) Save.replace(null);
   }
 
+  // После входа синхронизация уже сделана, поэтому сразу ставим флаг «запуск пройден».
   function finishLogin() {
     writeJSON(window.sessionStorage, BOOTED_KEY, true);
     setPhase('ready');
@@ -499,6 +511,7 @@
 
   var contentPromise = null;
 
+  // /content.json грузится один раз за страницу, все игры получают один и тот же Promise.
   var Content = {
     load: function () {
       if (!contentPromise) {
@@ -508,6 +521,8 @@
     },
   };
 
+  // Добавляет к словарю индексы: wordById, topicBySlug и topic.words — чтобы игры не искали
+  // слова перебором каждый раз.
   function prepare(c) {
     c.wordById = {};
     c.topicBySlug = {};
@@ -578,6 +593,7 @@
     game.best = Math.max(game.best || 0, stars);
   }
 
+  // Слово трудное, если в нём ошибались и серия верных ответов после этого ещё короткая.
   function isHard(w) {
     return w.bad > 0 && (w.streak || 0) < HARD_CLEARED_AFTER;
   }
@@ -651,6 +667,9 @@
 
   // ---------- статистика ----------
 
+  /* Вся статистика для шаблонов ($store.app.stats) считается заново из сохранения: опыт,
+   * серия дней, точность, выученные и трудные слова, график за 14 дней, прогресс по темам.
+   * content может быть null (словарь ещё грузится) — тогда то, что зависит от слов, пустое. */
   function computeStats(save, content) {
     save = save || emptySave();
     var byWord = save.words;
@@ -786,6 +805,7 @@
 
   var IZHEVSK = { lat: 56.8526, lon: 53.2045 };
 
+  // Расстояние по прямой в км (формула гаверсинусов, радиус Земли 6371 км).
   function distanceKm(a, b) {
     var rad = Math.PI / 180;
     var dLat = (b.lat - a.lat) * rad;
@@ -795,6 +815,8 @@
     return Math.round(6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
   }
 
+  /* Где игрок: сначала через Flutter (geolocator), а если моста нет или он вернул пусто —
+   * через геолокацию браузера. null — место узнать не удалось. */
   function locate() {
     return Bridge.call('location').then(function (pos) {
       if (pos && pos.lat != null) return pos;
@@ -861,6 +883,7 @@
     }).catch(function (e) { console.error('content', e); store.ready = true; });
   });
 
+  // Всё, что нужно шаблонам и games.js, доступно через window.ZB.
   window.ZB = {
     Save: Save, Auth: Auth, Settings: Settings, Content: Content, Bridge: Bridge, Sound: Sound,
     computeStats: computeStats, wordOfDay: wordOfDay, fromEvents: fromEvents, emptySave: emptySave,

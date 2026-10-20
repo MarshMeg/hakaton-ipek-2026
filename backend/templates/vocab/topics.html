@@ -6,6 +6,7 @@
 
 <div class="mt-5 grid grid-cols-2 gap-4">
   {% for topic in topics %}
+  {# t — статистика этой темы из $store.app.stats.topics; геттер, чтобы она обновлялась сама. #}
   <a href="{% url 'vocab:topic' topic.slug %}" class="menu-tile bg-surface"
      x-data="{ get t() { return $store.app.stats.topics.find(x => x.slug === '{{ topic.slug }}') } }">
     <span class="text-5xl">{{ topic.icon|default:"📘" }}</span>

@@ -34,6 +34,8 @@ SKIP_STATIC_SUFFIXES = (".gz", ".br")
 
 
 def page_urls() -> list[str]:
+    """Все адреса страниц, которые попадут в снимок: разделы, каждая тема и каждая игра.
+    Новый экран надо добавить сюда, иначе офлайн его не будет."""
     urls = [
         reverse("play:home"),
         reverse("vocab:topics"),
@@ -73,6 +75,7 @@ def static_files():
 
 
 def _wanted(rel: str) -> bool:
+    # Пропускаем статику админки, исходник Tailwind и сжатые копии от whitenoise.
     return not rel.startswith(SKIP_STATIC_PREFIXES) and not rel.endswith(SKIP_STATIC_SUFFIXES)
 
 
@@ -88,6 +91,7 @@ class Command(BaseCommand):
         blobs.mkdir(parents=True, exist_ok=True)
         files: dict[str, dict] = {}
 
+        # Кладёт содержимое в blobs/<sha> (если такого ещё нет) и запоминает url → sha.
         def add(url: str, data: bytes, content_type: str):
             sha = hashlib.sha256(data).hexdigest()
             blob = blobs / sha
@@ -113,6 +117,7 @@ class Command(BaseCommand):
                     with default_storage.open(field.name) as fh:
                         add(media_url(field), fh.read(), guess_type(field.name))
 
+        # Версия — хэш от списка «url sha»: меняется, только если поменялся какой-то файл.
         lines = "\n".join(f"{url} {files[url]['sha']}" for url in sorted(files))
         version = hashlib.sha256(lines.encode()).hexdigest()[:16]
         # built — время сборки: приложение выбирает из снимка в APK и скачанного тот, что новее.

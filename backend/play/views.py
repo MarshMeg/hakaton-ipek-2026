@@ -25,6 +25,8 @@ def games(request):
 
 
 def game(request, slug):
+    """Страница одной игры: общая обёртка game.html + шаблон самой игры play/games/<slug>.html.
+    Список тем нужен для кнопок выбора темы (если игра by_topic)."""
     item = GAMES_BY_SLUG.get(slug)
     if item is None:
         raise Http404
@@ -36,6 +38,7 @@ def game(request, slug):
 
 
 def profile(request):
+    # Факты о языке — единственное, что профиль берёт с сервера, остальное считает JS.
     return render(request, "play/profile.html", {"facts": Fact.objects.all()})
 
 
@@ -50,6 +53,7 @@ def report(request):
 @require_GET
 def media(request, path):
     """Отдаёт картинки и аудио из хранилища (локальная папка или MinIO) по нашему адресу."""
+    # ".." не пускаем, чтобы нельзя было выйти из папки медиа.
     if ".." in path or not default_storage.exists(path):
         raise Http404
     return FileResponse(default_storage.open(path), content_type=guess_type(path))
@@ -60,7 +64,10 @@ _SHA = re.compile(r"^[0-9a-f]{64}$")
 
 @require_GET
 def bundle_file(request, name):
-    """Файлы офлайн-снимка для обновления приложения: manifest.json и blobs/<sha256>."""
+    """Файлы офлайн-снимка для обновления приложения: manifest.json и blobs/<sha256>.
+
+    Отдаём только эти два вида имён, всё остальное — 404 (чтобы не раздать что-то лишнее
+    из BUNDLE_DIR)."""
     if name != "manifest.json" and not (name.startswith("blobs/") and _SHA.match(name[6:])):
         raise Http404
     path = settings.BUNDLE_DIR / name

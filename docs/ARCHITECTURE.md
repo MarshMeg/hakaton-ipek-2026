@@ -63,12 +63,13 @@ blobs/<sha256>  содержимое файла
 ```json
 {"v": 2, "updated": 1760500000000,
  "profile": {"name": "Аня", "avatar": "🦊"},
- "words": {"17": {"ok": 3, "bad": 1, "seen": 2, "last": 1760500000000}},
+ "words": {"17": {"ok": 3, "bad": 1, "seen": 2, "streak": 2, "last": 1760500000000}},
  "days": {"2026-10-15": {"ok": 12, "bad": 3, "seen": 5}},
  "games": {"choose": {"ok": 20, "bad": 4, "played": 3, "best": 3}},
  "settings": {"sound": true, "notifications": false, "geo": false}}
 ```
-Ключи `words` — id слов (seed сохраняет их стабильными), `days` — ответы и просмотры по дням (из них
+Ключи `words` — id слов (seed сохраняет их стабильными); `streak` — верные ответы на слово подряд
+(после ошибки — 0, в старых сохранениях поля нет), по нему слово выходит из «трудных». `days` — ответы и просмотры по дням (из них
 серия 🔥, график и «дней занятий»), `best` — лучшие звёзды в игре. `settings` — настройки
 игрока: только булевы `sound` (по умолчанию `true`), `notifications` и `geo` (`false`); неизвестные
 ключи сервер и клиент отбрасывают, не булевы значения заменяют значениями по умолчанию. В старых
@@ -104,3 +105,25 @@ blobs/<sha256>  содержимое файла
 
 Ключевые файлы: `backend/static/js/app.js`, `backend/static/js/games.js`, `backend/play/api.py`,
 `backend/play/management/commands/build_bundle.py`, `mobile/lib/bundle.dart`, `mobile/lib/main.dart`.
+
+## Деплой
+Сервер — Docker Compose в `/opt/votes`: `docker-compose.yml` + `docker-compose.prod.yml` (Caddy с HTTPS
+снаружи, web/MinIO/PostgreSQL только во внутренней сети). Автодеплой из `main`:
+
+```
+push в main → ci.yml: tests (ruff, миграции на PostgreSQL 16, pytest)
+            → build: образ web → ghcr.io/marshmeg/hakaton-ipek-2026/web:<sha> и :latest
+            → deploy: rsync compose-файлов и deploy/ → deploy/deploy.sh <образ>
+                      → проверка $DEPLOY_URL/content.json; не ответил — deploy.sh --rollback
+```
+
+При старте контейнера `backend/entrypoint.sh` выполняет `migrate`, `seed`, `build_bundle` и
+`createsuperuser`, поэтому новый словарь и снимок появляются на сервере сразу после деплоя. APK
+собирает отдельный `android.yml` — только при изменениях в `mobile/`. Подробности (переменные, теги
+образов, откат) — в [development.md](development.md#cicd-githubworkflows).
+
+## Документация по частям
+- [BACKEND.md](BACKEND.md) — модели, эндпоинты, management-команды, запуск и тесты.
+- [FRONTEND.md](FRONTEND.md) — `app.js` (`ZB.*`), `games.js`, особенности Alpine.js 3.
+- [MOBILE.md](MOBILE.md) — Flutter-обёртка, офлайн-снимок на телефоне, мост, сборка APK.
+- [development.md](development.md) — команды и соглашения, [local-setup.md](local-setup.md) — окружение.

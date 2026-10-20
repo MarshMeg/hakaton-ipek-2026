@@ -10,11 +10,13 @@ from vocab.models import Word, media_url
 
 
 def build(tmp_path):
+    """Собирает снимок в tmp_path и возвращает его manifest.json."""
     call_command("build_bundle", "--out", str(tmp_path))
     return json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
 
 
 def test_bundle_contains_app(tmp_path, vocab):
+    """В снимке есть страницы, игры, словарь и статика (без админки); sha блобов верные."""
     manifest = build(tmp_path)
     files = manifest["files"]
     for url in [
@@ -41,11 +43,13 @@ def test_bundle_contains_app(tmp_path, vocab):
 
 
 def test_bundle_version_is_deterministic(tmp_path, vocab):
+    """Две сборки одного и того же дают одинаковую версию."""
     first = build(tmp_path / "a")["version"]
     assert build(tmp_path / "b")["version"] == first
 
 
 def test_bundle_rebuild_removes_stale_blobs(tmp_path, vocab):
+    """При пересборке лишние блобы удаляются."""
     build(tmp_path)
     (tmp_path / "blobs" / ("0" * 64)).write_bytes(b"old")
     manifest = build(tmp_path)
@@ -54,6 +58,7 @@ def test_bundle_rebuild_removes_stale_blobs(tmp_path, vocab):
 
 
 def test_bundle_is_served_for_updates(client, tmp_path, vocab, settings):
+    """/bundle/ отдаёт манифест и блобы, а чужие пути — 404."""
     settings.BUNDLE_DIR = tmp_path
     manifest = build(tmp_path)
     r = client.get(reverse("play:bundle", args=["manifest.json"]))
@@ -77,6 +82,7 @@ def test_media_types_without_os_table(monkeypatch):
 
 
 def test_media_served_with_type(client, vocab):
+    """/media/ отдаёт картинку с правильным Content-Type."""
     word = Word.objects.exclude(image="").first()
     r = client.get(media_url(word.image))
     assert r.status_code == 200
@@ -84,6 +90,7 @@ def test_media_served_with_type(client, vocab):
 
 
 def test_bundle_media_type(tmp_path, vocab):
+    """В манифесте у .webp тип image/webp."""
     files = build(tmp_path)["files"]
     media = [meta for url, meta in files.items() if url.endswith(".webp")]
     assert media

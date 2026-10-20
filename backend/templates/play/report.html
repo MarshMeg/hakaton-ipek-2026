@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Отчёт — Ӟеч-а бур-а удмурт кыл?{% endblock %}
 {% block content %}
-{# Сводка для родителя или учителя. Строится из журнала на телефоне, поэтому работает без сети. #}
+{# Сводка для родителя или учителя. Строится из сохранения на телефоне ($store.app.stats), поэтому работает без сети. #}
 <div x-data="reportPage()">
   <a href="{% url 'play:profile' %}" class="font-bold text-muted print:hidden">← Профиль</a>
   <h1 class="mt-2 text-2xl font-extrabold">📋 Отчёт об успехах</h1>

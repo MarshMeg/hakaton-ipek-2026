@@ -22,6 +22,7 @@ import 'package:path_provider/path_provider.dart';
 
 const _assetRoot = 'assets/bundle';
 
+/// Запись из manifest.json: хэш содержимого (имя блоба) и Content-Type.
 class BundleFile {
   const BundleFile(this.sha, this.type);
 
@@ -29,6 +30,7 @@ class BundleFile {
   final String type;
 }
 
+/// manifest.json снимка: версия, время сборки (мс) и файлы по пути запроса.
 class Manifest {
   Manifest(this.version, this.built, this.files);
 
@@ -36,6 +38,7 @@ class Manifest {
   final int built;
   final Map<String, BundleFile> files;
 
+  // Пустой манифест — когда снимка нет ни в APK, ни на диске (built = 0, проиграет любому).
   static final empty = Manifest('', 0, const {});
 
   static Manifest parse(String raw) {
@@ -109,6 +112,7 @@ class Bundle {
     return manifest.files[path] ?? (path.endsWith('/') ? null : manifest.files['$path/']);
   }
 
+  /// Содержимое блоба: сначала скачанный файл на диске, потом assets APK. null — нет нигде.
   Future<Uint8List?> read(String sha) async {
     final file = File('${_dir.path}/blobs/$sha');
     if (await file.exists()) return file.readAsBytes();
@@ -140,6 +144,7 @@ class Bundle {
       final remote = Manifest.parse(utf8.decode(res.bodyBytes));
       if (!Manifest.isUpdate(manifest, remote)) return null;
 
+      // Качаем только те блобы, которых ещё нет ни на диске, ни в APK.
       for (final sha in remote.files.values.map((f) => f.sha).toSet()) {
         if (await _hasBlob(sha)) continue;
         final blob = await client
