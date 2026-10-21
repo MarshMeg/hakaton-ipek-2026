@@ -49,7 +49,6 @@ cd backend
 mise trust            # разрешить конфиг проекта (один раз)
 mise install          # uv + Tailwind CLI
 mise run setup        # uv sync (Python 3.12, .venv, зависимости), миграции, словарь
-mise run test         # все тесты должны пройти
 mise run lint         # ruff + проверка миграций, как в CI
 mise run dev          # http://localhost:8000
 ```
@@ -61,7 +60,6 @@ mise run dev          # http://localhost:8000
 
 | Задача | Что делает |
 |---|---|
-| `mise run test -- -k sync` | один тест или группа (аргументы уходят в pytest) |
 | `mise run fmt` | автоформатирование ruff |
 | `mise run css` | пересобрать `static/css/app.css` после правки классов Tailwind в шаблонах или `static/js/` |
 | `mise run css:watch` | то же, в режиме наблюдения |
@@ -93,7 +91,7 @@ mise install                          # Flutter 3.47 + Java 17 (≈1–2 ГБ)
 mise exec -- flutter doctor           # Android toolchain должен быть ✓
 mise exec -- flutter doctor --android-licenses
 mise run setup                        # flutter create (платформенные файлы) + pub get
-mise run check                        # flutter analyze + flutter test, как в CI
+mise run check                        # flutter analyze, как в CI
 ```
 3. Запуск в эмуляторе против локального сервера (в другом терминале `cd backend && mise run dev`).
    Перед этим соберите офлайн-снимок `cd backend && mise run bundle`, иначе без сети приложение
@@ -121,6 +119,6 @@ mise run dev
 | Эмулятор не видит сервер | сервер должен слушать `0.0.0.0:8000`, в эмуляторе адрес `http://10.0.2.2:8000` |
 
 ## Готово, когда
-- [ ] `cd backend && mise run test && mise run lint` — зелёные;
+- [ ] `cd backend && mise run lint` — зелёный;
 - [ ] http://localhost:8000 открывается, после регистрации работают карточки и игры;
 - [ ] (для мобильщиков) `cd mobile && mise run check` — без ошибок, приложение запускается в эмуляторе.

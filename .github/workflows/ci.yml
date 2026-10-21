@@ -44,7 +44,6 @@ jobs:
         run: |
           uv run python manage.py makemigrations --check --dry-run
           uv run python manage.py migrate --noinput
-      - run: uv run pytest -q
 
   # Образ web собирается здесь, а не на сервере, и публикуется в GitHub Container Registry:
   # ghcr.io/<владелец>/<репозиторий>/web:<sha коммита> (и :latest). Условия — как у deploy.

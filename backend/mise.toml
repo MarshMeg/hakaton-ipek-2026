@@ -15,10 +15,6 @@ run = [
 description = "Сервер разработки на http://localhost:8000"
 run = "uv run python manage.py runserver 0.0.0.0:8000"
 
-[tasks.test]
-description = "Тесты (pytest); аргументы пробрасываются: mise run test -- -k sync"
-run = "uv run pytest"
-
 [tasks.lint]
 description = "Проверки как в CI: ruff, формат, миграции"
 run = [

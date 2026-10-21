@@ -74,7 +74,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# По умолчанию SQLite — чтобы тесты и быстрый локальный запуск работали без Docker.
+# По умолчанию SQLite — чтобы быстрый локальный запуск работал без Docker.
 DATABASES = {"default": env.db("DATABASE_URL", default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}")}
 
 AUTH_PASSWORD_VALIDATORS = [
