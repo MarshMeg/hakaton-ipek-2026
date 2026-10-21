@@ -144,70 +144,74 @@ class _GameScreenState extends State<GameScreen> {
     );
   }
 
+  // Главная страница игры на нашем сервере.
+  URLRequest get _homeRequest => URLRequest(url: WebUri(_server.resolve('/').toString()));
+
   // Кнопка «Повторить» на экране ошибки: заново открываем главную.
   void _reload() {
     setState(() => _error = null);
-    _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())));
+    _controller?.loadUrl(urlRequest: _homeRequest);
+  }
+
+  // Системная кнопка «назад» сначала листает историю WebView и только потом закрывает приложение.
+  Future<void> _onBack(bool didPop) async {
+    if (didPop) return;
+    final navigator = Navigator.of(context);
+    final controller = _controller;
+    if (controller != null && await controller.canGoBack()) {
+      await controller.goBack();
+    } else {
+      navigator.maybePop();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bundle = _bundle;
-    // Системная кнопка «назад» сначала листает историю WebView и только потом закрывает приложение.
     return PopScope(
       canPop: false,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        final navigator = Navigator.of(context);
-        final controller = _controller;
-        if (controller != null && await controller.canGoBack()) {
-          await controller.goBack();
-        } else {
-          navigator.maybePop();
+      onPopInvokedWithResult: (didPop, _) => _onBack(didPop),
+      child: Scaffold(body: SafeArea(child: _buildBody())),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_bundle == null) return const _SplashView(text: 'Загрузка…');
+    if (_updating) return const _SplashView(text: 'Проверяем обновления…');
+    return Stack(
+      children: [
+        _buildWebView(),
+        if (_progress < 1) LinearProgressIndicator(value: _progress, color: brandRed, minHeight: 3),
+        if (_error != null) _ErrorView(message: _error!, onRetry: _reload),
+      ],
+    );
+  }
+
+  Widget _buildWebView() {
+    return InAppWebView(
+      initialUrlRequest: _homeRequest,
+      // useShouldInterceptRequest — без него _intercept не вызывается, и всё
+      // шло бы в сеть. applicationNameForUserAgent дописывает VotesApp в UA.
+      initialSettings: InAppWebViewSettings(
+        useShouldInterceptRequest: true,
+        javaScriptEnabled: true,
+        domStorageEnabled: true,
+        mediaPlaybackRequiresUserGesture: false,
+        transparentBackground: true,
+        supportZoom: false,
+        applicationNameForUserAgent: userAgentMark,
+      ),
+      onWebViewCreated: (controller) {
+        _controller = controller;
+        _bridge!.attach(controller);
+      },
+      shouldInterceptRequest: (controller, request) => _intercept(request),
+      onProgressChanged: (controller, progress) => setState(() => _progress = progress / 100),
+      onReceivedError: (controller, request, error) {
+        // Ошибки картинок и /api/ не мешают игре — реагируем только на саму страницу.
+        if (request.isForMainFrame ?? true) {
+          setState(() => _error = error.description);
         }
       },
-      child: Scaffold(
-        body: SafeArea(
-          child: bundle == null
-              ? const _SplashView(text: 'Загрузка…')
-              : _updating
-              ? const _SplashView(text: 'Проверяем обновления…')
-              : Stack(
-                  children: [
-                    InAppWebView(
-                      initialUrlRequest: URLRequest(url: WebUri(_server.resolve('/').toString())),
-                      // useShouldInterceptRequest — без него _intercept не вызывается, и всё
-                      // шло бы в сеть. applicationNameForUserAgent дописывает VotesApp в UA.
-                      initialSettings: InAppWebViewSettings(
-                        useShouldInterceptRequest: true,
-                        javaScriptEnabled: true,
-                        domStorageEnabled: true,
-                        mediaPlaybackRequiresUserGesture: false,
-                        transparentBackground: true,
-                        supportZoom: false,
-                        applicationNameForUserAgent: userAgentMark,
-                      ),
-                      onWebViewCreated: (controller) {
-                        _controller = controller;
-                        _bridge!.attach(controller);
-                      },
-                      shouldInterceptRequest: (controller, request) => _intercept(request),
-                      onProgressChanged: (controller, progress) =>
-                          setState(() => _progress = progress / 100),
-                      onReceivedError: (controller, request, error) {
-                        // Ошибки картинок и /api/ не мешают игре — реагируем только на саму страницу.
-                        if (request.isForMainFrame ?? true) {
-                          setState(() => _error = error.description);
-                        }
-                      },
-                    ),
-                    if (_progress < 1) LinearProgressIndicator(value: _progress, color: brandRed, minHeight: 3),
-                    if (_error != null)
-                      _ErrorView(message: _error!, onRetry: _reload),
-                  ],
-                ),
-        ),
-      ),
     );
   }
 }

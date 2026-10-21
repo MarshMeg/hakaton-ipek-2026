@@ -8,6 +8,23 @@
 
   var ZB = window.ZB;
 
+  var ROUNDS = 8; // раундов в игре, если игра не задаёт своё число
+  var WRONG_OPTIONS = 3; // неверных вариантов рядом с верным в «Выбери перевод»
+  var RECENT_MAX = 4; // столько последних слов не повторяются (pickFresh)
+  var AUTO_NEXT_MS = 900; // пауза после верного ответа перед следующим раундом
+  var THREE_STARS = 0.9; // доля верных ответов для трёх звёзд
+  var TWO_STARS = 0.6; // … и для двух
+
+  // Случайный элемент списка.
+  function randomItem(list) {
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  // Текст для сравнения слов: без пробелов по краям и без учёта регистра.
+  function normalize(text) {
+    return String(text || '').trim().toLowerCase();
+  }
+
   /* Общая часть всех игр: загрузка словаря, выбор темы, счёт, звёзды, экран итогов.
    *
    * Игра = base(slug, extra): поля и методы из extra копируются поверх общих, поэтому игра
@@ -20,10 +37,10 @@
       loading: true,
       content: null,
       topic: ZB.param('topic'),
-      rounds: 8,
+      rounds: ROUNDS,
       round: 0,
       score: 0,
-      maxScore: 8,
+      maxScore: ROUNDS,
       done: false,
       empty: false, // играть не во что (в «Трудных словах» — мало трудных слов)
       answers: [], // [{w: id слова, ok}] — ответы этой игры, в сохранение попадут в finish()
@@ -48,6 +65,12 @@
       },
 
       start: function () {
+        this.reset();
+        this.newRound();
+      },
+
+      // Счёт и ответы — с нуля. maxScore по умолчанию — по одному очку за раунд.
+      reset: function () {
         this.round = 0;
         this.score = 0;
         this.maxScore = this.rounds;
@@ -55,7 +78,6 @@
         this.answers = [];
         this.feedback = null;
         this.message = '';
-        this.newRound();
       },
 
       /* Слова выбранной темы (или все), по желанию отфильтрованные. */
@@ -67,15 +89,15 @@
 
       topicOf: function (word) { return this.content.topicBySlug[word.topic]; },
 
-      /* Случайное слово, которого не было в последних раундах. Помним до 4 последних слов,
-       * но не больше половины пула: в маленькой теме иначе не из чего было бы выбирать. */
+      /* Случайное слово, которого не было в последних раундах. Помним до RECENT_MAX последних
+       * слов, но не больше половины пула: в маленькой теме иначе не из чего было бы выбирать. */
       recent: [],
       pickFresh: function (pool) {
         var recent = this.recent;
         var fresh = pool.filter(function (w) { return recent.indexOf(w.id) < 0; });
-        var list = fresh.length ? fresh : pool;
-        var word = list[Math.floor(Math.random() * list.length)];
-        this.recent = [word.id].concat(recent).slice(0, Math.min(4, Math.floor(pool.length / 2)));
+        var word = randomItem(fresh.length ? fresh : pool);
+        var remember = Math.min(RECENT_MAX, Math.floor(pool.length / 2));
+        this.recent = [word.id].concat(recent).slice(0, remember);
         return word;
       },
 
@@ -83,27 +105,25 @@
        * («чырткем» и «салам» — оба «привет») отсеиваются по обоим полям, иначе среди вариантов
        * оказалось бы второе верное слово. */
       distractors: function (target, n, field) {
-        var self = this;
-        var norm = function (s) { return String(s || '').trim().toLowerCase(); };
         var used = {};
-        used[norm(target[field])] = true;
+        used[normalize(target[field])] = true;
+        // До n случайных слов из list: с текстом, которого ещё не было, и не синонимы target.
         var pick = function (list) {
           var out = [];
           ZB.shuffle(list).forEach(function (w) {
-            var key = norm(w[field]);
-            if (out.length >= n || used[key]) return;
-            if (norm(w.ru) === norm(target.ru) || norm(w.udm) === norm(target.udm)) return;
+            var key = normalize(w[field]);
+            if (out.length >= n || used[key] || isSynonym(w, target)) return;
             used[key] = true;
             out.push(w);
           });
           return out;
         };
         // Сначала из той же темы (так вариант сложнее угадать), не хватит — добираем из всех.
-        var same = pick(this.topicOf(target).words);
-        if (same.length < n) {
-          same = same.concat(pick(self.content.words).slice(0, n - same.length));
+        var picked = pick(this.topicOf(target).words);
+        if (picked.length < n) {
+          picked = picked.concat(pick(this.content.words).slice(0, n - picked.length));
         }
-        return same;
+        return picked;
       },
 
       // Только запомнить ответ (без счёта и звука) — «Сортировка» и «Найди пару» зовут его сами.
@@ -128,8 +148,10 @@
       autoNext: function () {
         var self = this;
         var round = this.round;
-        // Проверка раунда: если за 0,9 с игрок сам нажал «Дальше», второй раз не переключаем.
-        setTimeout(function () { if (self.round === round && self.feedback === 'ok') self.next(); }, 900);
+        // Проверка раунда: если за паузу игрок сам нажал «Дальше», второй раз не переключаем.
+        setTimeout(function () {
+          if (self.round === round && self.feedback === 'ok') self.next();
+        }, AUTO_NEXT_MS);
       },
 
       finish: function () {
@@ -143,8 +165,10 @@
 
       // Звёзды по доле верных ответов: от 90% — три, от 60% — две, иначе одна.
       stars: function () {
-        var r = this.maxScore ? this.score / this.maxScore : 0;
-        return r >= 0.9 ? 3 : r >= 0.6 ? 2 : 1;
+        var share = this.maxScore ? this.score / this.maxScore : 0;
+        if (share >= THREE_STARS) return 3;
+        if (share >= TWO_STARS) return 2;
+        return 1;
       },
 
       progress: function () {
@@ -158,6 +182,11 @@
     // Поля и методы конкретной игры перекрывают общие.
     Object.keys(extra).forEach(function (k) { game[k] = extra[k]; });
     return game;
+  }
+
+  // Синонимы: «чырткем» и «салам» — оба «привет». Такое слово нельзя давать как неверный вариант.
+  function isSynonym(word, target) {
+    return normalize(word.ru) === normalize(target.ru) || normalize(word.udm) === normalize(target.udm);
   }
 
   // ---------- «Выбери перевод» ----------
@@ -175,7 +204,7 @@
         this.target = this.pickFresh(pool);
         this.reverse = this.round % 2 === 1;
         var field = this.reverse ? 'udm' : 'ru';
-        this.options = ZB.shuffle([this.target].concat(this.distractors(this.target, 3, field)));
+        this.options = ZB.shuffle([this.target].concat(this.distractors(this.target, WRONG_OPTIONS, field)));
         this.chosen = null;
         ZB.playAudio(this.reverse ? null : this.target);
       },
@@ -201,6 +230,26 @@
   // ---------- «Трудные слова» ----------
 
   var HARD_MAX = 10; // берём самые трудные, чтобы за игру каждое встретилось хотя бы раз-другой
+  var HARD_REPEATS = 2; // каждое трудное слово — примерно по два раза (в обе стороны)
+
+  /* Очередь слов на rounds раундов: каждое слово встречается поровну, одно и то же слово
+   * не идёт два раза подряд (на стыке перемешанных кругов). */
+  function wordQueue(words, rounds) {
+    var queue = [];
+    while (queue.length < rounds) {
+      var lap = ZB.shuffle(words);
+      if (queue.length && lap[0] === queue[queue.length - 1]) lap.push(lap.shift());
+      queue = queue.concat(lap);
+    }
+    return queue;
+  }
+
+  // Набор id: {id: true} — чтобы быстро проверять, есть ли слово в списке.
+  function idSet(ids) {
+    var set = {};
+    ids.forEach(function (id) { set[id] = true; });
+    return set;
+  }
 
   /* «Выбери перевод», но слова — те, в которых ребёнок ошибался (ZB.hardWords по сохранению
    * на телефоне). Страница одинакова для всех, список слов собирается здесь. */
@@ -220,23 +269,16 @@
         this.hardList = all.slice(0, HARD_MAX);
         this.empty = all.length < ZB.HARD_MIN;
         this.cleared = 0;
-        // Каждое слово — примерно по два раза (в обе стороны), но не больше обычных 8 раундов.
-        this.rounds = Math.min(8, this.hardList.length * 2);
+        // Не больше обычного числа раундов.
+        this.rounds = Math.min(ROUNDS, this.hardList.length * HARD_REPEATS);
         if (this.empty) {
           this.round = 0;
           this.done = false;
           this.feedback = null;
           return;
         }
-        // Очередь слов: каждое встречается поровну, одно и то же слово не идёт два раза подряд.
         var words = this.hardList.map(function (h) { return h.word; });
-        var queue = [];
-        while (queue.length < this.rounds) {
-          var next = ZB.shuffle(words);
-          if (queue.length && next[0] === queue[queue.length - 1]) next.push(next.shift());
-          queue = queue.concat(next);
-        }
-        this.queue = queue;
+        this.queue = wordQueue(words, this.rounds);
         chooseStart.call(this);
       },
 
@@ -248,11 +290,8 @@
        * cleared — сколько слов этой игры набрали серию верных ответов и вышли из списка. */
       finish: function () {
         chooseFinish.call(this);
-        var save = ZB.Save.get();
-        var stillHard = {};
-        ZB.hardWords(save, this.content).forEach(function (h) { stillHard[h.word.id] = true; });
-        var answered = {};
-        this.answers.forEach(function (a) { answered[a.w] = true; });
+        var stillHard = idSet(ZB.hardWords(ZB.Save.get(), this.content).map(function (h) { return h.word.id; }));
+        var answered = idSet(this.answers.map(function (a) { return a.w; }));
         this.cleared = this.hardList.filter(function (h) {
           return answered[h.word.id] && !stillHard[h.word.id];
         }).length;
@@ -273,6 +312,13 @@
 
   // ---------- «Найди лишнее» ----------
 
+  var ODD_SAME = 3; // слов из основной темы рядом с одним «лишним»
+
+  // Темы для «Найди лишнее»: без фраз и с хотя бы ODD_SAME словами.
+  function oddTopics(content) {
+    return content.topics.filter(function (t) { return t.kind !== 'phrases' && t.words.length >= ODD_SAME; });
+  }
+
   function odd() {
     return base('odd', {
       words: [],
@@ -282,16 +328,14 @@
       showPics: false,
 
       newRound: function () {
-        var c = this.content;
-        var topics = c.topics.filter(function (t) { return t.kind !== 'phrases' && t.words.length >= 3; });
+        var topics = oddTopics(this.content);
         // Три слова из темы main и одно из темы другого семейства (family): «лишнее» из соседней
         // по смыслу темы (овощи среди еды) было бы спорным.
-        var main = topics[Math.floor(Math.random() * topics.length)];
-        var others = topics.filter(function (t) { return t.family !== main.family; });
-        var other = others[Math.floor(Math.random() * others.length)];
+        var main = randomItem(topics);
+        var other = randomItem(topics.filter(function (t) { return t.family !== main.family; }));
         this.mainTopic = main;
         this.oddWord = ZB.sample(other.words, 1)[0];
-        this.words = ZB.shuffle(ZB.sample(main.words, 3).concat([this.oddWord]));
+        this.words = ZB.shuffle(ZB.sample(main.words, ODD_SAME).concat([this.oddWord]));
         this.chosen = null;
         this.showPics = false;
       },
@@ -310,9 +354,55 @@
 
   // ---------- «Сортировка» ----------
 
+  var SORT_ROUNDS = 3;
+  var NEXT_SET_MS = 700; // пауза после последнего слова набора
+  var SHAKE_MS = 500; // сколько трясётся слово, положенное не туда
+  var DRAG_MIN_PX = 8; // сдвиг пальца меньше этого — не перетаскивание, а нажатие
+
+  // Слова всех тем корзинки (у корзинки может быть несколько тем).
+  function groupWords(content, group) {
+    var words = [];
+    group.topics.forEach(function (slug) { words = words.concat(content.topicBySlug[slug].words); });
+    return words;
+  }
+
+  // Наборы, у которых в каждой корзинке есть хотя бы одно слово.
+  function playableSets(content) {
+    return content.sorting.filter(function (set) {
+      return set.groups.every(function (g) {
+        return g.topics.some(function (slug) {
+          return content.topicBySlug[slug] && content.topicBySlug[slug].words.length;
+        });
+      });
+    });
+  }
+
+  /* count случайных слов из words: сначала те, которых ещё не было в партии (used), а если
+   * новых не хватает — добираем из уже бывших. */
+  function pickUnused(words, count, used) {
+    var unused = words.filter(function (w) { return !used[w.id]; });
+    var picked = ZB.sample(unused, count);
+    if (picked.length < count) {
+      var rest = words.filter(function (w) { return picked.indexOf(w) < 0; });
+      picked = picked.concat(ZB.sample(rest, count - picked.length));
+    }
+    return picked;
+  }
+
+  /* Элемент страницы под точкой отпускания пальца. Само слово на мгновение прячем: оно под
+   * пальцем из-за translate, и elementFromPoint вернул бы его, а не корзинку под ним. */
+  function elementUnder(ev) {
+    var el = ev.target;
+    var prev = el.style.visibility;
+    el.style.visibility = 'hidden';
+    var under = document.elementFromPoint(ev.clientX, ev.clientY);
+    el.style.visibility = prev;
+    return under;
+  }
+
   function sort() {
     return base('sort', {
-      rounds: 3,
+      rounds: SORT_ROUNDS,
       set: null,
       groups: [],
       items: [],
@@ -326,13 +416,8 @@
       /* Своя версия start: число слов в раунде зависит от набора, поэтому maxScore не равен
        * числу раундов, а копится в newRound. */
       start: function () {
-        this.round = 0;
-        this.score = 0;
+        this.reset();
         this.maxScore = 0;
-        this.done = false;
-        this.answers = [];
-        this.feedback = null;
-        this.message = '';
         this.usedSets = [];
         this.usedWords = {};
         this.newRound();
@@ -341,30 +426,13 @@
       newRound: function () {
         var c = this.content;
         var self = this;
-        // Только наборы, у которых в каждой корзинке есть хотя бы одно слово.
-        var sets = c.sorting.filter(function (s) {
-          return s.groups.every(function (g) {
-            return g.topics.some(function (slug) { return c.topicBySlug[slug] && c.topicBySlug[slug].words.length; });
-          });
-        });
-        // Набор не повторяется, пока в партии не сыграны все остальные.
-        var fresh = sets.filter(function (s) { return self.usedSets.indexOf(s.title) < 0; });
-        if (!fresh.length) { this.usedSets = []; fresh = sets; }
-        this.set = fresh[Math.floor(Math.random() * fresh.length)];
-        this.usedSets.push(this.set.title);
+        this.set = this.pickSet(playableSets(c));
         // 2 корзинки × 3 слова или 3+ корзинки × 2 слова — чтобы всё помещалось на экране.
         var perGroup = this.set.groups.length > 2 ? 2 : 3;
         var items = [];
         this.groups = this.set.groups.map(function (g, gi) {
-          var words = [];
-          g.topics.forEach(function (slug) { words = words.concat(c.topicBySlug[slug].words); });
           // Слова, уже бывшие в партии (темы у наборов общие), — только если новых не хватает.
-          var unused = words.filter(function (w) { return !self.usedWords[w.id]; });
-          var picked = ZB.sample(unused, perGroup);
-          if (picked.length < perGroup) {
-            picked = picked.concat(ZB.sample(words.filter(function (w) { return picked.indexOf(w) < 0; }), perGroup - picked.length));
-          }
-          picked.forEach(function (w) {
+          pickUnused(groupWords(c, g), perGroup, self.usedWords).forEach(function (w) {
             self.usedWords[w.id] = true;
             items.push({ word: w, group: gi, placed: false, tried: false });
           });
@@ -373,6 +441,16 @@
         this.items = ZB.shuffle(items);
         this.maxScore += items.length;
         this.selected = null;
+      },
+
+      // Набор не повторяется, пока в партии не сыграны все остальные.
+      pickSet: function (sets) {
+        var used = this.usedSets;
+        var fresh = sets.filter(function (s) { return used.indexOf(s.title) < 0; });
+        if (!fresh.length) { this.usedSets = []; fresh = sets; }
+        var set = randomItem(fresh);
+        this.usedSets.push(set.title);
+        return set;
       },
 
       remaining: function () { return this.items.filter(function (i) { return !i.placed; }); },
@@ -388,20 +466,25 @@
         }
         item.tried = true;
         this.selected = null;
-        if (ok) {
-          item.placed = true;
-          this.groups[groupIndex].placed.push(item.word);
-          ZB.Sound.play('ok');
-          if (!this.remaining().length) {
-            var self = this;
-            setTimeout(function () { self.next(); }, 700);
-          }
-        } else {
-          ZB.Sound.play('bad');
-          this.shake = item.word.id;
-          var me = this;
-          setTimeout(function () { me.shake = null; }, 500);
-        }
+        if (ok) this.place(item, groupIndex);
+        else this.reject(item);
+      },
+
+      // Слово легло в свою корзинку. Разложены все — следующий набор.
+      place: function (item, groupIndex) {
+        var self = this;
+        item.placed = true;
+        this.groups[groupIndex].placed.push(item.word);
+        ZB.Sound.play('ok');
+        if (!this.remaining().length) setTimeout(function () { self.next(); }, NEXT_SET_MS);
+      },
+
+      // Не та корзинка: слово трясётся и остаётся на поле.
+      reject: function (item) {
+        var self = this;
+        ZB.Sound.play('bad');
+        this.shake = item.word.id;
+        setTimeout(function () { self.shake = null; }, SHAKE_MS);
       },
 
       // Перетаскивание пальцем (pointer events) и запасной вариант — нажать слово, потом корзинку.
@@ -414,7 +497,7 @@
         if (!this.drag) return;
         this.drag.dx = ev.clientX - this.drag.x0;
         this.drag.dy = ev.clientY - this.drag.y0;
-        if (Math.abs(this.drag.dx) + Math.abs(this.drag.dy) > 8) this.drag.moved = true;
+        if (Math.abs(this.drag.dx) + Math.abs(this.drag.dy) > DRAG_MIN_PX) this.drag.moved = true;
       },
 
       dragEnd: function (ev) {
@@ -425,13 +508,7 @@
           this.selected = this.selected === drag.item ? null : drag.item;
           return;
         }
-        // Куда отпустили: на мгновение прячем само слово (оно под пальцем из-за translate),
-        // иначе elementFromPoint вернул бы его, а не корзинку под ним.
-        var el = ev.target;
-        var prev = el.style.visibility;
-        el.style.visibility = 'hidden';
-        var under = document.elementFromPoint(ev.clientX, ev.clientY);
-        el.style.visibility = prev;
+        var under = elementUnder(ev);
         var bucket = under && under.closest('[data-bucket]');
         if (bucket) this.drop(drag.item, Number(bucket.getAttribute('data-bucket')));
       },
@@ -453,6 +530,36 @@
 
   // ---------- «Найди пару» (Memory) ----------
 
+  var MEMORY_PAIRS = 6; // пар на поле
+  var MEMORY_MIN_PAIRS = 3; // меньше пар в теме — играем по всему словарю
+  var FLIP_BACK_MS = 900; // столько видны две несовпавшие карточки
+  var MEMORY_FINISH_MS = 600; // пауза после последней пары перед итогами
+
+  // Слова с разными переводами: два слова с одним переводом («привет») дали бы неразличимые пары.
+  function uniqueByTranslation(words) {
+    var seenRu = {};
+    return words.filter(function (w) {
+      if (seenRu[w.ru]) return false;
+      seenRu[w.ru] = true;
+      return true;
+    });
+  }
+
+  /* Две карточки на слово. Пара — «удмуртское слово + картинка», а если картинки нет или она
+   * повторяется — «удмуртское слово + перевод». uid различает карточки для x-for (суффиксы u и p). */
+  function pairCards(words) {
+    var seenPic = {};
+    var cards = [];
+    words.forEach(function (w) {
+      var key = ZB.picKey(w);
+      var usePic = key && !seenPic[key];
+      if (usePic) seenPic[key] = true;
+      cards.push({ uid: w.id + 'u', word: w, side: 'udm', flipped: false, matched: false });
+      cards.push({ uid: w.id + 'p', word: w, side: usePic ? 'pic' : 'ru', flipped: false, matched: false });
+    });
+    return cards;
+  }
+
   function memory() {
     return base('memory', {
       rounds: 1,
@@ -463,34 +570,17 @@
       busy: false,
 
       newRound: function () {
-        // Пара — «удмуртское слово + картинка», а если картинки нет или она повторяется —
-        // «удмуртское слово + перевод».
-        var seenPic = {};
-        var seenRu = {};
-        var words = ZB.shuffle(this.pool()).filter(function (w) {
-          if (seenRu[w.ru]) return false;
-          seenRu[w.ru] = true;
-          return true;
-        });
-        if (words.length < 3) words = ZB.shuffle(this.content.words);
-        words = words.slice(0, 6);
-        var cards = [];
-        words.forEach(function (w) {
-          var key = ZB.picKey(w);
-          var usePic = key && !seenPic[key];
-          if (usePic) seenPic[key] = true;
-          // Обе карточки пары — одно слово; uid различает их для x-for (суффиксы u и p).
-          cards.push({ uid: w.id + 'u', word: w, side: 'udm', flipped: false, matched: false });
-          cards.push({ uid: w.id + 'p', word: w, side: usePic ? 'pic' : 'ru', flipped: false, matched: false });
-        });
-        this.cards = ZB.shuffle(cards);
+        var words = uniqueByTranslation(ZB.shuffle(this.pool()));
+        if (words.length < MEMORY_MIN_PAIRS) words = ZB.shuffle(this.content.words);
+        words = words.slice(0, MEMORY_PAIRS);
+        this.cards = ZB.shuffle(pairCards(words));
         this.pairs = words.length;
         this.maxScore = words.length;
         this.moves = 0;
         this.open = [];
       },
 
-      // Открыть карточку. Когда открыты две: одно слово — пара найдена, иначе через 0,9 с
+      // Открыть карточку. Когда открыты две: одно слово — пара найдена, иначе через паузу
       // обе закрываются (busy не даёт открыть третью, пока они видны).
       flip: function (card) {
         if (this.busy || card.flipped || card.matched) return;
@@ -501,24 +591,31 @@
         this.moves++;
         var a = this.open[0];
         var b = this.open[1];
-        var self = this;
         this.open = [];
-        if (a.word.id === b.word.id) {
-          a.matched = b.matched = true;
-          this.log(a.word, true);
-          ZB.Sound.play('ok');
-          this.score++;
-          ZB.playAudio(a.word);
-          if (this.cards.every(function (c) { return c.matched; })) {
-            setTimeout(function () { self.finish(); }, 600);
-          }
-        } else {
-          this.busy = true;
-          setTimeout(function () {
-            a.flipped = b.flipped = false;
-            self.busy = false;
-          }, 900);
+        if (a.word.id === b.word.id) this.match(a, b);
+        else this.flipBack(a, b);
+      },
+
+      // Пара найдена. Последняя пара — через паузу итоги.
+      match: function (a, b) {
+        var self = this;
+        a.matched = b.matched = true;
+        this.log(a.word, true);
+        ZB.Sound.play('ok');
+        this.score++;
+        ZB.playAudio(a.word);
+        if (this.cards.every(function (c) { return c.matched; })) {
+          setTimeout(function () { self.finish(); }, MEMORY_FINISH_MS);
         }
+      },
+
+      flipBack: function (a, b) {
+        var self = this;
+        this.busy = true;
+        setTimeout(function () {
+          a.flipped = b.flipped = false;
+          self.busy = false;
+        }, FLIP_BACK_MS);
       },
 
       // Звёзды за количество ходов: идеально — по ходу на пару.
@@ -536,6 +633,16 @@
 
   // Подходит для «Собери слово»: одно слово без пробелов, дефисов и знаков, 2–10 букв.
   var SINGLE_WORD = /^[^\s\-.,!?…]{2,10}$/;
+  var SHUFFLE_TRIES = 5;
+
+  // Перемешанные буквы. Если они случайно остались в правильном порядке — мешаем заново.
+  function scramble(chars) {
+    var mixed = ZB.shuffle(chars);
+    for (var i = 0; i < SHUFFLE_TRIES && mixed.join('') === chars.join('') && chars.length > 1; i++) {
+      mixed = ZB.shuffle(chars);
+    }
+    return mixed;
+  }
 
   function assemble() {
     return base('assemble', {
@@ -545,16 +652,13 @@
 
       newRound: function () {
         var self = this;
-        var ok = function (w) { return self.topicOf(w).kind !== 'phrases' && SINGLE_WORD.test(w.udm); };
-        var pool = this.pool(ok);
-        if (!pool.length) pool = this.content.words.filter(ok);
+        var fits = function (w) { return self.topicOf(w).kind !== 'phrases' && SINGLE_WORD.test(w.udm); };
+        var pool = this.pool(fits);
+        if (!pool.length) pool = this.content.words.filter(fits);
         this.target = this.pickFresh(pool);
         var chars = Array.from(this.target.udm.toLowerCase());
-        // Перемешиваем заново (до 5 раз), если буквы случайно остались в правильном порядке.
-        var mixed = ZB.shuffle(chars);
-        for (var i = 0; i < 5 && mixed.join('') === chars.join('') && chars.length > 1; i++) mixed = ZB.shuffle(chars);
         // idx нужен, чтобы одинаковые буквы были разными плитками.
-        this.letters = mixed.map(function (ch, idx) { return { ch: ch, idx: idx, used: false }; });
+        this.letters = scramble(chars).map(function (ch, idx) { return { ch: ch, idx: idx, used: false }; });
         this.picked = [];
       },
 
@@ -590,6 +694,8 @@
 
   // ---------- «Правда или ложь» ----------
 
+  var FAKE_CANDIDATES = 6; // из стольких отвлекалок ищем подменное слово с непохожей картинкой
+
   function truefalse() {
     return base('truefalse', {
       target: null,
@@ -604,7 +710,7 @@
         if (!this.isTrue) {
           var t = this.target;
           // Подменное слово должно явно не подходить: непохожая картинка (ZB.samePic) и другой перевод.
-          var others = this.distractors(t, 6, 'ru').filter(function (w) { return !ZB.samePic(t, w); });
+          var others = this.distractors(t, FAKE_CANDIDATES, 'ru').filter(function (w) { return !ZB.samePic(t, w); });
           if (others.length) this.shown = others[0];
           else this.isTrue = true; // подменить нечем — раунд будет «верно»
         }

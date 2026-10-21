@@ -14,6 +14,7 @@
 (function () {
   'use strict';
 
+  var SAVE_VERSION = 2;
   var SAVE_KEY = 'zb.save.v2';
   var AUTH_KEY = 'zb.auth.v1';
   var SETTINGS_KEY = 'zb.settings.v1'; // кэш settings из сохранения
@@ -27,7 +28,12 @@
   // Игра «Трудные слова» и кнопка «Повторить» в профиле — только с таким числом трудных слов:
   // меньше — играть не во что, одно слово повторялось бы раз за разом.
   var HARD_MIN = 3;
+  var HARD_SHOWN = 5; // столько трудных слов показывает профиль
+  var LEARNED_MIN_OK = 2; // «выучено» — не меньше стольких верных ответов
+  var CHART_DAYS = 14; // дней на графике «Ответы за 14 дней»
+  var MINUTE_MS = 60000;
   var DAY_MS = 86400000;
+  var BRIDGE_WAIT_MS = 1500;
   var SYNC_TIMEOUT_MS = 5000;
   var KEEPALIVE_LIMIT = 60000; // fetch keepalive не отправит тело больше 64 КБ
   var NO_NETWORK = 'Для первого входа нужен интернет';
@@ -89,13 +95,13 @@
 
   var Bridge = {
     /* Promise<boolean>: доступен ли мост. В приложении callHandler появляется не сразу —
-     * ждём событие flutterInAppWebViewPlatformReady, но не дольше 1,5 с, чтобы старт не завис,
+     * ждём событие flutterInAppWebViewPlatformReady, но не дольше BRIDGE_WAIT_MS, чтобы старт не завис,
      * если мост так и не поднялся. Без моста все Bridge.call просто возвращают undefined. */
     ready: new Promise(function (resolve) {
       if (!inApp) return resolve(false);
       if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) return resolve(true);
       window.addEventListener('flutterInAppWebViewPlatformReady', function () { resolve(true); });
-      setTimeout(function () { resolve(false); }, 1500);
+      setTimeout(function () { resolve(false); }, BRIDGE_WAIT_MS);
     }),
     available: function () {
       return !!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler);
@@ -112,16 +118,19 @@
 
   // ---------- сервер ----------
 
+  // Ошибка «нет сети»: по флагу network вызывающий код понимает, что сервер просто недоступен.
+  function networkError() {
+    var err = new Error(NO_NETWORK);
+    err.network = true;
+    return err;
+  }
+
   /* У fetch нет своего тайм-аута: при плохой связи запрос может висеть минутами. Тайм-аут
    * считаем отсутствием сети (err.network) — дальше работаем с локальным сохранением. */
   function withTimeout(promise, ms) {
     if (!ms) return promise;
     return new Promise(function (resolve, reject) {
-      var timer = setTimeout(function () {
-        var err = new Error(NO_NETWORK);
-        err.network = true;
-        reject(err);
-      }, ms);
+      var timer = setTimeout(function () { reject(networkError()); }, ms);
       promise.then(
         function (v) { clearTimeout(timer); resolve(v); },
         function (e) { clearTimeout(timer); reject(e); }
@@ -132,29 +141,32 @@
   /* Запрос к /api/. Ошибка сети — err.network, ответ не 2xx — err.status и err.data. */
   function api(method, path, body, opts) {
     opts = opts || {};
+    var request = fetch(path, requestInit(method, body, opts))
+      .catch(function () { throw networkError(); })
+      .then(readResponse);
+    return withTimeout(request, opts.timeout);
+  }
+
+  // Параметры fetch: токен в заголовке, тело в JSON. keepalive — только для небольших тел.
+  function requestInit(method, body, opts) {
     var init = { method: method, headers: {} };
     if (opts.token) init.headers.Authorization = 'Bearer ' + opts.token;
-    if (body !== undefined) {
-      init.headers['Content-Type'] = 'application/json';
-      init.body = JSON.stringify(body);
-      if (opts.keepalive && init.body.length < KEEPALIVE_LIMIT) init.keepalive = true;
-    }
-    var request = fetch(path, init).catch(function () {
-      var err = new Error(NO_NETWORK);
-      err.network = true;
+    if (body === undefined) return init;
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(body);
+    if (opts.keepalive && init.body.length < KEEPALIVE_LIMIT) init.keepalive = true;
+    return init;
+  }
+
+  // Ответ сервера → данные. Не 2xx — ошибка с текстом от сервера (или общим, если его нет).
+  function readResponse(r) {
+    return r.json().catch(function () { return {}; }).then(function (data) {
+      if (r.ok) return data;
+      var err = new Error(data.error || 'Ошибка сервера (' + r.status + ')');
+      err.status = r.status;
+      err.data = data;
       throw err;
-    }).then(function (r) {
-      return r.json().catch(function () { return {}; }).then(function (data) {
-        if (!r.ok) {
-          var err = new Error(data.error || 'Ошибка сервера (' + r.status + ')');
-          err.status = r.status;
-          err.data = data;
-          throw err;
-        }
-        return data;
-      });
     });
-    return withTimeout(request, opts.timeout);
   }
 
   // ---------- настройки ----------
@@ -222,7 +234,7 @@
 
   function emptySave(name, avatar) {
     return {
-      v: 2, updated: 0, profile: { name: name || '', avatar: avatar || '' },
+      v: SAVE_VERSION, updated: 0, profile: { name: name || '', avatar: avatar || '' },
       words: {}, days: {}, games: {}, settings: cleanSettings(Settings.values),
     };
   }
@@ -230,7 +242,7 @@
   /* Приводит сохранение (из localStorage, с сервера, из копии во Flutter) к полному виду v2.
    * Чужая версия или не объект — null. */
   function normalizeSave(s) {
-    if (!s || typeof s !== 'object' || s.v !== 2) return null;
+    if (!s || typeof s !== 'object' || s.v !== SAVE_VERSION) return null;
     var base = emptySave();
     base.updated = typeof s.updated === 'number' ? s.updated : 0;
     ['profile', 'words', 'days', 'games'].forEach(function (k) {
@@ -241,6 +253,29 @@
     return base;
   }
 
+  // save новее, чем than (или than нет вовсе) — тогда save заменяет than.
+  function isNewer(save, than) {
+    return !than || save.updated > than.updated;
+  }
+
+  /* Записи прогресса по слову, дню и игре. Создаются при первом обращении, поэтому в
+   * сохранении есть только то, во что уже играли. */
+  function wordEntry(save, id) {
+    save.words[id] = save.words[id] || { ok: 0, bad: 0, seen: 0, last: 0 };
+    return save.words[id];
+  }
+
+  function dayEntry(save, ts) {
+    var key = dayKey(ts);
+    save.days[key] = save.days[key] || { ok: 0, bad: 0, seen: 0 };
+    return save.days[key];
+  }
+
+  function gameEntry(save, slug) {
+    save.games[slug] = save.games[slug] || { ok: 0, bad: 0, played: 0, best: 0 };
+    return save.games[slug];
+  }
+
   // Есть ли что терять: хотя бы одно слово или день в сохранении.
   function hasProgress(save) {
     return !!save && (Object.keys(save.words).length > 0 || Object.keys(save.days).length > 0);
@@ -248,23 +283,33 @@
 
   /* Журнал событий старой версии (zb.state.v1) → сохранение v2 активного профиля. */
   function fromEvents(state) {
-    var p = state.profiles && state.profiles[state.active];
-    if (!p) return null;
-    var save = emptySave(p.name, p.avatar);
-    save.updated = p.updated || 0;
-    (state.events || []).forEach(function (e) {
-      if (e.p !== state.active) return;
-      save.updated = Math.max(save.updated, e.t);
-      var w = save.words[e.w] = save.words[e.w] || { ok: 0, bad: 0, seen: 0, last: 0 };
-      var key = dayKey(e.t);
-      var d = save.days[key] = save.days[key] || { ok: 0, bad: 0, seen: 0 };
-      w.last = Math.max(w.last, e.t);
-      if (e.c === null || e.c === undefined) { w.seen++; d.seen++; return; }
-      var g = save.games[e.g] = save.games[e.g] || { ok: 0, bad: 0, played: 0, best: 0 };
-      var field = e.c ? 'ok' : 'bad';
-      w[field]++; d[field]++; g[field]++;
+    var profile = state.profiles && state.profiles[state.active];
+    if (!profile) return null;
+    var save = emptySave(profile.name, profile.avatar);
+    save.updated = profile.updated || 0;
+    (state.events || []).forEach(function (event) {
+      if (event.p === state.active) addEvent(save, event);
     });
-    return { save: save, account: p.account || null };
+    return { save: save, account: profile.account || null };
+  }
+
+  /* Одно событие журнала: {w: слово, t: время, c: верно/неверно, g: игра}. Без c — это
+   * просмотр карточки, а не ответ. */
+  function addEvent(save, event) {
+    save.updated = Math.max(save.updated, event.t);
+    var word = wordEntry(save, event.w);
+    var day = dayEntry(save, event.t);
+    word.last = Math.max(word.last, event.t);
+    if (event.c === null || event.c === undefined) {
+      word.seen++;
+      day.seen++;
+      return;
+    }
+    var game = gameEntry(save, event.g);
+    var field = event.c ? 'ok' : 'bad';
+    word[field]++;
+    day[field]++;
+    game[field]++;
   }
 
   /* Переход со старого формата: прогресс сохраняется, токен — тоже, если он был. */
@@ -277,8 +322,7 @@
     }
     var old = fromEvents(state || {});
     if (!old) return;
-    var current = Save.data;
-    if (!current || old.save.updated > current.updated) Save.replace(old.save);
+    if (isNewer(old.save, Save.data)) Save.replace(old.save);
     if (!Auth.get() && old.account && old.account.token) {
       Auth.set({ username: old.account.username, token: old.account.token, synced: 0 });
     }
@@ -338,22 +382,12 @@
       if (pushing) { pushAgain = true; return pushing; }
       var token = Auth.token();
       if (!token || !this.data) return Promise.resolve(false);
-      var sent = this.data;
-      pushing = api('PUT', '/api/save', { save: sent }, { token: token, keepalive: opts && opts.keepalive })
+      var keepalive = opts && opts.keepalive;
+      pushing = api('PUT', '/api/save', { save: this.data }, { token: token, keepalive: keepalive })
         .then(function () {
           Auth.patch({ synced: Date.now() });
           return true;
-        }, function (err) {
-          if (err.status === 409 && err.data && err.data.save) {
-            // На сервере новее (другой телефон успел раньше) — принимаем серверное.
-            if (err.data.save.updated > self.data.updated) self.replace(err.data.save);
-            // Пока ждали ответ, локальное сохранение успело обогнать серверное — отправим ещё раз.
-            else pushAgain = true;
-            return false;
-          }
-          if (err.status === 401) expireAuth();
-          return false;
-        })
+        }, pushFailed)
         .then(function (ok) {
           pushing = null;
           var again = pushAgain && self.data !== null;
@@ -363,6 +397,19 @@
       return pushing;
     },
   };
+
+  /* Отправка не удалась. 409 — на сервере другое сохранение: если оно новее (другой телефон
+   * успел раньше), принимаем его, а если пока ждали ответ, локальное успело обогнать
+   * серверное, — отправим ещё раз. 401 — токен больше не действует. Всегда false. */
+  function pushFailed(err) {
+    if (err.status === 409 && err.data && err.data.save) {
+      if (err.data.save.updated > Save.data.updated) Save.replace(err.data.save);
+      else pushAgain = true;
+    } else if (err.status === 401) {
+      expireAuth();
+    }
+    return false;
+  }
 
   // Кэш настроек и сохранение на телефоне должны совпадать (сохранение главнее).
   if (Save.data) Settings.apply(Save.data.settings);
@@ -398,8 +445,7 @@
    * своё на сервер. */
   function adopt(server) {
     server = normalizeSave(server);
-    var local = Save.data;
-    if (server && (!local || server.updated > local.updated)) {
+    if (server && isNewer(server, Save.data)) {
       Save.replace(server);
       return Promise.resolve();
     }
@@ -410,15 +456,19 @@
    * лежать и старый журнал событий (zb.state.v1) — тогда переводим его в сохранение. */
   function restoreBackup() {
     return Bridge.call('restore').then(function (raw) {
-      if (!raw) return;
-      var copy;
-      try { copy = JSON.parse(raw); } catch (e) { return; }
-      if (copy && copy.events && copy.profiles) { migrateOldState(copy); return; }
-      var save = normalizeSave(copy && copy.save);
-      if (save && (!Save.data || save.updated > Save.data.updated)) Save.replace(save);
-      var auth = copy && copy.auth;
-      if (auth && auth.token && !Auth.token()) Auth.set(auth);
+      var copy = parseBackup(raw);
+      if (!copy) return;
+      if (copy.events && copy.profiles) { migrateOldState(copy); return; }
+      var save = normalizeSave(copy.save);
+      if (save && isNewer(save, Save.data)) Save.replace(save);
+      if (copy.auth && copy.auth.token && !Auth.token()) Auth.set(copy.auth);
     });
+  }
+
+  // Строка из Flutter → объект. Копии нет или в ней мусор — null.
+  function parseBackup(raw) {
+    if (!raw) return null;
+    try { return JSON.parse(raw); } catch (e) { return null; }
   }
 
   /* Запуск на каждой странице. Сайт многостраничный: любой переход — полная перезагрузка, и
@@ -427,69 +477,75 @@
    * (живёт, пока открыт WebView) и на следующих страницах сразу переходим в 'ready'.
    * Фазы: loading — заставка, auth — окно входа (_auth.html), ready — можно играть. */
   function boot() {
-    var old = readJSON(window.localStorage, OLD_STATE_KEY);
-    if (old) {
-      migrateOldState(old);
-      writeJSON(window.localStorage, OLD_STATE_KEY, null);
-    }
+    migrateOldStorage();
     var booted = readJSON(window.sessionStorage, BOOTED_KEY);
     if (booted && Auth.token() && Save.data) { setPhase('ready'); return; }
     setPhase('loading');
     restoreBackup().then(function () {
       if (!Auth.token()) { setPhase('auth'); return null; }
-      return syncSave().then(function () {
-        if (Boot.phase === 'auth') return;
-        if (!Save.data) Save.replace(emptySave());
-        writeJSON(window.sessionStorage, BOOTED_KEY, true);
-        setPhase('ready');
-      });
+      return syncSave().then(finishBoot);
     }).catch(function (e) {
       console.error('boot', e);
       setPhase(Auth.token() ? 'ready' : 'auth');
     });
   }
 
-  /* После входа: если на телефоне лежит сохранение другого аккаунта — выбрасываем его. */
-  function forgetForeignSave(username) {
-    var prev = Auth.get();
-    if (prev && prev.username && prev.username !== username) Save.replace(null);
+  // Журнал старой версии в localStorage переводим в сохранение и удаляем.
+  function migrateOldStorage() {
+    var old = readJSON(window.localStorage, OLD_STATE_KEY);
+    if (!old) return;
+    migrateOldState(old);
+    writeJSON(window.localStorage, OLD_STATE_KEY, null);
   }
 
-  // После входа синхронизация уже сделана, поэтому сразу ставим флаг «запуск пройден».
-  function finishLogin() {
+  // Синхронизация прошла (или сети нет). Если токен за это время не протух — можно играть.
+  function finishBoot() {
+    if (Boot.phase === 'auth') return;
+    if (!Save.data) Save.replace(emptySave());
+    enterGame();
+  }
+
+  // Флаг «запуск пройден» в sessionStorage и фаза ready: на следующих страницах цикл не нужен.
+  function enterGame() {
     writeJSON(window.sessionStorage, BOOTED_KEY, true);
     setPhase('ready');
+  }
+
+  /* После входа или регистрации: запоминаем аккаунт. Если на телефоне лежит сохранение
+   * другого аккаунта — выбрасываем его. */
+  function rememberAccount(data) {
+    var prev = Auth.get();
+    if (prev && prev.username && prev.username !== data.username) Save.replace(null);
+    Auth.set({ username: data.username, token: data.token, synced: 0 });
   }
 
   /* Регистрация. Если на телефоне уже есть прогресс без аккаунта (перешёл со старой версии),
    * он уходит в новый аккаунт, а имя и зверёк берутся из формы. */
   function signup(form) {
-    var local = Save.data;
-    var keepLocal = hasProgress(local) && !(Auth.get() && Auth.get().username);
+    var auth = Auth.get();
+    var keepLocal = hasProgress(Save.data) && !(auth && auth.username);
     return api('POST', '/api/signup', {
       username: form.username, password: form.password,
       name: form.name, avatar: form.avatar, updated: Date.now(),
     }).then(function (data) {
-      forgetForeignSave(data.username);
-      Auth.set({ username: data.username, token: data.token, synced: 0 });
+      rememberAccount(data);
       if (keepLocal) {
         Save.commit(function (s) { s.profile = { name: form.name, avatar: form.avatar }; });
       } else {
         Save.replace(data.save);
       }
-      finishLogin();
+      enterGame();
     });
   }
 
   function login(username, password) {
     return api('POST', '/api/login', { username: username, password: password })
       .then(function (data) {
-        forgetForeignSave(data.username);
-        Auth.set({ username: data.username, token: data.token, synced: 0 });
+        rememberAccount(data);
         // Не ждём: если серверное сохранение новее, adopt подменит его сразу (синхронно),
         // а если новее локальное — отправка на сервер пойдёт в фоне, играть можно уже сейчас.
         adopt(data.save);
-        finishLogin();
+        enterGame();
       });
   }
 
@@ -548,24 +604,24 @@
       escapeHtml(text) + '</span>';
   }
 
+  /* Все признаки картинки слова в том же порядке, в каком pic() выбирает, что показать:
+   * файл, цвет, цифра, эмодзи. */
+  function picKeys(word) {
+    return [word.img && 'i' + word.img, word.color && 'c' + word.color,
+      word.number != null && 'n' + word.number, word.emoji && 'e' + word.emoji].filter(Boolean);
+  }
+
   /* Ключ картинки: у двух слов с одинаковым ключом картинки не различить (👧 «апай» и «нылы»). */
   function picKey(word) {
-    if (word.img) return 'i' + word.img;
-    if (word.color) return 'c' + word.color;
-    if (word.number != null) return 'n' + word.number;
-    return word.emoji ? 'e' + word.emoji : '';
+    return picKeys(word)[0] || '';
   }
 
   /* Похожи ли картинки двух слов. Сравниваются все признаки картинки, а не только показанный:
    * у «узы» (земляника) есть только 🍓, а у «боры» (клубника) фото и тот же 🍓 в словаре —
    * ребёнок их не различит, хотя picKey у них разный. */
   function samePic(a, b) {
-    var keys = function (w) {
-      return [w.img && 'i' + w.img, w.color && 'c' + w.color,
-        w.number != null && 'n' + w.number, w.emoji && 'e' + w.emoji].filter(Boolean);
-    };
-    var kb = keys(b);
-    return keys(a).some(function (k) { return kb.indexOf(k) >= 0; });
+    var keysB = picKeys(b);
+    return picKeys(a).some(function (key) { return keysB.indexOf(key) >= 0; });
   }
 
   function playAudio(word) {
@@ -578,15 +634,16 @@
   /* Итоги сыгранной игры: answers — [{w: id слова, ok: true/false}], stars — 1…3. */
   function addGame(save, slug, answers, stars) {
     var now = Date.now();
-    var key = dayKey(now);
-    var day = save.days[key] = save.days[key] || { ok: 0, bad: 0, seen: 0 };
-    var game = save.games[slug] = save.games[slug] || { ok: 0, bad: 0, played: 0, best: 0 };
-    answers.forEach(function (a) {
-      var w = save.words[a.w] = save.words[a.w] || { ok: 0, bad: 0, seen: 0, last: 0 };
-      var field = a.ok ? 'ok' : 'bad';
-      w[field]++; day[field]++; game[field]++;
-      w.streak = a.ok ? (w.streak || 0) + 1 : 0;
-      w.last = now;
+    var day = dayEntry(save, now);
+    var game = gameEntry(save, slug);
+    answers.forEach(function (answer) {
+      var word = wordEntry(save, answer.w);
+      var field = answer.ok ? 'ok' : 'bad';
+      word[field]++;
+      day[field]++;
+      game[field]++;
+      word.streak = answer.ok ? (word.streak || 0) + 1 : 0;
+      word.last = now;
     });
     game.played++;
     game.best = Math.max(game.best || 0, stars);
@@ -595,6 +652,12 @@
   // Слово трудное, если в нём ошибались и серия верных ответов после этого ещё короткая.
   function isHard(w) {
     return w.bad > 0 && (w.streak || 0) < HARD_CLEARED_AFTER;
+  }
+
+  // «Выучено»: хотя бы два верных ответа, верных больше, чем ошибок, и слово не «трудное»
+  // (иначе оно попало бы и в «Выученные», и в «Чаще ошибаешься»).
+  function isLearned(w) {
+    return w.ok >= LEARNED_MIN_OK && w.ok > w.bad && !isHard(w);
   }
 
   /* «Трудные» слова: в них ошибались, и после этого ещё не ответили верно HARD_CLEARED_AFTER
@@ -619,12 +682,11 @@
   /* Просмотренные карточки темы: ids — id слов. */
   function addViews(save, ids) {
     var now = Date.now();
-    var key = dayKey(now);
-    var day = save.days[key] = save.days[key] || { ok: 0, bad: 0, seen: 0 };
+    var day = dayEntry(save, now);
     ids.forEach(function (id) {
-      var w = save.words[id] = save.words[id] || { ok: 0, bad: 0, seen: 0, last: 0 };
-      w.seen++;
-      w.last = now;
+      var word = wordEntry(save, id);
+      word.seen++;
+      word.last = now;
       day.seen++;
     });
   }
@@ -673,86 +735,111 @@
     save = save || emptySave();
     var byWord = save.words;
     var days = save.days;
-    var ok = 0;
-    var bad = 0;
-    Object.keys(byWord).forEach(function (id) {
-      ok += byWord[id].ok || 0;
-      bad += byWord[id].bad || 0;
-    });
+    var totals = answerTotals(byWord);
+    var ok = totals.ok;
+    var bad = totals.bad;
 
-    // День занятий — день, когда получен опыт (хотя бы один верный ответ в игре). Просмотр
-    // карточек в «Обучении» его не делает: иначе одна открытая карточка продлевала бы серию.
-    var studied = function (key) { return !!days[key] && days[key].ok > 0; };
-    // Серия дней: считаем от сегодня (или от вчера, если сегодня ещё не занимались).
-    var streak = 0;
-    var t = Date.now();
-    if (!studied(dayKey(t))) t -= DAY_MS;
-    while (studied(dayKey(t))) { streak++; t -= DAY_MS; }
-
-    // «Выучено»: хотя бы два верных ответа, верных больше, чем ошибок, и слово не «трудное»
-    // (иначе оно попало бы и в «Выученные», и в «Чаще ошибаешься»).
-    var learnedIds = Object.keys(byWord).filter(function (id) {
-      var w = byWord[id];
-      return w.ok >= 2 && w.ok > w.bad && !isHard(w);
-    });
+    var learnedIds = Object.keys(byWord).filter(function (id) { return isLearned(byWord[id]); });
     var seenIds = Object.keys(byWord).filter(function (id) { return byWord[id].seen > 0; });
     // Слово могли удалить из словаря, а в сохранении оно осталось — такие не считаем.
     var known = function (id) { return !content || content.wordById[id]; };
-
     var allHard = hardWords(save, content);
-
-    // График «Ответы за 14 дней» (_daily_chart.html); maxDay — высота самого высокого столбика,
-    // минимум 1, чтобы не делить на ноль, когда ответов ещё нет.
-    var daily = [];
-    for (var i = 13; i >= 0; i--) {
-      var ts = Date.now() - i * DAY_MS;
-      var d = days[dayKey(ts)] || { ok: 0, bad: 0, seen: 0 };
-      daily.push({ key: dayKey(ts), label: new Date(ts).getDate(), ok: d.ok, bad: d.bad, seen: d.seen });
-    }
-    var maxDay = Math.max.apply(null, daily.map(function (d) { return d.ok + d.bad; }).concat([1]));
-
-    var topics = [];
-    if (content) {
-      topics = content.topics.map(function (topic) {
-        var learned = topic.words.filter(function (w) { return learnedIds.indexOf(String(w.id)) >= 0; });
-        // Просмотренные карточки или слова, уже встречавшиеся в играх.
-        var seen = topic.words.filter(function (w) {
-          var s = byWord[w.id];
-          return s && (s.seen || s.ok || s.bad);
-        });
-        var total = topic.words.length;
-        return {
-          slug: topic.slug, title: topic.title, icon: topic.icon, total: total,
-          learned: learned.length,
-          percent: total ? Math.round(100 * learned.length / total) : 0,
-          seen: seen.length,
-          seenPercent: total ? Math.round(100 * seen.length / total) : 0,
-        };
-      });
-    }
+    var daily = dailyChart(days);
 
     return {
       xp: ok * XP_PER_CORRECT,
-      streak: streak,
+      streak: dayStreak(days),
       answers: ok + bad,
       correct: ok,
       wrong: bad,
-      accuracy: ok + bad ? Math.round(100 * ok / (ok + bad)) : 0,
-      activeDays: Object.keys(days).filter(studied).length,
+      accuracy: percent(ok, ok + bad),
+      activeDays: Object.keys(days).filter(function (key) { return isStudyDay(days[key]); }).length,
       learned: learnedIds.filter(known).length,
       learnedWords: content ? learnedIds.filter(known).map(function (id) { return content.wordById[id]; }) : [],
       seen: seenIds.filter(known).length,
       totalWords: content ? content.words.length : 0,
-      hard: allHard.slice(0, 5),
+      hard: allHard.slice(0, HARD_SHOWN),
       hardCount: allHard.length,
       hardPlayable: allHard.length >= HARD_MIN,
       daily: daily,
-      maxDay: maxDay,
+      maxDay: chartMax(daily),
       byGame: save.games,
-      topics: topics,
+      topics: content ? topicProgress(content, byWord, learnedIds) : [],
       byWord: byWord,
     };
   }
+
+  // Сколько всего верных и неверных ответов по всем словам.
+  function answerTotals(byWord) {
+    var totals = { ok: 0, bad: 0 };
+    Object.keys(byWord).forEach(function (id) {
+      totals.ok += byWord[id].ok || 0;
+      totals.bad += byWord[id].bad || 0;
+    });
+    return totals;
+  }
+
+  // День занятий — день, когда получен опыт (хотя бы один верный ответ в игре). Просмотр
+  // карточек в «Обучении» его не делает: иначе одна открытая карточка продлевала бы серию.
+  function isStudyDay(day) {
+    return !!day && day.ok > 0;
+  }
+
+  // Серия дней: считаем от сегодня (или от вчера, если сегодня ещё не занимались).
+  function dayStreak(days) {
+    var streak = 0;
+    var t = Date.now();
+    if (!isStudyDay(days[dayKey(t)])) t -= DAY_MS;
+    while (isStudyDay(days[dayKey(t)])) {
+      streak++;
+      t -= DAY_MS;
+    }
+    return streak;
+  }
+
+  // Столбики графика «Ответы за 14 дней» (_daily_chart.html), от самого старого дня к сегодня.
+  function dailyChart(days) {
+    var now = Date.now();
+    var chart = [];
+    for (var i = CHART_DAYS - 1; i >= 0; i--) {
+      var ts = now - i * DAY_MS;
+      var key = dayKey(ts);
+      var day = days[key] || { ok: 0, bad: 0, seen: 0 };
+      chart.push({ key: key, label: new Date(ts).getDate(), ok: day.ok, bad: day.bad, seen: day.seen });
+    }
+    return chart;
+  }
+
+  // Высота самого высокого столбика; минимум 1, чтобы не делить на ноль, когда ответов ещё нет.
+  function chartMax(chart) {
+    return Math.max.apply(null, chart.map(function (d) { return d.ok + d.bad; }).concat([1]));
+  }
+
+  // Прогресс по каждой теме: сколько слов выучено и сколько уже встречалось (в процентах тоже).
+  function topicProgress(content, byWord, learnedIds) {
+    return content.topics.map(function (topic) {
+      var learned = topic.words.filter(function (w) { return learnedIds.indexOf(String(w.id)) >= 0; });
+      // Просмотренные карточки или слова, уже встречавшиеся в играх.
+      var seen = topic.words.filter(function (w) {
+        var s = byWord[w.id];
+        return s && (s.seen || s.ok || s.bad);
+      });
+      var total = topic.words.length;
+      return {
+        slug: topic.slug, title: topic.title, icon: topic.icon, total: total,
+        learned: learned.length,
+        percent: percent(learned.length, total),
+        seen: seen.length,
+        seenPercent: percent(seen.length, total),
+      };
+    });
+  }
+
+  function percent(part, total) {
+    return total ? Math.round(100 * part / total) : 0;
+  }
+
+  var KNUTH_HASH = 2654435761; // мультипликативный хэш Кнута
 
   /* Слово дня: одно и то же весь день, у всех детей одинаковое. */
   function wordOfDay(content) {
@@ -762,16 +849,26 @@
     });
     if (!pool.length) return null;
     // Номер дня по местному времени (смещение пояса вычитаем, чтобы слово менялось в полночь,
-    // а не в 3:00 по Москве). Умножение на 2654435761 (хэш Кнута) перемешивает номера, чтобы
-    // слова шли не подряд по словарю; >>> 0 оставляет результат неотрицательным 32-битным.
+    // а не в 3:00 по Москве). Умножение на KNUTH_HASH перемешивает номера, чтобы слова шли
+    // не подряд по словарю; >>> 0 оставляет результат неотрицательным 32-битным.
     var now = new Date();
-    var day = Math.floor((now.getTime() - now.getTimezoneOffset() * 60000) / DAY_MS);
-    return pool[((day * 2654435761) >>> 0) % pool.length];
+    var day = Math.floor((now.getTime() - now.getTimezoneOffset() * MINUTE_MS) / DAY_MS);
+    return pool[((day * KNUTH_HASH) >>> 0) % pool.length];
   }
 
   // ---------- звуки ----------
 
   var audioCtx = null;
+
+  // Ноты каждого звука (частоты в Гц) и их тайминги в секундах.
+  var NOTES = { ok: [660, 880], bad: [220, 165], win: [523, 659, 784, 1046], flip: [440] };
+  var DEFAULT_NOTES = [440];
+  var NOTE_STEP = 0.12; // шаг между нотами
+  var NOTE_ATTACK = 0.02; // нарастание громкости
+  var NOTE_FADE = 0.25; // к этому моменту нота затихает
+  var NOTE_STOP = 0.3;
+  var NOTE_VOLUME = 0.25;
+  var SILENCE = 0.0001; // exponentialRamp не умеет идти от нуля, поэтому «тишина» — почти ноль
 
   /* Короткие звуки синтезируются Web Audio, без файлов: каждая нота — синусоида (у ошибки —
    * «треугольник») с быстрой атакой и затуханием за 0,25 с, ноты идут с шагом 0,12 с. */
@@ -781,37 +878,44 @@
       try {
         var AC = window.AudioContext || window.webkitAudioContext;
         audioCtx = audioCtx || new AC();
-        var notes = { ok: [660, 880], bad: [220, 165], win: [523, 659, 784, 1046], flip: [440] }[kind] || [440];
-        notes.forEach(function (freq, i) {
-          var osc = audioCtx.createOscillator();
-          var gain = audioCtx.createGain();
-          osc.type = kind === 'bad' ? 'triangle' : 'sine';
-          osc.frequency.value = freq;
-          var t0 = audioCtx.currentTime + i * 0.12;
-          gain.gain.setValueAtTime(0.0001, t0);
-          gain.gain.exponentialRampToValueAtTime(0.25, t0 + 0.02);
-          gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.start(t0);
-          osc.stop(t0 + 0.3);
+        var wave = kind === 'bad' ? 'triangle' : 'sine';
+        (NOTES[kind] || DEFAULT_NOTES).forEach(function (freq, i) {
+          playNote(freq, wave, audioCtx.currentTime + i * NOTE_STEP);
         });
       } catch (e) { /* звук не обязателен */ }
     },
   };
 
+  // Одна нота: генератор нужной формы волны через регулятор громкости, начиная с момента start.
+  function playNote(freq, wave, start) {
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = wave;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(SILENCE, start);
+    gain.gain.exponentialRampToValueAtTime(NOTE_VOLUME, start + NOTE_ATTACK);
+    gain.gain.exponentialRampToValueAtTime(SILENCE, start + NOTE_FADE);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(start);
+    osc.stop(start + NOTE_STOP);
+  }
+
   // ---------- геолокация ----------
 
   var IZHEVSK = { lat: 56.8526, lon: 53.2045 };
+  var EARTH_RADIUS_KM = 6371;
+  var GEO_TIMEOUT_MS = 10000;
+  var GEO_MAX_AGE_MS = 3600000; // место часовой давности тоже подходит
 
-  // Расстояние по прямой в км (формула гаверсинусов, радиус Земли 6371 км).
+  // Расстояние по прямой в км (формула гаверсинусов).
   function distanceKm(a, b) {
     var rad = Math.PI / 180;
     var dLat = (b.lat - a.lat) * rad;
     var dLon = (b.lon - a.lon) * rad;
     var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
       Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    return Math.round(6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
+    return Math.round(EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
   }
 
   /* Где игрок: сначала через Flutter (geolocator), а если моста нет или он вернул пусто —
@@ -824,7 +928,7 @@
         navigator.geolocation.getCurrentPosition(
           function (p) { resolve({ lat: p.coords.latitude, lon: p.coords.longitude }); },
           function () { resolve(null); },
-          { timeout: 10000, maximumAge: 3600000 }
+          { timeout: GEO_TIMEOUT_MS, maximumAge: GEO_MAX_AGE_MS }
         );
       });
     });
@@ -844,6 +948,11 @@
     };
   }
 
+  // Настройки для шаблонов. geo — то, что действует на этом устройстве (см. Settings.geoEnabled).
+  function shownSettings() {
+    return Object.assign({}, Settings.values, { geo: Settings.geoEnabled() });
+  }
+
   document.addEventListener('alpine:init', function () {
     var Alpine = window.Alpine;
     Alpine.store('app', {
@@ -851,7 +960,7 @@
       phase: 'loading',
       profile: null,
       account: null,
-      settings: Object.assign({}, Settings.values, { geo: Settings.geoEnabled() }),
+      settings: shownSettings(),
       stats: computeStats(null, null),
       content: null,
       ready: false,
@@ -863,8 +972,7 @@
         var auth = Auth.get();
         this.account = auth && auth.token ? { username: auth.username, synced: auth.synced || 0 } : null;
         this.profile = save && Boot.phase === 'ready' ? shownProfile(save.profile, this.account) : null;
-        // geo — то, что действует на этом устройстве (см. Settings.geoEnabled).
-        this.settings = Object.assign({}, Settings.values, { geo: Settings.geoEnabled() });
+        this.settings = shownSettings();
         this.stats = computeStats(save, this.content);
       },
     });

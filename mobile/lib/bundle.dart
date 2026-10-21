@@ -22,6 +22,12 @@ import 'package:path_provider/path_provider.dart';
 
 const _assetRoot = 'assets/bundle';
 
+/// Сколько ждать манифест с сервера (без сети — сразу работаем на текущем снимке).
+const _manifestTimeout = Duration(seconds: 5);
+
+/// Сколько ждать один блоб.
+const _blobTimeout = Duration(seconds: 30);
+
 /// Запись из manifest.json: хэш содержимого (имя блоба) и Content-Type.
 class BundleFile {
   const BundleFile(this.sha, this.type);
@@ -40,6 +46,9 @@ class Manifest {
 
   // Пустой манифест — когда снимка нет ни в APK, ни на диске (built = 0, проиграет любому).
   static final empty = Manifest('', 0, const {});
+
+  /// Хэши всех файлов (имена блобов) без повторов.
+  Set<String> get shas => files.values.map((f) => f.sha).toSet();
 
   static Manifest parse(String raw) {
     final data = jsonDecode(raw) as Map<String, dynamic>;
@@ -74,6 +83,9 @@ class Bundle {
   String get version => manifest.version;
   bool get isEmpty => manifest.files.isEmpty;
 
+  File get _manifestFile => File('${_dir.path}/manifest.json');
+  File _blobFile(String sha) => File('${_dir.path}/blobs/$sha');
+
   /// Выбирает активную версию: скачанную или из APK — ту, что собрана позже
   /// (после установки нового APK его снимок может оказаться свежее скачанного).
   static Future<Bundle> load() async {
@@ -81,26 +93,33 @@ class Bundle {
     final dir = Directory('${support.path}/bundle');
     await Directory('${dir.path}/blobs').create(recursive: true);
 
-    var fromAssets = Manifest.empty;
-    try {
-      fromAssets = Manifest.parse(await rootBundle.loadString('$_assetRoot/manifest.json'));
-    } catch (e) {
-      debugPrint('В APK нет офлайн-снимка: $e');
-    }
-    var downloaded = Manifest.empty;
-    final file = File('${dir.path}/manifest.json');
-    if (await file.exists()) {
-      try {
-        downloaded = Manifest.parse(await file.readAsString());
-      } catch (e) {
-        debugPrint('Повреждённый manifest.json, игнорирую: $e');
-      }
-    }
+    final fromAssets = await _assetManifest();
+    final downloaded = await _downloadedManifest(File('${dir.path}/manifest.json'));
     final active = downloaded.built > fromAssets.built ? downloaded : fromAssets;
-    final assetShas = fromAssets.files.values.map((f) => f.sha).toSet();
-    final bundle = Bundle._(active, dir, assetShas);
+    final bundle = Bundle._(active, dir, fromAssets.shas);
     await bundle._collectGarbage();
     return bundle;
+  }
+
+  // Манифест снимка из assets APK; нет снимка — пустой.
+  static Future<Manifest> _assetManifest() async {
+    try {
+      return Manifest.parse(await rootBundle.loadString('$_assetRoot/manifest.json'));
+    } catch (e) {
+      debugPrint('В APK нет офлайн-снимка: $e');
+      return Manifest.empty;
+    }
+  }
+
+  // Манифест скачанного снимка; файла нет или он повреждён — пустой.
+  static Future<Manifest> _downloadedManifest(File file) async {
+    if (!await file.exists()) return Manifest.empty;
+    try {
+      return Manifest.parse(await file.readAsString());
+    } catch (e) {
+      debugPrint('Повреждённый manifest.json, игнорирую: $e');
+      return Manifest.empty;
+    }
   }
 
   /// Файл снимка для пути запроса (`/learn` и `/learn/` — одна страница).
@@ -110,7 +129,7 @@ class Bundle {
 
   /// Содержимое блоба: сначала скачанный файл на диске, потом assets APK. null — нет нигде.
   Future<Uint8List?> read(String sha) async {
-    final file = File('${_dir.path}/blobs/$sha');
+    final file = _blobFile(sha);
     if (await file.exists()) return file.readAsBytes();
     if (_assetShas.contains(sha)) {
       final data = await rootBundle.load('$_assetRoot/blobs/$sha');
@@ -120,17 +139,14 @@ class Bundle {
   }
 
   Future<bool> _hasBlob(String sha) async =>
-      _assetShas.contains(sha) || await File('${_dir.path}/blobs/$sha').exists();
+      _assetShas.contains(sha) || await _blobFile(sha).exists();
 
   /// Дальше снимок не меняется до следующего запуска: WebView уже показывает страницы.
   void freeze() => _frozen = true;
 
   /// Скачивает новую версию снимка, если она есть, и включает её (если снимок ещё не
   /// заморожен). Возвращает её версию или null. Без сети за [manifestTimeout] — null.
-  Future<String?> update(
-    Uri server, {
-    Duration manifestTimeout = const Duration(seconds: 5),
-  }) async {
+  Future<String?> update(Uri server, {Duration manifestTimeout = _manifestTimeout}) async {
     final client = http.Client();
     try {
       final res = await client.get(server.resolve('/bundle/manifest.json')).timeout(manifestTimeout);
@@ -139,26 +155,13 @@ class Bundle {
       if (!Manifest.isUpdate(manifest, remote)) return null;
 
       // Качаем только те блобы, которых ещё нет ни на диске, ни в APK.
-      for (final sha in remote.files.values.map((f) => f.sha).toSet()) {
+      for (final sha in remote.shas) {
         if (await _hasBlob(sha)) continue;
-        final blob = await client
-            .get(server.resolve('/bundle/blobs/$sha'))
-            .timeout(const Duration(seconds: 30));
-        if (blob.statusCode != 200) return null;
-        if (sha256.convert(blob.bodyBytes).toString() != sha) {
-          debugPrint('Блоб $sha не совпал по хэшу — обновление отменено');
-          return null;
-        }
-        // Через .tmp и rename: оборванная загрузка не оставит «целый» блоб с неполным содержимым.
-        final tmp = File('${_dir.path}/blobs/$sha.tmp');
-        await tmp.writeAsBytes(blob.bodyBytes, flush: true);
-        await tmp.rename('${_dir.path}/blobs/$sha');
+        if (!await _downloadBlob(client, server, sha)) return null;
       }
 
       // Манифест — последним и атомарно: до этого момента активна прежняя версия.
-      final tmp = File('${_dir.path}/manifest.json.tmp');
-      await tmp.writeAsBytes(res.bodyBytes, flush: true);
-      await tmp.rename('${_dir.path}/manifest.json');
+      await _writeAtomically(_manifestFile, res.bodyBytes);
       if (_frozen) {
         pendingVersion = remote.version;
       } else {
@@ -173,13 +176,33 @@ class Bundle {
     }
   }
 
+  /// Скачивает блоб и проверяет его sha256. false — не скачался или хэш не совпал.
+  Future<bool> _downloadBlob(http.Client client, Uri server, String sha) async {
+    final blob = await client.get(server.resolve('/bundle/blobs/$sha')).timeout(_blobTimeout);
+    if (blob.statusCode != 200) return false;
+    if (sha256.convert(blob.bodyBytes).toString() != sha) {
+      debugPrint('Блоб $sha не совпал по хэшу — обновление отменено');
+      return false;
+    }
+    await _writeAtomically(_blobFile(sha), blob.bodyBytes);
+    return true;
+  }
+
+  /// Запись через .tmp и rename: оборванная запись не оставит «целый» файл с неполным
+  /// содержимым.
+  Future<void> _writeAtomically(File target, List<int> bytes) async {
+    final tmp = File('${target.path}.tmp');
+    await tmp.writeAsBytes(bytes, flush: true);
+    await tmp.rename(target.path);
+  }
+
   /// Удаляет скачанные блобы, на которые не ссылается ни активный, ни скачанный манифест.
   Future<void> _collectGarbage() async {
-    final keep = manifest.files.values.map((f) => f.sha).toSet();
-    final file = File('${_dir.path}/manifest.json');
+    final keep = manifest.shas;
+    final file = _manifestFile;
     if (await file.exists()) {
       try {
-        keep.addAll(Manifest.parse(await file.readAsString()).files.values.map((f) => f.sha));
+        keep.addAll(Manifest.parse(await file.readAsString()).shas);
       } catch (_) {}
     }
     await for (final entity in Directory('${_dir.path}/blobs').list()) {
