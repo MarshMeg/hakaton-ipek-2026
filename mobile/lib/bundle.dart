@@ -60,10 +60,6 @@ class Manifest {
 class Bundle {
   Bundle._(this.manifest, this._dir, this._assetShas);
 
-  /// Снимок в папке [dir] без assets APK — для тестов.
-  @visibleForTesting
-  Bundle.forTest(Manifest manifest, Directory dir) : this._(manifest, dir, const {});
-
   Manifest manifest;
   // Папка скачанного снимка: manifest.json и blobs/.
   final Directory _dir;
@@ -131,13 +127,11 @@ class Bundle {
 
   /// Скачивает новую версию снимка, если она есть, и включает её (если снимок ещё не
   /// заморожен). Возвращает её версию или null. Без сети за [manifestTimeout] — null.
-  /// [httpClient] — для тестов; по умолчанию создаётся свой и закрывается по окончании.
   Future<String?> update(
     Uri server, {
     Duration manifestTimeout = const Duration(seconds: 5),
-    http.Client? httpClient,
   }) async {
-    final client = httpClient ?? http.Client();
+    final client = http.Client();
     try {
       final res = await client.get(server.resolve('/bundle/manifest.json')).timeout(manifestTimeout);
       if (res.statusCode != 200) return null;
@@ -175,7 +169,7 @@ class Bundle {
       debugPrint('Обновление снимка не удалось: $e');
       return null;
     } finally {
-      if (httpClient == null) client.close();
+      client.close();
     }
   }
 

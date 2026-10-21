@@ -55,9 +55,9 @@ SQLite без `DATABASE_URL`. Медиа — MinIO через `django-storages` 
 | `updated` | копия `save.updated` (мс по часам телефона) |
 | `display_name`, `avatar` | копии `save.profile.name` / `.avatar` для админки |
 
-Миграции: `accounts/0004` переносит `User.first_name` в `display_name`, `accounts/0005` сворачивает
-журнал `play.Attempt` в `save_data` (функция `build_save`), `play/0002` удаляет `Attempt`,
-`vocab/0002` переименовывает набор «Огород или лес?» в «Овощи или ягоды?».
+Миграции: по одной `0001_initial` в `accounts` и `vocab`, в `play` моделей и миграций нет. На базе, где
+применены старые миграции, `migrate` ничего не делает: `0001_initial` уже отмечена применённой, а схема
+совпадает с итоговой.
 
 ## Страницы
 

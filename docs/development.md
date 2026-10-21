@@ -123,8 +123,7 @@ rsync'ом в `/opt/votes` на сервер (`vars.DEPLOY_USER@vars.DEPLOY_HOST
   `{v, updated, profile: {name, avatar}, words: {id: {ok, bad, seen, streak, last}},
   days: {YYYY-MM-DD: {ok, bad, seen}}, games: {slug: {ok, bad, played, best}}}`), плюс скопированные
   из него `updated`/`display_name`/`avatar` для админки. Поле не названо `save`, чтобы не затенять
-  `Model.save()`. Миграция `accounts/0005` свернула старый журнал `play.Attempt` в сохранения
-  (`build_save`), `play/0002` удалила журнал.
+  `Model.save()`.
 
 ## Клиент (`backend/static/js/`)
 

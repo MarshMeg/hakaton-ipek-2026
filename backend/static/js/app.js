@@ -246,8 +246,7 @@
     return !!save && (Object.keys(save.words).length > 0 || Object.keys(save.days).length > 0);
   }
 
-  /* Журнал событий старой версии (zb.state.v1) → сохранение v2 активного профиля.
-   * Та же свёртка, что в миграции на сервере (accounts/migrations/0005_profile_save.py). */
+  /* Журнал событий старой версии (zb.state.v1) → сохранение v2 активного профиля. */
   function fromEvents(state) {
     var p = state.profiles && state.profiles[state.active];
     if (!p) return null;
