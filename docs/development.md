@@ -92,9 +92,7 @@ rsync'ом в `/opt/votes` на сервер (`vars.DEPLOY_USER@vars.DEPLOY_HOST
 `docker-compose.prod.yml` добавляет Caddy (`deploy/Caddyfile`: HTTPS,
 `/votes-media/*` → MinIO) и закрывает наружные порты web и MinIO. `/opt/votes/.env` на сервере не в git
 и исключён из rsync. Прод включает `DJANGO_HTTPS_ONLY=1` (Secure-cookie и HSTS). Образ MinIO —
-`pgsty/minio` (официальный `minio/minio` убрали из реестров). В продовой БД остались таблицы удалённых
-приложений `courses`/`learning` (и представление `learning_player_xp`) — они не используются.
-`accounts/0004` переносит `User.first_name` в `Profile.display_name` и удаляет старые игровые поля.
+`pgsty/minio` (официальный `minio/minio` убрали из реестров).
 
 ## Бэкенд
 

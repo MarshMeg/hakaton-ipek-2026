@@ -114,6 +114,18 @@ compose-файлы на сервер по SSH и запускает [deploy/depl
 не запустится), пароль администратора — `DJANGO_SUPERUSER_PASSWORD`, адрес — `SITE_ADDRESS`, ссылки на медиа —
 `S3_PUBLIC_DOMAIN` и `S3_PUBLIC_PROTOCOL`. После правки `.env` — перезапуск той же командой `up -d`.
 
+Новый сервер (Debian 13, от 1 ГБ памяти) готовится один раз под root:
+1. swap 2 ГБ (`/swapfile` в `/etc/fstab`): PostgreSQL, MinIO и gunicorn в 1 ГБ не помещаются;
+2. Docker Engine и `docker-compose-plugin` из репозитория download.docker.com, плюс `rsync`;
+3. пользователь `deploy` в группе `docker`, в его `~/.ssh/authorized_keys` — публичный ключ от
+   `DEPLOY_SSH_KEY`; каталог `/opt/votes` принадлежит `deploy`;
+4. `/opt/votes/.env` по образцу [.env.example](.env.example) со случайными паролями и
+   `SITE_ADDRESS`/`S3_PUBLIC_DOMAIN` под домен;
+5. в GitHub — `DEPLOY_HOST`, `DEPLOY_KNOWN_HOSTS` (`ssh-keyscan -t ed25519 <ip>`) и `DEPLOY_SSH_KEY`.
+
+Дальше домен направляется на IP сервера и перезапускается задача `deploy` последнего прогона CI на
+`main`: она скопирует файлы, поднимет контейнеры, а Caddy сам получит сертификат.
+
 ## Запуск без Docker
 Инструменты ставятся через [mise](https://mise.jdx.dev), подробно — [docs/local-setup.md](docs/local-setup.md).
 ```bash
