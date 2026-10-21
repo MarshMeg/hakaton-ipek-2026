@@ -20,8 +20,8 @@
         <p class="text-2xl font-extrabold" x-text="word.udm"></p>
         <p class="text-muted-strong" x-text="word.ru"></p>
       </div>
-      <button type="button" class="ml-auto text-3xl" x-show="word.audio" title="Послушать"
-              @click.prevent="ZB.playAudio(word)">🔊</button>
+      <button type="button" class="ml-auto shrink-0 rounded-full p-1 text-muted-strong transition hover:text-brand-red active:scale-90" x-show="word.audio" title="Послушать" aria-label="Послушать"
+              @click.prevent="ZB.playAudio(word)">{% include "_speaker_icon.html" with size="h-9 w-9" %}</button>
     </a>
   </template>
 </section>

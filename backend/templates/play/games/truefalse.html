@@ -3,7 +3,7 @@
   <div class="mx-auto h-36 w-36 text-9xl" x-show="hasPic(target)" x-html="pic(target)"></div>
   <p class="mt-2 text-xl font-bold text-muted-strong" x-show="!hasPic(target)" x-text="target.ru"></p>
   <p class="mt-4 text-4xl font-extrabold" x-text="shown.udm"></p>
-  <button type="button" class="mt-1 text-2xl" x-show="shown.audio" @click="speak(shown)" title="Послушать">🔊</button>
+  <button type="button" class="mt-1 rounded-full p-1 text-muted-strong transition hover:text-brand-red active:scale-90" x-show="shown.audio" @click="speak(shown)" title="Послушать" aria-label="Послушать">{% include "_speaker_icon.html" with size="h-8 w-8" %}</button>
 </div>
 <div class="mt-8 grid grid-cols-2 gap-3">
   <button type="button" class="btn-ok whitespace-nowrap px-2 py-5 text-base sm:text-lg" @click="say(true)" :disabled="!!feedback">👍 Верно</button>
