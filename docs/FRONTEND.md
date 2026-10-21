@@ -18,15 +18,15 @@
 |---|---|
 | утилиты | `dayKey(ts)` (`YYYY-MM-DD` по местному времени), `shuffle`, `sample`, `param`, `escapeHtml`, `readJSON`/`writeJSON` с `try/catch` |
 | мост во Flutter | `ZB.Bridge` — `ready` (Promise, ждёт `flutterInAppWebViewPlatformReady` не дольше 1,5 с), `available()`, `call(имя, …)`; без моста `call` возвращает `undefined` |
-| сервер | `api(method, path, body, opts)` — `fetch` к `/api/` с Bearer-токеном; ошибка сети или тайм-аут → `err.network`, не 2xx → `err.status` и `err.data` |
+| сервер | `api(method, path, body, opts)` — `fetch` к `/api/` с Bearer-токеном (параметры собирает `requestInit`, ответ разбирает `readResponse`); ошибка сети или тайм-аут → `err.network` (`networkError()`), не 2xx → `err.status` и `err.data` |
 | настройки | `ZB.Settings` — `values`, `set(key, value)` (через `Save.commit`), `apply(settings)` (из пришедшего сохранения, включает/выключает напоминание через мост), `geoEnabled()` |
 | аккаунт | `ZB.Auth` — `{username, token, synced}` в `zb.auth.v1` |
-| сохранение | `ZB.Save` — `data`, `get()`, `onChange(fn)`, `replace(save)`, `commit(mutator, opts)`, `push(opts)` |
-| вход и синхронизация | `boot()`, `syncSave()`, `adopt()`, `restoreBackup()`, `signup`, `login`, `logout` |
+| сохранение | `ZB.Save` — `data`, `get()`, `onChange(fn)`, `replace(save)`, `commit(mutator, opts)`, `push(opts)` (ошибки отправки — `pushFailed`); `normalizeSave`, `isNewer(save, than)`, `fromEvents` |
+| вход и синхронизация | `boot()` (`migrateOldStorage`, `finishBoot`), `syncSave()`, `adopt()`, `restoreBackup()`, `signup`, `login` (оба через `rememberAccount` и `enterGame`), `logout` |
 | словарь | `ZB.Content.load()` — один Promise на страницу; `prepare` добавляет `wordById`, `topicBySlug`, `topic.words` |
 | картинки | `pic(word)` — HTML «картинки»: файл → цветной круг → цифра → эмодзи; `picKey(word)`; `samePic(a, b)` |
-| прогресс | `addGame`, `addViews`, `cardViews()`, `hardWords`, `isHard` |
-| статистика | `computeStats(save, content)`, `wordOfDay(content)` |
+| прогресс | `addGame`, `addViews`, `cardViews()`, `hardWords`, `isHard`, `isLearned`; записи сохранения создают `wordEntry`, `dayEntry`, `gameEntry` |
+| статистика | `computeStats(save, content)` (части — `answerTotals`, `dayStreak`, `dailyChart`, `topicProgress`), `wordOfDay(content)` |
 | звук | `ZB.Sound.play('ok' \| 'bad' \| 'win' \| 'flip')` — синтез через Web Audio, без файлов; `playAudio(word)` — аудио слова |
 | геолокация | `locate()` (сначала мост, потом `navigator.geolocation`), `distanceKm`, `IZHEVSK` |
 | Alpine | `Alpine.store('app')` |
@@ -83,7 +83,8 @@
 
 ### `computeStats(save, content)`
 
-Считается заново из агрегатов сохранения при каждом `refresh()`:
+Считается заново из агрегатов сохранения при каждом `refresh()`. Серию считает `dayStreak`, график —
+`dailyChart`, прогресс по темам — `topicProgress`, «день занятий» определяет `isStudyDay`:
 
 | Поле | Как считается |
 |---|---|
@@ -124,7 +125,7 @@ slug в `play/games.py`, `game.html` пишет `x-data="{{ game.slug }}"` и п
 |---|---|
 | `init` | загружает словарь, сбрасывает неизвестную тему, вызывает `start` |
 | `setTopic(slug)` | меняет `?topic=` через `history.replaceState` и перезапускает |
-| `start` | сбрасывает счёт и ответы, вызывает `newRound` (его обязана определить каждая игра) |
+| `start` | сбрасывает счёт и ответы (`reset`), вызывает `newRound` (его обязана определить каждая игра) |
 | `pool(filter)` | слова выбранной темы или все |
 | `pickFresh(pool)` | случайное слово, не из последних min(4, ½ пула) |
 | `distractors(target, n, field)` | неверные варианты: сначала из той же темы, потом из всех; синонимы отсеиваются и по `ru`, и по `udm` |

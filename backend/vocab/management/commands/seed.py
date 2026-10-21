@@ -36,67 +36,76 @@ class Command(BaseCommand):
         update = opts["update"]
         created = 0
         topic_slugs = set()
-
-        for t_order, t in enumerate(data["topics"]):
-            topic, _ = Topic.objects.update_or_create(
-                slug=t["slug"],
-                defaults={
-                    "title": t["title"],
-                    "title_udm": t.get("title_udm", ""),
-                    "icon": t.get("icon", ""),
-                    "kind": t.get("kind", Topic.Kind.WORDS),
-                    "family": t.get("family", ""),
-                    "order": t_order,
-                },
-            )
+        for order, raw_topic in enumerate(data["topics"]):
+            topic = self._load_topic(raw_topic, order)
             topic_slugs.add(topic.slug)
-            for w_order, w in enumerate(t["words"]):
-                # number в модели nullable, поэтому для него «пусто» — None, для строк — "".
-                values = {f: w.get(f, None if f == "number" else "") for f in WORD_FIELDS}
-                values["order"] = w_order
-                word, is_new = Word.objects.get_or_create(
-                    topic=topic, udm=w["udm"], defaults=values
-                )
-                created += is_new
-                if update and not is_new:
-                    for field, value in values.items():
-                        setattr(word, field, value)
-                if is_new or update:
-                    self._attach_media(word, w)
-                    word.save()
-                else:
-                    # Картинки, звук и поля из FILL_EMPTY, добавленные в файл позже: без --update
-                    # докладываются только туда, где их ещё нет, — правки в админке не трогаем.
-                    filled = [f for f in FILL_EMPTY if values[f] and not getattr(word, f)]
-                    for field in filled:
-                        setattr(word, field, values[field])
-                    if self._attach_media(word, w, only_missing=True) or filled:
-                        word.save()
-
-        for s_order, s in enumerate(data.get("sorting", [])):
-            for group in s["groups"]:
-                unknown = set(group["topics"]) - topic_slugs
-                if unknown:
-                    raise CommandError(f"«{s['title']}»: неизвестные темы {sorted(unknown)}")
-            SortingSet.objects.update_or_create(
-                title=s["title"], defaults={"groups": s["groups"], "order": s_order}
-            )
-
-        # Факты — простой список, его проще перезаливать целиком.
-        for fact in data.get("facts", []):
-            # Факт с «: » без кавычек YAML читает как словарь — лучше упасть, чем показать {…}.
-            if not isinstance(fact, str):
-                raise CommandError(f"Факт должен быть строкой (возьми в кавычки): {fact!r}")
-        if data.get("facts") and (update or not Fact.objects.exists()):
-            Fact.objects.all().delete()
-            Fact.objects.bulk_create(
-                Fact(text=text, order=i) for i, text in enumerate(data["facts"])
-            )
+            for word_order, raw_word in enumerate(raw_topic["words"]):
+                created += self._load_word(topic, raw_word, word_order, update)
+        self._load_sorting(data.get("sorting", []), topic_slugs)
+        self._load_facts(data.get("facts", []), update)
 
         total = Word.objects.count()
         self.stdout.write(
             self.style.SUCCESS(f"Словарь загружен: новых слов {created}, всего {total}.")
         )
+
+    def _load_topic(self, t, order) -> Topic:
+        topic, _ = Topic.objects.update_or_create(
+            slug=t["slug"],
+            defaults={
+                "title": t["title"],
+                "title_udm": t.get("title_udm", ""),
+                "icon": t.get("icon", ""),
+                "kind": t.get("kind", Topic.Kind.WORDS),
+                "family": t.get("family", ""),
+                "order": order,
+            },
+        )
+        return topic
+
+    def _load_word(self, topic, w, order, update) -> bool:
+        # Создаёт или обновляет слово. Возвращает True, если слово новое.
+        # number в модели nullable, поэтому для него «пусто» — None, для строк — "".
+        values = {f: w.get(f, None if f == "number" else "") for f in WORD_FIELDS}
+        values["order"] = order
+        word, is_new = Word.objects.get_or_create(topic=topic, udm=w["udm"], defaults=values)
+        if is_new or update:
+            for field, value in values.items():
+                setattr(word, field, value)
+            self._attach_media(word, w)
+            word.save()
+        else:
+            self._fill_missing(word, w, values)
+        return is_new
+
+    def _fill_missing(self, word, w, values):
+        # Картинки, звук и поля из FILL_EMPTY, добавленные в файл позже: без --update
+        # докладываются только туда, где их ещё нет, — правки в админке не трогаем.
+        filled = [f for f in FILL_EMPTY if values[f] and not getattr(word, f)]
+        for field in filled:
+            setattr(word, field, values[field])
+        if self._attach_media(word, w, only_missing=True) or filled:
+            word.save()
+
+    def _load_sorting(self, sets, topic_slugs):
+        for order, s in enumerate(sets):
+            for group in s["groups"]:
+                unknown = set(group["topics"]) - topic_slugs
+                if unknown:
+                    raise CommandError(f"«{s['title']}»: неизвестные темы {sorted(unknown)}")
+            SortingSet.objects.update_or_create(
+                title=s["title"], defaults={"groups": s["groups"], "order": order}
+            )
+
+    def _load_facts(self, facts, update):
+        # Факты — простой список, его проще перезаливать целиком.
+        for fact in facts:
+            # Факт с «: » без кавычек YAML читает как словарь — лучше упасть, чем показать {…}.
+            if not isinstance(fact, str):
+                raise CommandError(f"Факт должен быть строкой (возьми в кавычки): {fact!r}")
+        if facts and (update or not Fact.objects.exists()):
+            Fact.objects.all().delete()
+            Fact.objects.bulk_create(Fact(text=text, order=i) for i, text in enumerate(facts))
 
     def _attach_media(self, word, w, only_missing=False) -> bool:
         # Прикрепляет image/audio из seeds/media/. Возвращает True, если что-то поменялось

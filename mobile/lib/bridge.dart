@@ -15,6 +15,18 @@ import 'bundle.dart';
 
 const _reminderId = 1;
 
+/// Сколько ждать новую точку, если последней известной нет.
+const _locationTimeout = Duration(seconds: 15);
+
+/// Ежедневное напоминание: канал уведомлений Android и текст.
+const _reminderDetails = NotificationDetails(
+  android: AndroidNotificationDetails(
+    'daily_word',
+    'Слово дня',
+    channelDescription: 'Ежедневное напоминание позаниматься',
+  ),
+);
+
 class Bridge {
   Bridge(this.bundle);
 
@@ -91,60 +103,65 @@ class Bridge {
   // --- уведомления: раз в день напоминание про «Слово дня» ---
 
   Future<bool> _setNotifications(bool enabled) async {
-    if (!_notificationsReady) {
-      await _notifications.initialize(
-        settings: const InitializationSettings(
-          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-        ),
-      );
-      _notificationsReady = true;
-    }
-    final android = _notifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await _initNotifications();
     if (!enabled) {
       await _notifications.cancel(id: _reminderId);
       return true;
     }
-    // На Android 13+ спрашивает разрешение, на старых версиях оно есть сразу.
-    final granted = await android?.requestNotificationsPermission() ?? true;
-    if (!granted) return false;
+    if (!await _requestNotificationsPermission()) return false;
     await _notifications.periodicallyShow(
       id: _reminderId,
       title: 'Слово дня ждёт тебя! ☀️',
       body: 'Загляни в «Ӟеч-а бур-а удмурт кыл?» и узнай новое удмуртское слово.',
       repeatInterval: RepeatInterval.daily,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'daily_word',
-          'Слово дня',
-          channelDescription: 'Ежедневное напоминание позаниматься',
-        ),
-      ),
+      notificationDetails: _reminderDetails,
     );
     return true;
+  }
+
+  // Плагин уведомлений настраивается один раз, при первом вызове.
+  Future<void> _initNotifications() async {
+    if (_notificationsReady) return;
+    await _notifications.initialize(
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      ),
+    );
+    _notificationsReady = true;
+  }
+
+  // На Android 13+ спрашивает разрешение, на старых версиях оно есть сразу.
+  Future<bool> _requestNotificationsPermission() async {
+    final android = _notifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    return await android?.requestNotificationsPermission() ?? true;
   }
 
   // --- геолокация: только примерное место, для «сколько км до Ижевска» ---
 
   Future<Map<String, double>?> _location() async {
     if (!await Geolocator.isLocationServiceEnabled()) return null;
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
-      return null;
-    }
+    if (!await _hasLocationPermission()) return null;
     // Последнее известное место подходит (нужна только примерная точка), иначе — новый запрос.
     final last = await Geolocator.getLastKnownPosition();
     final pos = last ??
         await Geolocator.getCurrentPosition(
           locationSettings: const LocationSettings(
             accuracy: LocationAccuracy.low,
-            timeLimit: Duration(seconds: 15),
+            timeLimit: _locationTimeout,
           ),
         );
     return {'lat': pos.latitude, 'lon': pos.longitude};
+  }
+
+  // Разрешение на геолокацию; если его ещё не спрашивали — спрашиваем.
+  Future<bool> _hasLocationPermission() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    return permission != LocationPermission.denied &&
+        permission != LocationPermission.deniedForever;
   }
 }
