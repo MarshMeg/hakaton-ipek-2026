@@ -15,150 +15,150 @@ topics:
     title: Вежливые слова
     icon: "👋"
     words:
-      - {udm: ӟечбуресь, ru: здравствуйте, image: words/hello.webp, emoji: "🤝"}
-      - {udm: умоесь, ru: здравствуйте, image: words/hello.webp, emoji: "🙂"}
-      - {udm: чырткем, ru: привет, image: words/hi.webp, emoji: "👋"}
-      - {udm: салам, ru: привет, image: words/hi.webp, emoji: "🖐️"}
-      - {udm: бур ӵукна, ru: доброе утро, image: words/good-morning.webp, emoji: "🌅"}
-      - {udm: тау, ru: спасибо, image: words/thanks.webp, emoji: "🙏"}
-      - {udm: ӟеч лу, ru: до свидания, image: words/goodbye.webp, emoji: "🚪"}
+      - {udm: ӟечбуресь, ru: здравствуйте, image: words/hello.webp, emoji: "🤝", audio: audio/hello-1.mp3}
+      - {udm: умоесь, ru: здравствуйте, image: words/hello.webp, emoji: "🙂", audio: audio/hello-2.mp3}
+      - {udm: чырткем, ru: привет, image: words/hi.webp, emoji: "👋", audio: audio/hi-1.mp3}
+      - {udm: салам, ru: привет, image: words/hi.webp, emoji: "🖐️", audio: audio/hi-2.mp3}
+      - {udm: бур ӵукна, ru: доброе утро, image: words/good-morning.webp, emoji: "🌅", audio: audio/good-morning.mp3}
+      - {udm: тау, ru: спасибо, image: words/thanks.webp, emoji: "🙏", audio: audio/thanks.mp3}
+      - {udm: ӟеч лу, ru: до свидания, image: words/goodbye.webp, emoji: "🚪", audio: audio/goodbye.mp3}
 
   - slug: numbers
     title: Числа 1–10
     icon: "🔢"
     kind: numbers
     words:
-      - {udm: одӥг, ru: один, number: 1}
-      - {udm: кык, ru: два, number: 2}
-      - {udm: куинь, ru: три, number: 3}
-      - {udm: ньыль, ru: четыре, number: 4}
-      - {udm: вить, ru: пять, number: 5}
-      - {udm: куать, ru: шесть, number: 6}
-      - {udm: сизьым, ru: семь, number: 7}
-      - {udm: тямыс, ru: восемь, number: 8}
-      - {udm: укмыс, ru: девять, number: 9}
-      - {udm: дас, ru: десять, number: 10}
+      - {udm: одӥг, ru: один, number: 1, audio: audio/one.mp3}
+      - {udm: кык, ru: два, number: 2, audio: audio/two.mp3}
+      - {udm: куинь, ru: три, number: 3, audio: audio/three.mp3}
+      - {udm: ньыль, ru: четыре, number: 4, audio: audio/four.mp3}
+      - {udm: вить, ru: пять, number: 5, audio: audio/five.mp3}
+      - {udm: куать, ru: шесть, number: 6, audio: audio/six.mp3}
+      - {udm: сизьым, ru: семь, number: 7, audio: audio/seven.mp3}
+      - {udm: тямыс, ru: восемь, number: 8, audio: audio/eight.mp3}
+      - {udm: укмыс, ru: девять, number: 9, audio: audio/nine.mp3}
+      - {udm: дас, ru: десять, number: 10, audio: audio/ten.mp3}
 
   - slug: wild-animals
     family: animals
     title: Дикие животные
     icon: "🐻"
     words:
-      - {udm: гондыр, ru: медведь, image: words/bear.webp, emoji: "🐻"}
-      - {udm: кион, ru: волк, image: words/wolf.webp, emoji: "🐺"}
-      - {udm: койык, ru: лось, image: words/elk.webp, emoji: "🦌"}
-      - {udm: ӟичы, ru: лисица, image: words/fox.webp, emoji: "🦊"}
-      - {udm: лудкеч, ru: заяц, image: words/hare.webp, emoji: "🐇"}
-      - {udm: коньы, ru: белка, image: words/squirrel.webp, emoji: "🐿️"}
-      - {udm: ӵушъял, ru: ёж, image: words/hedgehog.webp, emoji: "🦔"}
-      - {udm: кырпарсь, ru: кабан, image: words/boar.webp, emoji: "🐗"}
+      - {udm: гондыр, ru: медведь, image: words/bear.webp, emoji: "🐻", audio: audio/bear.mp3}
+      - {udm: кион, ru: волк, image: words/wolf.webp, emoji: "🐺", audio: audio/wolf.mp3}
+      - {udm: койык, ru: лось, image: words/elk.webp, emoji: "🦌", audio: audio/elk.mp3}
+      - {udm: ӟичы, ru: лисица, image: words/fox.webp, emoji: "🦊", audio: audio/fox.mp3}
+      - {udm: лудкеч, ru: заяц, image: words/hare.webp, emoji: "🐇", audio: audio/hare.mp3}
+      - {udm: коньы, ru: белка, image: words/squirrel.webp, emoji: "🐿️", audio: audio/squirrel.mp3}
+      - {udm: ӵушъял, ru: ёж, image: words/hedgehog.webp, emoji: "🦔", audio: audio/hedgehog.mp3}
+      - {udm: кырпарсь, ru: кабан, image: words/boar.webp, emoji: "🐗", audio: audio/boar.mp3}
 
   - slug: farm-animals
     family: animals
     title: Домашние животные
     icon: "🐄"
     words:
-      - {udm: скал, ru: корова, image: words/cow.webp, emoji: "🐄"}
-      - {udm: вал, ru: лошадь, image: words/horse.webp, emoji: "🐴"}
-      - {udm: ыж, ru: овца, image: words/sheep.webp, emoji: "🐑"}
-      - {udm: така, ru: баран, image: words/ram.webp, emoji: "🐏"}
-      - {udm: ош, ru: бык, image: words/bull.webp, emoji: "🐂"}
-      - {udm: кеч, ru: коза, image: words/goat.webp, emoji: "🐐"}
-      - {udm: парсь, ru: свинья, image: words/pig.webp, emoji: "🐖"}
-      - {udm: пуны, ru: собака, image: words/dog.webp, emoji: "🐕"}
-      - {udm: курег, ru: курица, image: words/hen.webp, emoji: "🐔"}
-      - {udm: атас, ru: петух, image: words/rooster.webp, emoji: "🐓"}
-      - {udm: курка, ru: индейка, image: words/turkey.webp, emoji: "🦃"}
+      - {udm: скал, ru: корова, image: words/cow.webp, emoji: "🐄", audio: audio/cow.mp3}
+      - {udm: вал, ru: лошадь, image: words/horse.webp, emoji: "🐴", audio: audio/horse.mp3}
+      - {udm: ыж, ru: овца, image: words/sheep.webp, emoji: "🐑", audio: audio/sheep.mp3}
+      - {udm: така, ru: баран, image: words/ram.webp, emoji: "🐏", audio: audio/ram.mp3}
+      - {udm: ош, ru: бык, image: words/bull.webp, emoji: "🐂", audio: audio/bull.mp3}
+      - {udm: кеч, ru: коза, image: words/goat.webp, emoji: "🐐", audio: audio/goat.mp3}
+      - {udm: парсь, ru: свинья, image: words/pig.webp, emoji: "🐖", audio: audio/pig.mp3}
+      - {udm: пуны, ru: собака, image: words/dog.webp, emoji: "🐕", audio: audio/dog.mp3}
+      - {udm: курег, ru: курица, image: words/hen.webp, emoji: "🐔", audio: audio/hen.mp3}
+      - {udm: атас, ru: петух, image: words/rooster.webp, emoji: "🐓", audio: audio/rooster.mp3}
+      - {udm: курка, ru: индейка, image: words/turkey.webp, emoji: "🦃", audio: audio/turkey.mp3}
 
   - slug: food
     family: food
     title: Продукты, еда
     icon: "🍞"
     words:
-      - {udm: сиён, ru: еда, image: words/food.webp, emoji: "🍽️"}
-      - {udm: нянь, ru: хлеб, image: words/bread.webp, emoji: "🍞"}
-      - {udm: йӧл, ru: молоко, image: words/milk.webp, emoji: "🥛"}
-      - {udm: ӝук, ru: каша, image: words/porridge.webp, emoji: "🥣"}
-      - {udm: пельнянь, ru: пельмени, image: words/pelmeni.webp, emoji: "🥟"}
-      - {udm: шыд, ru: суп, image: words/soup.webp, emoji: "🍲"}
-      - {udm: кукей, ru: яйцо, image: words/egg.webp, alt: курегпуз, emoji: "🥚"}
-      - {udm: сӥль, ru: мясо, image: words/meat.webp, emoji: "🥩", needs_check: "в docx написано «сüль» с латинской ü"}
-      - {udm: вӧй, ru: масло, image: words/butter.webp, emoji: "🧈", needs_check: "в docx написано «вöй» с латинской ö"}
-      - {udm: табань, ru: блин, image: words/pancake.webp, emoji: "🥞"}
+      - {udm: сиён, ru: еда, image: words/food.webp, emoji: "🍽️", audio: audio/food.mp3}
+      - {udm: нянь, ru: хлеб, image: words/bread.webp, emoji: "🍞", audio: audio/bread.mp3}
+      - {udm: йӧл, ru: молоко, image: words/milk.webp, emoji: "🥛", audio: audio/milk.mp3}
+      - {udm: ӝук, ru: каша, image: words/porridge.webp, emoji: "🥣", audio: audio/porridge.mp3}
+      - {udm: пельнянь, ru: пельмени, image: words/pelmeni.webp, emoji: "🥟", audio: audio/pelmeni.mp3}
+      - {udm: шыд, ru: суп, image: words/soup.webp, emoji: "🍲", audio: audio/soup.mp3}
+      - {udm: кукей, ru: яйцо, image: words/egg.webp, alt: курегпуз, emoji: "🥚", audio: audio/egg.mp3}
+      - {udm: сӥль, ru: мясо, image: words/meat.webp, emoji: "🥩", needs_check: "в docx написано «сüль» с латинской ü", audio: audio/meat.mp3}
+      - {udm: вӧй, ru: масло, image: words/butter.webp, emoji: "🧈", needs_check: "в docx написано «вöй» с латинской ö", audio: audio/butter.mp3}
+      - {udm: табань, ru: блин, image: words/pancake.webp, emoji: "🥞", audio: audio/pancake.mp3}
 
   - slug: clothes
     title: Одежда
     icon: "👗"
     words:
-      - {udm: дэрем, ru: рубаха, image: words/shirt.webp, alt: "сорочка, платье", emoji: "👗"}
-      - {udm: азькышет, ru: передник, image: words/apron.webp, alt: фартук}
-      - {udm: кышет, ru: платок, image: words/headscarf.webp, emoji: "🧣"}
+      - {udm: дэрем, ru: рубаха, image: words/shirt.webp, alt: "сорочка, платье", emoji: "👗", audio: audio/shirt.mp3}
+      - {udm: азькышет, ru: передник, image: words/apron.webp, alt: фартук, audio: audio/apron.mp3}
+      - {udm: кышет, ru: платок, image: words/headscarf.webp, emoji: "🧣", audio: audio/headscarf.mp3}
 
   - slug: family
     title: Моя семья
     icon: "👪"
     words:
-      - {udm: анай, ru: мама, image: words/mother.webp, emoji: "👩"}
-      - {udm: атай, ru: папа, image: words/father.webp, emoji: "👨"}
-      - {udm: атай-анай, ru: родители, image: words/parents.webp, emoji: "👫"}
+      - {udm: анай, ru: мама, image: words/mother.webp, emoji: "👩", audio: audio/mother.mp3}
+      - {udm: атай, ru: папа, image: words/father.webp, emoji: "👨", audio: audio/father.mp3}
+      - {udm: атай-анай, ru: родители, image: words/parents.webp, emoji: "👫", audio: audio/parents.mp3}
       - {udm: агай, ru: брат, image: words/brother.webp, alt: дядя, emoji: "🧔",
-         needs_check: "в docx «агай» дан и как «брат», и как «дядя»"}
-      - {udm: апай, ru: сестра, image: words/sister.webp, emoji: "👧"}
-      - {udm: песянай, ru: бабушка, image: words/grandmother.webp, alt: песяй, emoji: "👵"}
-      - {udm: песятай, ru: дедушка, image: words/grandfather.webp, emoji: "👴"}
-      - {udm: кузпал, ru: супруг, image: words/spouse.webp, alt: супруга, emoji: "💑"}
-      - {udm: кышно, ru: жена, image: words/wife.webp, emoji: "👰"}
-      - {udm: нылы, ru: дочь, image: words/daughter.webp, emoji: "👩‍👧"}
-      - {udm: пие, ru: сын, image: words/son.webp, emoji: "👦"}
+         needs_check: "в docx «агай» дан и как «брат», и как «дядя»", audio: audio/brother.mp3}
+      - {udm: апай, ru: сестра, image: words/sister.webp, emoji: "👧", audio: audio/sister.mp3}
+      - {udm: песянай, ru: бабушка, image: words/grandmother.webp, alt: песяй, emoji: "👵", audio: audio/grandmother.mp3}
+      - {udm: песятай, ru: дедушка, image: words/grandfather.webp, emoji: "👴", audio: audio/grandfather.mp3}
+      - {udm: кузпал, ru: супруг, image: words/spouse.webp, alt: супруга, emoji: "💑", audio: audio/spouse.mp3}
+      - {udm: кышно, ru: жена, image: words/wife.webp, emoji: "👰", audio: audio/wife.mp3}
+      - {udm: нылы, ru: дочь, image: words/daughter.webp, emoji: "👩‍👧", audio: audio/daughter.mp3}
+      - {udm: пие, ru: сын, image: words/son.webp, emoji: "👦", audio: audio/son.mp3}
 
   - slug: vegetables
     family: food
     title: Овощи
     icon: "🥕"
     words:
-      - {udm: сугон, ru: лук, image: words/onion.webp, emoji: "🧅"}
-      - {udm: кубиста, ru: капуста, image: words/cabbage.webp, emoji: "🥬"}
-      - {udm: гордкушман, ru: свёкла, image: words/beet.webp}
-      - {udm: кешыр, ru: морковь, image: words/carrot.webp, emoji: "🥕"}
-      - {udm: кияр, ru: огурец, image: words/cucumber.webp, alt: огреч, emoji: "🥒"}
+      - {udm: сугон, ru: лук, image: words/onion.webp, emoji: "🧅", audio: audio/onion.mp3}
+      - {udm: кубиста, ru: капуста, image: words/cabbage.webp, emoji: "🥬", audio: audio/cabbage.mp3}
+      - {udm: гордкушман, ru: свёкла, image: words/beet.webp, audio: audio/beet.mp3}
+      - {udm: кешыр, ru: морковь, image: words/carrot.webp, emoji: "🥕", audio: audio/carrot.mp3}
+      - {udm: кияр, ru: огурец, image: words/cucumber.webp, alt: огреч, emoji: "🥒", audio: audio/cucumber.mp3}
 
   - slug: colors
     title: Цвета
     icon: "🎨"
     kind: colors
     words:
-      - {udm: тӧдьы, ru: белый, image: words/white.webp, color: "#ffffff"}
-      - {udm: сьӧд, ru: чёрный, image: words/black.webp, color: "#1b1b1b"}
-      - {udm: лыз, ru: синий, image: words/blue.webp, color: "#1e5bd8"}
-      - {udm: ӵуж, ru: жёлтый, image: words/yellow.webp, color: "#f2c200"}
-      - {udm: вож, ru: зелёный, image: words/green.webp, color: "#2e9d3a"}
-      - {udm: льӧль, ru: розовый, image: words/pink.webp, color: "#f4a6c4"}
-      - {udm: горд, ru: красный, image: words/red.webp, color: "#d7263d"}
+      - {udm: тӧдьы, ru: белый, image: words/white.webp, color: "#ffffff", audio: audio/white.mp3}
+      - {udm: сьӧд, ru: чёрный, image: words/black.webp, color: "#1b1b1b", audio: audio/black.mp3}
+      - {udm: лыз, ru: синий, image: words/blue.webp, color: "#1e5bd8", audio: audio/blue.mp3}
+      - {udm: ӵуж, ru: жёлтый, image: words/yellow.webp, color: "#f2c200", audio: audio/yellow.mp3}
+      - {udm: вож, ru: зелёный, image: words/green.webp, color: "#2e9d3a", audio: audio/green.mp3}
+      - {udm: льӧль, ru: розовый, image: words/pink.webp, color: "#f4a6c4", audio: audio/pink.mp3}
+      - {udm: горд, ru: красный, image: words/red.webp, color: "#d7263d", audio: audio/red.mp3}
 
   - slug: berries
     family: food
     title: Ягоды
     icon: "🍓"
     words:
-      - {udm: шупу, ru: калина, image: words/viburnum.webp}
-      - {udm: ягмульыпу, ru: брусника, image: words/lingonberry.webp}
-      - {udm: узы, ru: земляника, image: words/wild-strawberry.webp, emoji: "🍓"}
-      - {udm: боры, ru: клубника, image: words/strawberry.webp, emoji: "🍓"}
-      - {udm: нюрмульы, ru: клюква, image: words/cranberry.webp}
-      - {udm: лызмульы, ru: голубика, image: words/blueberry.webp, emoji: "🫐"}
+      - {udm: шупу, ru: калина, image: words/viburnum.webp, audio: audio/viburnum.mp3}
+      - {udm: ягмульыпу, ru: брусника, image: words/lingonberry.webp, audio: audio/lingonberry.mp3}
+      - {udm: узы, ru: земляника, image: words/wild-strawberry.webp, emoji: "🍓", audio: audio/wild-strawberry.mp3}
+      - {udm: боры, ru: клубника, image: words/strawberry.webp, emoji: "🍓", audio: audio/strawberry.mp3}
+      - {udm: нюрмульы, ru: клюква, image: words/cranberry.webp, audio: audio/cranberry.mp3}
+      - {udm: лызмульы, ru: голубика, image: words/blueberry.webp, emoji: "🫐", audio: audio/blueberry.mp3}
 
   - slug: phrases
     title: Полезные фразы
     icon: "💬"
     kind: phrases
     words:
-      - {udm: Ойдолэ тодматском!, ru: Давайте познакомимся!, image: words/lets-meet.webp, emoji: "🤝"}
-      - {udm: Мынам нимы…, ru: Меня зовут…, image: words/my-name-is.webp, emoji: "🙋"}
-      - {udm: Мон уг валаськы, ru: Я не понимаю, image: words/dont-understand.webp, emoji: "🤷"}
-      - {udm: Мон шумпотӥсько, ru: Я рада, image: words/happy.webp, emoji: "😊"}
-      - {udm: Мынам воже потэ, ru: Я злюсь, image: words/angry.webp, emoji: "😠"}
-      - {udm: Мон кышкасько, ru: Мне страшно, image: words/scared.webp, emoji: "😨"}
-      - {udm: Мон тонэ яратӥсько, ru: Я тебя люблю, image: words/love.webp, emoji: "❤️"}
+      - {udm: Ойдолэ тодматском!, ru: Давайте познакомимся!, image: words/lets-meet.webp, emoji: "🤝", audio: audio/lets-meet.mp3}
+      - {udm: Мынам нимы…, ru: Меня зовут…, image: words/my-name-is.webp, emoji: "🙋", audio: audio/my-name-is.mp3}
+      - {udm: Мон уг валаськы, ru: Я не понимаю, image: words/dont-understand.webp, emoji: "🤷", audio: audio/dont-understand.mp3}
+      - {udm: Мон шумпотӥсько, ru: Я рада, image: words/happy.webp, emoji: "😊", audio: audio/happy.mp3}
+      - {udm: Мынам воже потэ, ru: Я злюсь, image: words/angry.webp, emoji: "😠", audio: audio/angry.mp3}
+      - {udm: Мон кышкасько, ru: Мне страшно, image: words/scared.webp, emoji: "😨", audio: audio/scared.mp3}
+      - {udm: Мон тонэ яратӥсько, ru: Я тебя люблю, image: words/love.webp, emoji: "❤️", audio: audio/love.mp3}
 
 # Игра «Сортировка»: слова из тем каждой группы нужно разложить по корзинам.
 sorting:
