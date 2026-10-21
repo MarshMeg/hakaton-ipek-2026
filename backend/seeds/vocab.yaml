@@ -28,16 +28,16 @@ topics:
     icon: "🔢"
     kind: numbers
     words:
-      - {udm: одӥг, ru: один, image: words/one.webp, number: 1}
-      - {udm: кык, ru: два, image: words/two.webp, number: 2}
-      - {udm: куинь, ru: три, image: words/three.webp, number: 3}
-      - {udm: ньыль, ru: четыре, image: words/four.webp, number: 4}
-      - {udm: вить, ru: пять, image: words/five.webp, number: 5}
-      - {udm: куать, ru: шесть, image: words/six.webp, number: 6}
-      - {udm: сизьым, ru: семь, image: words/seven.webp, number: 7}
-      - {udm: тямыс, ru: восемь, image: words/eight.webp, number: 8}
-      - {udm: укмыс, ru: девять, image: words/nine.webp, number: 9}
-      - {udm: дас, ru: десять, image: words/ten.webp, number: 10}
+      - {udm: одӥг, ru: один, number: 1}
+      - {udm: кык, ru: два, number: 2}
+      - {udm: куинь, ru: три, number: 3}
+      - {udm: ньыль, ru: четыре, number: 4}
+      - {udm: вить, ru: пять, number: 5}
+      - {udm: куать, ru: шесть, number: 6}
+      - {udm: сизьым, ru: семь, number: 7}
+      - {udm: тямыс, ru: восемь, number: 8}
+      - {udm: укмыс, ru: девять, number: 9}
+      - {udm: дас, ru: десять, number: 10}
 
   - slug: wild-animals
     family: animals
