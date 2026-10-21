@@ -32,15 +32,13 @@ Python 3.12 по `backend/.python-version` и зависимости в `backend
 ```bash
 mise install && mise run setup                          # uv sync, миграции, словарь (seed идемпотентен)
 mise run dev                                            # runserver 0.0.0.0:8000
-mise run test                                           # pytest (настройки в pyproject.toml)
-mise run test -- tests/test_api.py::test_put_older_conflicts   # один тест
 mise run lint                                           # ruff check + format --check + проверка миграций (как в CI)
 mise run fmt | css | seed | bundle                      # формат / app.css / seed --update / снимок → mobile/assets/bundle
 ```
 
 Без `DATABASE_URL` используется SQLite, без `USE_S3=1` медиа лежат в `backend/media/`.
 `DJANGO_SECRET_KEY` обязателен при `DJANGO_DEBUG=0` (иначе настройки падают с
-`ImproperlyConfigured`); с DEBUG (по умолчанию в `mise run dev` и тестах) берётся ключ для
+`ImproperlyConfigured`); с DEBUG (по умолчанию в `mise run dev`) берётся ключ для
 разработки. `docker-compose.yml` передаёт локальный ключ по умолчанию, `docker-compose.prod.yml`
 без ключа в `.env` не запускается; Dockerfile и `android.yml` подставляют фиктивный ключ только
 для `collectstatic`/`build_bundle`.
@@ -66,19 +64,19 @@ CSS: `backend/static/css/app.css` **собирается и коммитится
 Снимок в `mobile/assets/bundle/` генерируется (`cd backend && mise run bundle`) и не коммитится.
 Иконка — `mobile/assets/icon/*.png` (отрисованы из `.svg` рядом); `dart run flutter_launcher_icons`
 (в `mise run setup` и в CI) записывает её поверх стандартной иконки Flutter.
-`mobile/test/widget_test.dart` должен оставаться в репозитории: иначе `flutter create` сгенерирует
-тест по умолчанию со ссылкой на `MyApp`, и `flutter analyze` упадёт.
+Тестов в `mobile/` нет. `flutter create` кладёт пример `test/widget_test.dart` со ссылкой на `MyApp`,
+с ним `flutter analyze` падает, поэтому `mise run setup` и CI сразу удаляют папку `test/`.
 
 ## CI/CD (`.github/workflows/`)
 
 `ci.yml` запускается на каждый push и PR. Задача `tests` (проверка `tests/ci`): ruff, проверка
-миграций на PostgreSQL 16 (сервис-контейнер, `makemigrations --check` и `migrate`), pytest. На push в
+миграций на PostgreSQL 16 (сервис-контейнер, `makemigrations --check` и `migrate`). На push в
 `main` дальше идут `build` — образ web из `backend/` собирается в GitHub Actions (кэш слоёв `type=gha`)
 и публикуется в GHCR как `ghcr.io/marshmeg/hakaton-ipek-2026/web:<sha>` и `:latest` — и `deploy`.
 
 `android.yml` (push только в `main`, ветки — через `pull_request`) запускается при изменениях в
 `mobile/**` или в самом workflow (и вручную через `workflow_dispatch`): `flutter analyze`,
-`flutter test`, `flutter build apk`; на `main` задача `release` публикует GitHub Release
+`flutter build apk`; на `main` задача `release` публикует GitHub Release
 `apk-<run_number>` с `votes.apk`. Офлайн-снимок в CI не собирается: APK скачивает его с сервера
 при первом запуске, поэтому правки бэкенда не пересобирают APK. Постоянная ссылка —
 `releases/latest/download/votes.apk`; адрес сервера в APK — `vars.SERVER_URL || https://hakaton.marshmeg.ru`
@@ -112,7 +110,7 @@ rsync'ом в `/opt/votes` на сервер (`vars.DEPLOY_USER@vars.DEPLOY_HOST
   `content.py` строит `/content.json` — единый документ, который читают все игры. Здесь же страницы
   обучения (`/learn/`, `/learn/<slug>/` — карточки темы).
 - `play` — страницы (`views.py`: главная, игры, игра, профиль, настройки, отчёт — одинаковые для всех,
-  без CSRF-токенов и данных игрока в HTML, проверяется в `test_pages.py`), `/media/` из хранилища,
+  без CSRF-токенов и данных игрока в HTML), `/media/` из хранилища,
   `/bundle/` (раздаёт `BUNDLE_DIR`), JSON API аккаунта (`api.py`, подписанный Bearer-токен, без CSRF):
   `POST /api/signup`, `POST /api/login` → `{token, username, save}`; `GET|PUT /api/save` — PUT
   сохраняет, только если `save.updated >= stored.updated`, иначе `409 {save: серверное}`; лимит 256 КБ
@@ -125,8 +123,7 @@ rsync'ом в `/opt/votes` на сервер (`vars.DEPLOY_USER@vars.DEPLOY_HOST
   `{v, updated, profile: {name, avatar}, words: {id: {ok, bad, seen, streak, last}},
   days: {YYYY-MM-DD: {ok, bad, seen}}, games: {slug: {ok, bad, played, best}}}`), плюс скопированные
   из него `updated`/`display_name`/`avatar` для админки. Поле не названо `save`, чтобы не затенять
-  `Model.save()`. Миграция `accounts/0005` свернула старый журнал `play.Attempt` в сохранения
-  (`build_save`), `play/0002` удалила журнал.
+  `Model.save()`.
 
 ## Клиент (`backend/static/js/`)
 

@@ -80,7 +80,7 @@ Android (Flutter)                                   Сервер (Django)
 | Frontend | Django Templates, Alpine.js, Tailwind CSS (брендбук в `backend/tailwind.config.js`) |
 | Данные | PostgreSQL 16, MinIO (S3) для аудио и картинок |
 | Мобильное приложение | Flutter: `flutter_inappwebview` (перехват запросов), уведомления, геолокация |
-| Инфраструктура | mise, Docker Compose, GitHub Actions (тесты, линтер, снимок + сборка APK) |
+| Инфраструктура | mise, Docker Compose, GitHub Actions (линтер, проверка миграций, сборка APK) |
 
 ## Быстрый запуск (Docker)
 ```bash
@@ -127,7 +127,7 @@ mise run dev                 # http://localhost:8000
 **Скачать APK:** https://github.com/MarshMeg/hakaton-ipek-2026/releases/latest/download/votes.apk
 (Android 8.0 и выше).
 
-CI собирает APK только при изменениях в `mobile/` (`flutter analyze`, `flutter test`,
+CI собирает APK только при изменениях в `mobile/` (`flutter analyze`,
 `flutter build apk`). Офлайн-снимка в этом APK нет: приложение скачивает его с сервера при первом
 запуске. Сборка из `main` публикуется в [Releases](https://github.com/MarshMeg/hakaton-ipek-2026/releases).
 
@@ -139,9 +139,9 @@ mise run setup                  # flutter create + pub get
 mise run dev                    # эмулятор против http://10.0.2.2:8000
 ```
 
-## Тесты и линтер
+## Линтер
 ```bash
-cd backend && mise run test && mise run lint
+cd backend && mise run lint
 cd mobile && mise run check
 ```
 
@@ -159,7 +159,7 @@ cd mobile && mise run check
 | Документ | О чём |
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | общая схема, офлайн-снимок, сохранение и синхронизация, деплой |
-| [docs/BACKEND.md](docs/BACKEND.md) | модели, страницы и API, management-команды, тесты |
+| [docs/BACKEND.md](docs/BACKEND.md) | модели, страницы и API, management-команды, запуск |
 | [docs/FRONTEND.md](docs/FRONTEND.md) | `app.js` и `games.js`, шаблоны, особенности Alpine.js 3 |
 | [docs/MOBILE.md](docs/MOBILE.md) | Flutter-обёртка, обновление снимка, мост, разрешения, сборка APK |
 | [docs/development.md](docs/development.md) | команды, CI/CD и соглашения для разработчика |
@@ -175,7 +175,6 @@ backend/            Django-проект
   templates/        HTML-шаблоны (Alpine.js); игры — templates/play/games/
   static/js/        app.js — вход, сохранение, синхронизация, статистика; games.js — шесть игр и «Трудные слова»
   seeds/            vocab.yaml и медиа к нему
-  tests/            pytest
 mobile/             Flutter: WebView + офлайн-снимок (lib/bundle.dart) + мост (lib/bridge.dart)
 docs/               архитектура, заметки для разработчика, настройка окружения
 ROADMAP.md          план работ

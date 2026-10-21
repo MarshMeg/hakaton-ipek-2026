@@ -98,8 +98,7 @@ blobs/<sha256>  содержимое файла
 Прерванная игра прогресс не меняет.
 
 Переход со старой версии: журнал событий `zb.state.v1` (и его копия `progress.json` во Flutter)
-сворачивается в сохранение на телефоне, а на сервере миграция `accounts/0005` сворачивает
-`play.Attempt` тем же способом.
+сворачивается в сохранение на телефоне (`fromEvents` в `app.js`).
 
 Токен — подписанный id пользователя (`django.core.signing`), cookies и CSRF не нужны.
 
@@ -111,7 +110,7 @@ blobs/<sha256>  содержимое файла
 снаружи, web/MinIO/PostgreSQL только во внутренней сети). Автодеплой из `main`:
 
 ```
-push в main → ci.yml: tests (ruff, миграции на PostgreSQL 16, pytest)
+push в main → ci.yml: tests (ruff, миграции на PostgreSQL 16)
             → build: образ web → ghcr.io/marshmeg/hakaton-ipek-2026/web:<sha> и :latest
             → deploy: rsync compose-файлов и deploy/ → deploy/deploy.sh <образ>
                       → проверка $DEPLOY_URL/content.json; не ответил — deploy.sh --rollback
@@ -123,7 +122,7 @@ push в main → ci.yml: tests (ruff, миграции на PostgreSQL 16, pytes
 образов, откат) — в [development.md](development.md#cicd-githubworkflows).
 
 ## Документация по частям
-- [BACKEND.md](BACKEND.md) — модели, эндпоинты, management-команды, запуск и тесты.
+- [BACKEND.md](BACKEND.md) — модели, эндпоинты, management-команды, запуск.
 - [FRONTEND.md](FRONTEND.md) — `app.js` (`ZB.*`), `games.js`, особенности Alpine.js 3.
 - [MOBILE.md](MOBILE.md) — Flutter-обёртка, офлайн-снимок на телефоне, мост, сборка APK.
 - [development.md](development.md) — команды и соглашения, [local-setup.md](local-setup.md) — окружение.

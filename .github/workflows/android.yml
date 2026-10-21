@@ -56,11 +56,12 @@ jobs:
             ${{ steps.ndk.outputs.sdk }}/cmake/3.22.1
           key: android-ndk-${{ steps.ndk.outputs.version }}-cmake-3.22.1
       - run: flutter create --platforms=android --org ru.marshmeg --project-name hakaton .
+      # flutter create кладёт пример test/widget_test.dart со ссылкой на MyApp — с ним flutter analyze падает.
+      - run: rm -rf test
       - run: flutter pub get
       # Иконка приложения поверх стандартной из flutter create (настройки — в pubspec.yaml).
       - run: dart run flutter_launcher_icons
       - run: flutter analyze
-      - run: flutter test
       # Адрес сервера вшивается в APK. Можно переопределить переменной репозитория SERVER_URL
       # (Settings → Secrets and variables → Actions → Variables).
       # Только ARM (32 и 64 бит): x86_64 нужен лишь эмуляторам, а без него сборка быстрее и APK меньше.

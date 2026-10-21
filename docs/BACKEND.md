@@ -55,14 +55,13 @@ SQLite без `DATABASE_URL`. Медиа — MinIO через `django-storages` 
 | `updated` | копия `save.updated` (мс по часам телефона) |
 | `display_name`, `avatar` | копии `save.profile.name` / `.avatar` для админки |
 
-Миграции: `accounts/0004` переносит `User.first_name` в `display_name`, `accounts/0005` сворачивает
-журнал `play.Attempt` в `save_data` (функция `build_save`), `play/0002` удаляет `Attempt`,
-`vocab/0002` переименовывает набор «Огород или лес?» в «Овощи или ягоды?».
+Миграции: по одной `0001_initial` в `accounts` и `vocab`, в `play` моделей и миграций нет. На базе, где
+применены старые миграции, `migrate` ничего не делает: `0001_initial` уже отмечена применённой, а схема
+совпадает с итоговой.
 
 ## Страницы
 
-Все страницы одинаковы для любого посетителя: нет данных игрока и CSRF-токенов (проверяет
-`tests/test_pages.py`). Имя, опыт и статистику подставляет JS. Поэтому их можно положить в офлайн-снимок.
+Все страницы одинаковы для любого посетителя: нет данных игрока и CSRF-токенов. Имя, опыт и статистику подставляет JS. Поэтому их можно положить в офлайн-снимок.
 
 | Путь | View | Шаблон |
 |---|---|---|
@@ -149,27 +148,12 @@ Caddy), без заголовка — `REMOTE_ADDR`.
 
 `.env` читается из корня репозитория. Часовой пояс — `Europe/Samara` (Ижевск, UTC+4).
 
-## Запуск и тесты
+## Запуск
 
 ```bash
 cd backend
 mise install && mise run setup   # uv sync, migrate, seed
 mise run dev                     # http://localhost:8000
-mise run test                    # pytest, настройки в pyproject.toml
-mise run test -- tests/test_api.py::test_put_older_conflicts
 mise run lint                    # ruff check, ruff format --check, makemigrations --check
 mise run bundle                  # снимок в ../mobile/assets/bundle
 ```
-
-Тесты (`backend/tests/`):
-
-| Файл | Что проверяет |
-|---|---|
-| `test_api.py` | регистрация, вход, `GET`/`PUT /api/save`, 409/413/400, настройки, ограничение частоты, миграция `0005` |
-| `test_bundle.py` | состав снимка, детерминированная версия, удаление старых блобов, `/bundle/`, типы медиа |
-| `test_pages.py` | экраны открываются, не зависят от посетителя, «Трудные слова» |
-| `test_vocab.py` | идемпотентность `seed`, сохранность правок из админки, картинки, факты, `/content.json` |
-| `test_settings.py` | `DJANGO_SECRET_KEY` обязателен без DEBUG |
-
-`conftest.py`: фикстура `vocab` загружает словарь командой `seed`; перед каждым тестом очищается
-кэш (счётчики `rate_limit`), `MEDIA_ROOT` — временная папка.

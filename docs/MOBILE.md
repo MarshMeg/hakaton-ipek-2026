@@ -95,7 +95,7 @@ JS вызывает `window.flutter_inappwebview.callHandler(имя, …)` че�
 cd mobile
 mise trust && mise install
 mise run setup    # flutter create --platforms=android --org ru.marshmeg --project-name hakaton . + pub get + иконка
-mise run check    # flutter analyze + flutter test
+mise run check    # flutter analyze
 mise run dev      # эмулятор, SERVER_URL=http://10.0.2.2:8000
 mise run apk      # release APK для android-arm и android-arm64
 ```
@@ -104,7 +104,7 @@ mise run apk      # release APK для android-arm и android-arm64
 `https://hakaton.marshmeg.ru` (`defaultServerUrl` в `main.dart`).
 
 CI (`.github/workflows/android.yml`) запускается при изменениях в `mobile/**` или в самом workflow
-и вручную: `flutter create`, `pub get`, `flutter_launcher_icons`, `flutter analyze`, `flutter test`,
+и вручную: `flutter create`, `pub get`, `flutter_launcher_icons`, `flutter analyze`,
 `flutter build apk --release --target-platform android-arm,android-arm64
 --dart-define=SERVER_URL=${vars.SERVER_URL || https://hakaton.marshmeg.ru}`. На `main` задача `release`
 публикует GitHub Release `apk-<run_number>` с `votes.apk`; постоянная ссылка —

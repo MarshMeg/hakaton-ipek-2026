@@ -23,7 +23,7 @@ Flutter 3.47 и Java 17 ставятся через mise (`mobile/mise.toml`), A
 cd backend && mise run bundle && cd ../mobile
 mise trust && mise install
 mise run setup    # flutter create (создаст android/) + pub get + иконка приложения
-mise run check    # flutter analyze + flutter test
+mise run check    # flutter analyze
 mise run dev      # эмулятор против локального сервера http://10.0.2.2:8000
 mise run apk      # release APK, сервер https://hakaton.marshmeg.ru
 ```
