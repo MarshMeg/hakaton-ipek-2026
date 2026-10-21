@@ -1,7 +1,7 @@
 # Обратный прокси на сервере: HTTPS (сертификат Let's Encrypt Caddy получает сам) и раздача медиа.
 # SITE_ADDRESS берётся из .env на сервере, например:
 #   SITE_ADDRESS=hakaton.marshmeg.ru
-#   SITE_ADDRESS=hakaton.marshmeg.ru, http://195.209.218.45   (ещё и по IP без HTTPS)
+#   SITE_ADDRESS=hakaton.marshmeg.ru, http://129.101.119.98   (ещё и по IP без HTTPS)
 {$SITE_ADDRESS} {
 	encode gzip
 
