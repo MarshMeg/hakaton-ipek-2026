@@ -8,13 +8,13 @@
      "words": {"17": {"ok": 3, "bad": 1, "seen": 2, "streak": 2, "last": 1760500000000}},
      "days": {"2026-10-15": {"ok": 12, "bad": 3, "seen": 5}},
      "games": {"choose": {"ok": 20, "bad": 4, "played": 3, "best": 3}},
-     "settings": {"sound": true, "notifications": false}}
+     "settings": {"sound": true, "notifications": false, "geo": false}}
 
 `streak` — верные ответы на слово подряд (после ошибки — 0): после трёх подряд слово
 перестаёт быть «трудным» (режим «Трудные слова», `ZB.hardWords` в static/js/app.js). В старых
 сохранениях поля нет, клиент считает его нулём.
 
-`settings` — настройки игрока (звук, напоминание), едут вместе с прогрессом на
+`settings` — настройки игрока (звук, напоминание, геолокация), едут вместе с прогрессом на
 любой телефон. Только булевы ключи из SETTINGS_DEFAULTS: неизвестные отбрасываются, не булевы
 значения и отсутствующие ключи заменяются значениями по умолчанию. В сохранениях, записанных до
 появления блока, его нет — тогда подставляются значения по умолчанию (`clean_settings`).
@@ -47,7 +47,7 @@ TOKEN_SALT = "votes.api"
 SAVE_VERSION = 2
 MAX_SAVE_BYTES = 256 * 1024
 SAVE_SECTIONS = ("words", "days", "games")
-SETTINGS_DEFAULTS = {"sound": True, "notifications": False}
+SETTINGS_DEFAULTS = {"sound": True, "notifications": False, "geo": False}
 USERNAME_MAX = 150  # как у поля username в модели User
 PASSWORD_MIN = 6  # как в AUTH_PASSWORD_VALIDATORS
 NAME_MAX = 60
