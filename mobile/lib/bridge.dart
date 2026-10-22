@@ -7,11 +7,15 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'bundle.dart';
 
 const _reminderId = 1;
+
+/// Сколько ждать новую точку, если последней известной нет.
+const _locationTimeout = Duration(seconds: 15);
 
 /// Ежедневное напоминание: канал уведомлений Android и текст.
 const _reminderDetails = NotificationDetails(
@@ -50,6 +54,7 @@ class Bridge {
     handle('restore', (_) => _restore());
     handle('info', (_) async => {'bundle': bundle.version, 'pending': bundle.pendingVersion});
     handle('setNotifications', (args) => _setNotifications(args.first == true));
+    handle('location', (_) => _location());
   }
 
   // --- резервная копия прогресса ---
@@ -126,5 +131,32 @@ class Bridge {
     final android = _notifications
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     return await android?.requestNotificationsPermission() ?? true;
+  }
+
+  // --- геолокация: только примерное место, для «сколько км до Ижевска» ---
+
+  Future<Map<String, double>?> _location() async {
+    if (!await Geolocator.isLocationServiceEnabled()) return null;
+    if (!await _hasLocationPermission()) return null;
+    // Последнее известное место подходит (нужна только примерная точка), иначе — новый запрос.
+    final last = await Geolocator.getLastKnownPosition();
+    final pos = last ??
+        await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.low,
+            timeLimit: _locationTimeout,
+          ),
+        );
+    return {'lat': pos.latitude, 'lon': pos.longitude};
+  }
+
+  // Разрешение на геолокацию; если его ещё не спрашивали — спрашиваем.
+  Future<bool> _hasLocationPermission() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    return permission != LocationPermission.denied &&
+        permission != LocationPermission.deniedForever;
   }
 }

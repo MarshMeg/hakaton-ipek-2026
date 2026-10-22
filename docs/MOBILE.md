@@ -8,7 +8,7 @@
 - Пакет Dart `votes`, application id и namespace Android — `ru.marshmeg.hakaton`.
 - Android 8.0+ (`minSdk 26` в `android/app/build.gradle.kts`), Java 17, Flutter 3.47 (`mobile/mise.toml`).
 - Зависимости (`pubspec.yaml`): `flutter_inappwebview` 6.2.0-beta.3, `path_provider`, `crypto`,
-  `http`, `flutter_local_notifications`; для иконки — `flutter_launcher_icons`.
+  `http`, `flutter_local_notifications`, `geolocator`; для иконки — `flutter_launcher_icons`.
 
 ## Файлы
 
@@ -16,7 +16,7 @@
 |---|---|
 | `lib/main.dart` | `VotesApp` → `GameScreen`: заставка, обновление снимка, InAppWebView, перехват запросов, кнопка «назад», экран ошибки |
 | `lib/bundle.dart` | `Manifest`, `BundleFile`, `Bundle`: выбор активного снимка, чтение блобов, загрузка обновления, уборка старых блобов |
-| `lib/bridge.dart` | `Bridge`: обработчики JS (`backup`, `restore`, `info`, `setNotifications`) |
+| `lib/bridge.dart` | `Bridge`: обработчики JS (`backup`, `restore`, `info`, `setNotifications`, `location`) |
 | `android/app/src/main/AndroidManifest.xml` | разрешения и приёмники уведомлений |
 | `android/app/build.gradle.kts` | `minSdk 26`, desugaring для `flutter_local_notifications`, release подписан debug-ключом |
 
@@ -71,6 +71,7 @@ JS вызывает `window.flutter_inappwebview.callHandler(имя, …)` че�
 | `restore` | — | содержимое `save.json`, а если его нет — старого `progress.json`; иначе `null` |
 | `info` | — | `{bundle: версия снимка, pending: скачанная версия или null}` (экран «Настройки») |
 | `setNotifications` | `bool` | включить — запросить разрешение и раз в день показывать «Слово дня ждёт тебя!» (`periodicallyShow`, `RepeatInterval.daily`, канал `daily_word`); `false`, если разрешения нет. Выключить — отменить |
+| `location` | — | `{lat, lon}` или `null`: служба геолокации и разрешение, последнее известное место или новое с низкой точностью (до 15 с) |
 
 Копия `save.json` нужна на случай очистки данных WebView: при запуске `app.js` берёт её, если она
 новее localStorage.
@@ -81,8 +82,9 @@ JS вызывает `window.flutter_inappwebview.callHandler(имя, …)` че�
 |---|---|
 | `INTERNET` | синхронизация сохранения и обновление снимка |
 | `POST_NOTIFICATIONS`, `RECEIVE_BOOT_COMPLETED` | ежедневное напоминание и его восстановление после перезагрузки (приёмники `flutter_local_notifications`) |
+| `ACCESS_COARSE_LOCATION` | примерное место для «сколько км до Ижевска» на главной |
 
-Уведомления включаются только переключателем в «Настройках». В `<application>`
+Уведомления и геолокация включаются только переключателями в «Настройках». В `<application>`
 включён `usesCleartextTraffic="true"` (разрешены запросы по HTTP).
 
 ## Сборка

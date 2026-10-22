@@ -47,4 +47,11 @@
   <div class="rounded-2xl bg-surface p-3"><p class="text-2xl font-extrabold">📚 <span x-text="$store.app.stats.learned"></span></p><p class="text-xs font-bold text-muted">слов выучено</p></div>
 </section>
 
+{# Геолокация (включается в настройках): сколько километров до Ижевска. #}
+<p class="mt-4 text-center text-sm font-bold text-muted" x-cloak
+   x-data="{ km: null }"
+   x-init="if ($store.app.settings.geo) ZB.locate().then(p => { if (p) km = ZB.distanceKm(p, ZB.IZHEVSK) })"
+   x-show="km !== null">
+  📍 <span x-text="km < 30 ? 'Ты в Ижевске — столице Удмуртии!' : 'До Ижевска, столицы Удмуртии, ' + km + ' км'"></span>
+</p>
 {% endblock %}
