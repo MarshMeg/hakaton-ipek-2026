@@ -5,7 +5,7 @@
  * Прогресс — одно «сохранение» на аккаунт (формат v2, см. play/api.py) в localStorage
  * (SAVE_KEY) с копией во Flutter (файл на телефоне), чтобы пережить очистку данных WebView.
  * При синхронизации более новое сохранение (по полю updated) заменяет старое целиком.
- * Настройки (звук, напоминание, геолокация) входят в сохранение (блок settings) и едут
+ * Настройки (звук, напоминание) входят в сохранение (блок settings) и едут
  * вместе с прогрессом на другой телефон; SETTINGS_KEY — их локальный кэш. Аккаунт (AUTH_KEY)
  * лежит отдельно.
  *
@@ -18,8 +18,7 @@
   var SAVE_KEY = 'zb.save.v2';
   var AUTH_KEY = 'zb.auth.v1';
   var SETTINGS_KEY = 'zb.settings.v1'; // кэш settings из сохранения
-  var GEO_DEVICE_KEY = 'zb.geo.device'; // на этом устройстве геолокация уже разрешена
-  var SETTINGS_DEFAULTS = { sound: true, notifications: false, geo: false };
+  var SETTINGS_DEFAULTS = { sound: true, notifications: false };
   var OLD_STATE_KEY = 'zb.state.v1'; // журнал событий старых версий, переводится в сохранение
   var BOOTED_KEY = 'zb.booted'; // sessionStorage: синхронизация при запуске уже была
   var XP_PER_CORRECT = 10;
@@ -183,19 +182,12 @@
     return out;
   }
 
-  /* values — настройки из сохранения (кэш в SETTINGS_KEY, чтобы работали и до входа).
-   * Геолокация показывается, только если включена в аккаунте И разрешена на этом устройстве
-   * (geoEnabled): пришедшее с другого телефона geo=true не вызывает запрос разрешения молча. */
+  /* values — настройки из сохранения (кэш в SETTINGS_KEY, чтобы работали и до входа). */
   var Settings = {
     values: cleanSettings(readJSON(window.localStorage, SETTINGS_KEY)),
 
-    geoAllowed: function () { return !!readJSON(window.localStorage, GEO_DEVICE_KEY); },
-
-    geoEnabled: function () { return this.values.geo && this.geoAllowed(); },
-
     /* Изменение игроком: в сохранение через Save.commit (растёт updated, уходит на сервер). */
     set: function (key, value) {
-      if (key === 'geo' && value) writeJSON(window.localStorage, GEO_DEVICE_KEY, true);
       this.values[key] = value;
       writeJSON(window.localStorage, SETTINGS_KEY, this.values);
       var changed = Save.data && Save.data.settings[key] !== value;
@@ -317,7 +309,6 @@
     // Не через Settings.set: commit поднял бы updated текущего сохранения, и прогресс из
     // журнала ниже проиграл бы ему. Настройки попадут в сохранение через emptySave.
     if (state && state.settings && !readJSON(window.localStorage, SETTINGS_KEY)) {
-      if (state.settings.geo) writeJSON(window.localStorage, GEO_DEVICE_KEY, true);
       Settings.apply(state.settings);
     }
     var old = fromEvents(state || {});
@@ -901,39 +892,6 @@
     osc.stop(start + NOTE_STOP);
   }
 
-  // ---------- геолокация ----------
-
-  var IZHEVSK = { lat: 56.8526, lon: 53.2045 };
-  var EARTH_RADIUS_KM = 6371;
-  var GEO_TIMEOUT_MS = 10000;
-  var GEO_MAX_AGE_MS = 3600000; // место часовой давности тоже подходит
-
-  // Расстояние по прямой в км (формула гаверсинусов).
-  function distanceKm(a, b) {
-    var rad = Math.PI / 180;
-    var dLat = (b.lat - a.lat) * rad;
-    var dLon = (b.lon - a.lon) * rad;
-    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    return Math.round(EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h)));
-  }
-
-  /* Где игрок: сначала через Flutter (geolocator), а если моста нет или он вернул пусто —
-   * через геолокацию браузера. null — место узнать не удалось. */
-  function locate() {
-    return Bridge.call('location').then(function (pos) {
-      if (pos && pos.lat != null) return pos;
-      if (!navigator.geolocation) return null;
-      return new Promise(function (resolve) {
-        navigator.geolocation.getCurrentPosition(
-          function (p) { resolve({ lat: p.coords.latitude, lon: p.coords.longitude }); },
-          function () { resolve(null); },
-          { timeout: GEO_TIMEOUT_MS, maximumAge: GEO_MAX_AGE_MS }
-        );
-      });
-    });
-  }
-
   // ---------- Alpine ----------
 
   /* Профиль для шаблонов: name и avatar — что показывать (без имени — логин аккаунта, без
@@ -948,11 +906,6 @@
     };
   }
 
-  // Настройки для шаблонов. geo — то, что действует на этом устройстве (см. Settings.geoEnabled).
-  function shownSettings() {
-    return Object.assign({}, Settings.values, { geo: Settings.geoEnabled() });
-  }
-
   document.addEventListener('alpine:init', function () {
     var Alpine = window.Alpine;
     Alpine.store('app', {
@@ -960,7 +913,7 @@
       phase: 'loading',
       profile: null,
       account: null,
-      settings: shownSettings(),
+      settings: Object.assign({}, Settings.values),
       stats: computeStats(null, null),
       content: null,
       ready: false,
@@ -972,7 +925,7 @@
         var auth = Auth.get();
         this.account = auth && auth.token ? { username: auth.username, synced: auth.synced || 0 } : null;
         this.profile = save && Boot.phase === 'ready' ? shownProfile(save.profile, this.account) : null;
-        this.settings = shownSettings();
+        this.settings = Object.assign({}, Settings.values);
         this.stats = computeStats(save, this.content);
       },
     });
@@ -998,7 +951,6 @@
     hardWords: hardWords, HARD_CLEARED_AFTER: HARD_CLEARED_AFTER, HARD_MIN: HARD_MIN,
     pic: pic, picKey: picKey, samePic: samePic, playAudio: playAudio,
     signup: signup, login: login, logout: logout,
-    locate: locate, distanceKm: distanceKm, IZHEVSK: IZHEVSK,
     shuffle: shuffle, sample: sample, param: param, dayKey: dayKey,
     AVATARS: AVATARS,
   };

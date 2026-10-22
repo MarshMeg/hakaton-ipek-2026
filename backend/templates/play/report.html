@@ -2,7 +2,7 @@
 {% block title %}Отчёт — Ӟеч-а бур-а удмурт кыл?{% endblock %}
 {% block content %}
 {# Сводка для родителя или учителя. Строится из сохранения на телефоне ($store.app.stats), поэтому работает без сети. #}
-<div x-data="reportPage()">
+<div x-data>
   <a href="{% url 'play:profile' %}" class="font-bold text-muted print:hidden">← Профиль</a>
   <h1 class="mt-2 text-2xl font-extrabold">📋 Отчёт об успехах</h1>
   <template x-if="$store.app.profile">
@@ -31,52 +31,8 @@
         </template>
       </div>
 
-      <div class="card mt-3">
-        <p class="font-extrabold">Выученные слова (<span x-text="$store.app.stats.learned"></span>)</p>
-        <p class="mt-1 text-sm text-muted-strong" x-show="!$store.app.stats.learned">Слово считается выученным после двух верных ответов, если верных больше, чем ошибок. Слово, в котором недавно ошибся, снова станет выученным после трёх верных ответов подряд.</p>
-        <p class="mt-1" x-text="$store.app.stats.learnedWords.map(w => w.udm + ' — ' + w.ru).join('; ')"></p>
-      </div>
-
-      <div class="card mt-3" x-show="$store.app.stats.hard.length">
-        <p class="font-extrabold">Стоит повторить</p>
-        <p class="mt-1" x-text="$store.app.stats.hard.map(h => h.word.udm + ' — ' + h.word.ru + ' (ошибок: ' + h.bad + ')').join('; ')"></p>
-      </div>
-
-      <div class="mt-5 grid grid-cols-2 gap-3 print:hidden">
-        <button type="button" class="btn-primary" @click="share()">Поделиться</button>
-        <button type="button" class="btn-ghost" @click="window.print()">Печать</button>
-      </div>
-      <p class="mt-2 text-sm font-bold text-ok" x-show="notice" x-text="notice"></p>
+      <button type="button" class="btn-primary mt-5 w-full print:hidden" @click="window.print()">Печать</button>
     </div>
   </template>
 </div>
-
-<script>
-  function reportPage() {
-    return {
-      notice: '',
-      text() {
-        const s = this.$store.app.stats;
-        const p = this.$store.app.profile;
-        const lines = [
-          'Ӟеч-а бур-а удмурт кыл? — отчёт об успехах',
-          p.name + ', ' + new Date().toLocaleDateString('ru-RU'),
-          'Дней занятий: ' + s.activeDays + ', подряд сейчас: ' + s.streak,
-          'Ответов в играх: ' + s.answers + ', верных: ' + s.accuracy + '%',
-          'Выучено слов: ' + s.learned + ' из ' + s.totalWords,
-        ];
-        if (s.learnedWords.length) lines.push('Выучены: ' + s.learnedWords.map(w => w.udm + ' — ' + w.ru).join(', '));
-        if (s.hard.length) lines.push('Повторить: ' + s.hard.map(h => h.word.udm + ' — ' + h.word.ru).join(', '));
-        return lines.join('\n');
-      },
-      async share() {
-        const text = this.text();
-        if (ZB.Bridge.available()) { await ZB.Bridge.call('share', text); return; }
-        if (navigator.share) { navigator.share({ text }).catch(() => {}); return; }
-        try { await navigator.clipboard.writeText(text); this.notice = 'Отчёт скопирован — вставь его в сообщение.'; }
-        catch (e) { this.notice = text; }
-      },
-    };
-  }
-</script>
 {% endblock %}

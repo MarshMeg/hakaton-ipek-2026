@@ -19,7 +19,7 @@
 | утилиты | `dayKey(ts)` (`YYYY-MM-DD` по местному времени), `shuffle`, `sample`, `param`, `escapeHtml`, `readJSON`/`writeJSON` с `try/catch` |
 | мост во Flutter | `ZB.Bridge` — `ready` (Promise, ждёт `flutterInAppWebViewPlatformReady` не дольше 1,5 с), `available()`, `call(имя, …)`; без моста `call` возвращает `undefined` |
 | сервер | `api(method, path, body, opts)` — `fetch` к `/api/` с Bearer-токеном (параметры собирает `requestInit`, ответ разбирает `readResponse`); ошибка сети или тайм-аут → `err.network` (`networkError()`), не 2xx → `err.status` и `err.data` |
-| настройки | `ZB.Settings` — `values`, `set(key, value)` (через `Save.commit`), `apply(settings)` (из пришедшего сохранения, включает/выключает напоминание через мост), `geoEnabled()` |
+| настройки | `ZB.Settings` — `values`, `set(key, value)` (через `Save.commit`), `apply(settings)` (из пришедшего сохранения, включает/выключает напоминание через мост) |
 | аккаунт | `ZB.Auth` — `{username, token, synced}` в `zb.auth.v1` |
 | сохранение | `ZB.Save` — `data`, `get()`, `onChange(fn)`, `replace(save)`, `commit(mutator, opts)`, `push(opts)` (ошибки отправки — `pushFailed`); `normalizeSave`, `isNewer(save, than)`, `fromEvents` |
 | вход и синхронизация | `boot()` (`migrateOldStorage`, `finishBoot`), `syncSave()`, `adopt()`, `restoreBackup()`, `signup`, `login` (оба через `rememberAccount` и `enterGame`), `logout` |
@@ -28,7 +28,6 @@
 | прогресс | `addGame`, `addViews`, `cardViews()`, `hardWords`, `isHard`, `isLearned`; записи сохранения создают `wordEntry`, `dayEntry`, `gameEntry` |
 | статистика | `computeStats(save, content)` (части — `answerTotals`, `dayStreak`, `dailyChart`, `topicProgress`), `wordOfDay(content)` |
 | звук | `ZB.Sound.play('ok' \| 'bad' \| 'win' \| 'flip')` — синтез через Web Audio, без файлов; `playAudio(word)` — аудио слова |
-| геолокация | `locate()` (сначала мост, потом `navigator.geolocation`), `distanceKm`, `IZHEVSK` |
 | Alpine | `Alpine.store('app')` |
 
 ### Хранилище на телефоне
@@ -38,7 +37,6 @@
 | `zb.save.v2` | localStorage | сохранение (копия — `save.json` во Flutter через `backup`) |
 | `zb.auth.v1` | localStorage | `{username, token, synced}`; после 401 токен стирается, имя остаётся |
 | `zb.settings.v1` | localStorage | кэш блока `settings` из сохранения |
-| `zb.geo.device` | localStorage | геолокация разрешена на этом устройстве |
 | `zb.state.v1` | localStorage | журнал старой версии; при загрузке сворачивается в сохранение (`fromEvents`) и удаляется |
 | `zb.booted` | sessionStorage | полный цикл запуска уже пройден в этом WebView |
 
@@ -76,7 +74,7 @@
 | `phase` | `loading` (заставка в `base.html`) \| `auth` (окно `_auth.html`) \| `ready` |
 | `profile` | `{name, avatar, ownName, ownAvatar}` — только в фазе `ready`; без имени показывается логин, без зверька — первый из `AVATARS` |
 | `account` | `{username, synced}` или `null` |
-| `settings` | `Settings.values`, где `geo` = `geoEnabled()` |
+| `settings` | копия `Settings.values` |
 | `stats` | результат `computeStats` |
 | `content`, `ready` | словарь и флаг «словарь загружен» |
 | `refresh()` | пересчитывает всё выше; вызывается на `Save.onChange`, смене фазы и загрузке словаря |
@@ -164,7 +162,7 @@ slug в `play/games.py`, `game.html` пишет `x-data="{{ game.slug }}"` и п
 | `_auth.html` | `authWindow()` — шаги «привет» → «впервые?» → форма регистрации/входа; без сети — «Для первого входа нужен интернет» |
 | `play/game.html` | обёртка игры: выбор темы (если `by_topic`), правила, прогресс, общая панель ответа, экран итогов |
 | `play/profile.html` | `profilePage()` — правка имени и зверька, прогресс, трудные слова, аккаунт и выход, факты |
-| `play/report.html` | `reportPage()` — отчёт; «Поделиться»: мост → `navigator.share` → буфер обмена |
+| `play/report.html` | отчёт: сводка, график по дням, темы; кнопка «Печать» (`window.print()`, шапка и меню при печати скрыты) |
 | `play/settings.html` | `settingsPage()` — переключатели (`_toggle.html`), версия словаря и снимка (`Bridge.call('info')`) |
 | `vocab/topic.html` | `ZB.cardViews()` + у каждой карточки свой `x-data="{ open }"` |
 | `vocab/_pic.html` | серверная версия `ZB.pic` для карточек |

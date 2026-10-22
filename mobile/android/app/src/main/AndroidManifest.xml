@@ -6,8 +6,6 @@
     <!-- Ежедневное напоминание «Слово дня» (переключатель в настройках). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Примерное место — только чтобы показать расстояние до Ижевска (переключатель в настройках). -->
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:label="Ӟеч-а бур-а!"
