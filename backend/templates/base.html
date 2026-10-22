@@ -17,7 +17,7 @@
 {% comment %} Пустой x-data на <body> — корневой компонент Alpine, внутри него работают $store в шапке
    и меню. NOTE: если компонент игры пишет this.поле, которого нет в его данных, Alpine 3 кладёт
    это поле сюда, на <body> (так было с usedSets/usedWords в «Сортировке»). {% endcomment %}
-<body class="min-h-screen bg-brand-paper font-sans text-brand-ink antialiased" x-data>
+<body class="min-h-screen bg-brand-paper print:min-h-0 font-sans text-brand-ink antialiased" x-data>
   <header class="sticky top-0 z-20 bg-surface/95 backdrop-blur print:hidden">
     <div class="mx-auto flex max-w-xl items-center justify-between gap-2 px-4 py-2">
       <a href="{% url 'play:home' %}" class="flex min-w-0 items-center gap-2 text-lg font-extrabold">
