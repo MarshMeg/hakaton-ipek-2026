@@ -129,8 +129,7 @@ rsync'ом в `/opt/votes` на сервер (`vars.DEPLOY_USER@vars.DEPLOY_HOST
 
 `app.js` — вход **обязателен** (гостевого режима нет; для первого входа нужна сеть). localStorage:
 `zb.save.v2` (сохранение), `zb.auth.v1` (`{username, token, synced}`, в сохранение не входит),
-`zb.settings.v1` (кэш блока `settings` из сохранения), `zb.geo.device` (геолокация разрешена на
-этом устройстве); настройки меняются через `ZB.Settings.set` → `ZB.Save.commit`; старый журнал `zb.state.v1` при загрузке сворачивается
+`zb.settings.v1` (кэш блока `settings` из сохранения); настройки меняются через `ZB.Settings.set` → `ZB.Save.commit`; старый журнал `zb.state.v1` при загрузке сворачивается
 в сохранение (`fromEvents`). `ZB.Save.commit(mutator)` — единственный способ изменить прогресс;
 вызывается на *конечных действиях* (игра пройдена, ушли со страницы карточек или нажали «Готово»,
 изменён профиль): ставит `updated = now`, пишет в localStorage, отправляет копию `{save, auth}` во
@@ -158,7 +157,7 @@ Flutter через `ZB.Bridge` и делает `PUT`, не дожидаясь о
   `shouldInterceptRequest`, который отдаёт GET-запросы к серверу из снимка; `/api/`, `/admin/`,
   `/bundle/` идут в сеть; в User-Agent добавляется `VotesApp`.
 - `bridge.dart` — обработчики для JS: `backup`, `restore` (строка `{save, auth}` в `save.json`, при
-  её отсутствии — старый `progress.json`), `info`, `setNotifications`, `location`, `share`.
+  её отсутствии — старый `progress.json`), `info`, `setNotifications`.
 
 ## Оформление
 

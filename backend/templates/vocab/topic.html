@@ -14,15 +14,15 @@
 <div class="mt-5 grid grid-cols-2 gap-4">
   {% for word in words %}
   {# У каждой карточки свой маленький x-data (open), а see() берётся из внешнего ZB.cardViews(). #}
-  <div class="card relative cursor-pointer select-none text-center transition"
+  <div class="card relative cursor-pointer select-none px-2 text-center transition"
        x-data="{ open: false }"
        :class="open ? 'border-brand-sun' : ''"
        @click="open = !open; if (open) see({{ word.id }})">
     <div class="mx-auto h-20 w-20 text-6xl">{% include "vocab/_pic.html" %}</div>
-    <p class="mt-2 text-xl font-extrabold leading-tight">{{ word.udm }}</p>
+    <p class="mt-2 break-words text-base font-extrabold leading-tight hyphens-auto sm:text-xl">{{ word.udm }}</p>
     {% if word.transcription %}<p class="text-sm text-muted">[{{ word.transcription }}]</p>{% endif %}
     <div x-show="open" x-cloak class="mt-1">
-      <p class="text-lg font-bold text-brand-red">{{ word.ru }}</p>
+      <p class="break-words text-sm font-bold text-brand-red hyphens-auto sm:text-lg">{{ word.ru }}</p>
       {% if word.alt %}<p class="text-sm text-muted">также: {{ word.alt }}</p>{% endif %}
     </div>
     <p x-show="!open" class="mt-1 text-sm font-bold text-muted-soft">перевод?</p>
