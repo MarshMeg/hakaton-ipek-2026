@@ -1,4 +1,4 @@
-{# Прогресс по дням: ответы за последние две недели (зелёным — верные, красным — ошибки). #}
+{# Прогресс по дням: ответы за последние 7 дней (зелёным — верные, красным — ошибки). #}
 <div class="card mt-3">
   <p class="font-extrabold">Ответы по дням</p>
   <div class="mt-3 flex h-28 items-end gap-1">
@@ -10,7 +10,7 @@
           <div class="bg-bad" :style="'flex-grow:' + d.bad"></div>
           <div class="bg-ok" :style="'flex-grow:' + d.ok"></div>
         </div>
-        <span class="mt-1 text-[10px] font-bold text-muted-soft" x-text="d.label"></span>
+        <span class="mt-1 text-xs font-bold text-muted-soft" x-text="d.label"></span>
       </div>
     </template>
   </div>

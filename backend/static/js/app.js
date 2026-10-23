@@ -30,7 +30,7 @@
   var HARD_MIN = 3;
   var HARD_SHOWN = 5; // столько трудных слов показывает профиль
   var LEARNED_MIN_OK = 2; // «выучено» — не меньше стольких верных ответов
-  var CHART_DAYS = 14; // дней на графике «Ответы за 14 дней»
+  var CHART_DAYS = 7; // дней на графике «Ответы по дням»
   var MINUTE_MS = 60000;
   var DAY_MS = 86400000;
   var BRIDGE_WAIT_MS = 1500;
@@ -729,7 +729,7 @@
   // ---------- статистика ----------
 
   /* Вся статистика для шаблонов ($store.app.stats) считается заново из сохранения: опыт,
-   * серия дней, точность, выученные и трудные слова, график за 14 дней, прогресс по темам.
+   * серия дней, точность, выученные и трудные слова, график за 7 дней, прогресс по темам.
    * content может быть null (словарь ещё грузится) — тогда то, что зависит от слов, пустое. */
   function computeStats(save, content) {
     save = save || emptySave();
@@ -797,7 +797,8 @@
     return streak;
   }
 
-  // Столбики графика «Ответы за 14 дней» (_daily_chart.html), от самого старого дня к сегодня.
+  // Столбики графика «Ответы по дням» (_daily_chart.html), от самого старого дня к сегодня.
+  // Подпись — дата в виде дд.мм, её берём из ключа дня (YYYY-MM-DD).
   function dailyChart(days) {
     var now = Date.now();
     var chart = [];
@@ -805,7 +806,7 @@
       var ts = now - i * DAY_MS;
       var key = dayKey(ts);
       var day = days[key] || { ok: 0, bad: 0, seen: 0 };
-      chart.push({ key: key, label: new Date(ts).getDate(), ok: day.ok, bad: day.bad, seen: day.seen });
+      chart.push({ key: key, label: key.slice(8, 10) + '.' + key.slice(5, 7), ok: day.ok, bad: day.bad, seen: day.seen });
     }
     return chart;
   }

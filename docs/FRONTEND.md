@@ -95,7 +95,7 @@
 | `learned`, `learnedWords` | слова с `ok ≥ 2`, `ok > bad` и не трудные; удалённые из словаря не считаются |
 | `seen`, `totalWords` | слова с `seen > 0`; всего слов в словаре |
 | `hard`, `hardCount`, `hardPlayable` | первые 5 из `hardWords`, их число, `hardCount ≥ HARD_MIN` (3) |
-| `daily`, `maxDay` | 14 дней `{key, label, ok, bad, seen}` для графика `_daily_chart.html`; `maxDay` ≥ 1 |
+| `daily`, `maxDay` | 7 дней `{key, label, ok, bad, seen}` (`label` — дата `дд.мм`) для графика `_daily_chart.html`; `maxDay` ≥ 1 |
 | `topics` | по каждой теме: `total`, `learned`, `percent`, `seen` (карточка просмотрена или слово было в игре), `seenPercent` |
 | `byGame`, `byWord` | блоки `games` и `words` сохранения как есть |
 
